@@ -36,7 +36,6 @@ const minimumPlayerPrice = allPlayers.reduce((min, player) => Math.min(min, play
 let selectedPlayers: SelectablePlayer[] = []
 let claimedByOthers: Map<string, string> = new Map()
 let draftModeEnabled = false
-let draftModeCanEnable = false
 let draftOrder: string[] = []
 let draftCurrentTurn: string | null = null
 let draftComplete = false
@@ -125,31 +124,13 @@ async function refreshDraftMode(): Promise<void> {
 			complete?: boolean
 		}
 		draftModeEnabled = data.enabled === true
-		draftModeCanEnable = data.canEnable === true
 		draftOrder = Array.isArray(data.order) ? data.order.filter((value) => typeof value === 'string') : []
 		draftCurrentTurn = typeof data.currentTurn === 'string' ? data.currentTurn : null
 		draftComplete = data.complete === true
 	} catch {
 		// Keep existing state on failure.
 	}
-	renderDraftModeButton()
 	renderDraftStatus()
-}
-
-function renderDraftModeButton(): void {
-	const btn = document.querySelector<HTMLButtonElement>('#draft-mode-btn')
-	if (!btn) return
-	btn.textContent = draftModeEnabled ? 'Disable Draft Mode' : 'Enable Draft Mode'
-	btn.disabled = !draftModeEnabled && !draftModeCanEnable
-	btn.classList.toggle('draft-mode-btn--active', draftModeEnabled)
-	btn.title = !draftModeEnabled && !draftModeCanEnable
-		? 'All users must have empty teams to enable draft mode'
-		: ''
-
-	const saveOrderBtn = document.querySelector<HTMLButtonElement>('#save-draft-order-btn')
-	if (saveOrderBtn) {
-		saveOrderBtn.disabled = !draftModeEnabled || draftComplete
-	}
 }
 
 function renderDraftStatus(): void {
@@ -308,7 +289,6 @@ const myTeamMarkup = `
 				</div>
 				<button id="end-matchday-btn" type="button" class="end-matchday-btn" title="End matchday and accumulate points">End Matchday</button>
 			</div>
-			${isCurrentUserLee ? `<div class="draft-mode-section"><button id="draft-mode-btn" type="button" class="draft-mode-btn">Enable Draft Mode</button><input id="draft-order-input" class="draft-order-input" type="text" placeholder="Draft order e.g. lee, sam, alex" aria-label="Draft order" /><button id="save-draft-order-btn" type="button" class="draft-order-save-btn">Save Draft Order</button></div>` : ''}
 			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 			<div class="football-pitch" id="selected-team"></div>
 		</div>
@@ -1086,36 +1066,6 @@ if (searchInput && searchResults && selectedTeamList) {
 		void refreshDraftMode()
 		void refreshTransferRequests()
 	})
-
-	const draftModeBtn = document.querySelector<HTMLButtonElement>('#draft-mode-btn')
-	if (draftModeBtn) {
-		draftModeBtn.addEventListener('click', async () => {
-			const enabling = !draftModeEnabled
-			try {
-				const res = await fetch('/api/draft-mode', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ enabled: enabling, user: currentUsername }),
-				})
-				if (!res.ok) {
-					const err = (await res.json()) as { error?: string }
-					alert(err.error ?? 'Failed to update draft mode.')
-					return
-				}
-				draftModeEnabled = enabling
-			} catch {
-				alert('Failed to update draft mode.')
-				return
-			}
-			await refreshDraftMode()
-			await refreshClaimedPlayers()
-			renderSelectedTeam()
-			renderSearchResults()
-		})
-	}
-
-	const saveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#save-draft-order-btn')
-	const draftOrderInput = document.querySelector<HTMLInputElement>('#draft-order-input')
 	const transferRequestsContainer = document.querySelector<HTMLDivElement>('#transfer-requests')
 	if (transferRequestsContainer) {
 		transferRequestsContainer.addEventListener('click', async (event) => {
@@ -1154,32 +1104,7 @@ if (searchInput && searchResults && selectedTeamList) {
 		})
 	}
 
-	if (saveDraftOrderBtn && draftOrderInput) {
-		saveDraftOrderBtn.addEventListener('click', async () => {
-			const rawOrder = draftOrderInput.value.trim()
-			if (!rawOrder) {
-				alert('Enter a draft order first.')
-				return
-			}
 
-			try {
-				const res = await fetch('/api/draft-order', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ user: currentUsername, order: rawOrder }),
-				})
-				const payload = (await res.json()) as { error?: string }
-				if (!res.ok) {
-					alert(payload.error ?? 'Unable to save draft order.')
-					return
-				}
-				await refreshDraftMode()
-				renderSearchResults()
-			} catch {
-				alert('Unable to save draft order.')
-			}
-		})
-	}
 	document.addEventListener('visibilitychange', () => {
 		if (document.visibilityState === 'visible') {
 			loadTeamState()

@@ -34,6 +34,17 @@ function escapeHtml(value: string): string {
 const adminMarkup = `
   <section class="admin-container">
     <section class="admin-card">
+      <h2>Draft Mode</h2>
+      <p id="draft-mode-status" class="admin-message" aria-live="polite">Loading draft status...</p>
+      <p id="draft-mode-message" class="admin-message" aria-live="polite"></p>
+      <div class="draft-mode-section">
+        <button id="admin-draft-mode-btn" type="button" class="draft-mode-btn">Enable Draft Mode</button>
+        <input id="admin-draft-order-input" class="draft-order-input" type="text" placeholder="Draft order e.g. lee, sam, alex" aria-label="Draft order" />
+        <button id="admin-save-draft-order-btn" type="button" class="draft-order-save-btn">Save Draft Order</button>
+      </div>
+    </section>
+
+    <section class="admin-card">
       <h2>Edit User Team Names</h2>
       <p id="admin-message" class="admin-message" aria-live="polite"></p>
       <div id="team-name-editor" class="admin-list"></div>
@@ -68,6 +79,17 @@ const teamNameEditor = document.querySelector<HTMLDivElement>('#team-name-editor
 const pointAdjustor = document.querySelector<HTMLDivElement>('#point-adjustor')
 const passwordResetList = document.querySelector<HTMLDivElement>('#password-reset-list')
 const resetAllBtn = document.querySelector<HTMLButtonElement>('#reset-all-btn')
+const draftModeStatusEl = document.querySelector<HTMLParagraphElement>('#draft-mode-status')
+const draftModeMessageEl = document.querySelector<HTMLParagraphElement>('#draft-mode-message')
+const adminDraftModeBtn = document.querySelector<HTMLButtonElement>('#admin-draft-mode-btn')
+const adminDraftOrderInput = document.querySelector<HTMLInputElement>('#admin-draft-order-input')
+const adminSaveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#admin-save-draft-order-btn')
+
+let draftModeEnabled = false
+let draftModeCanEnable = false
+let draftOrder: string[] = []
+let draftComplete = false
+let draftCurrentTurn: string | null = null
 
 function setMessage(text: string, type: 'ok' | 'error'): void {
   if (!messageEl) {
@@ -97,6 +119,69 @@ function setPasswordResetMessage(text: string, type: 'ok' | 'error'): void {
   passwordResetMessageEl.textContent = text
   passwordResetMessageEl.classList.remove('ok', 'error')
   passwordResetMessageEl.classList.add(type)
+}
+
+function setDraftModeMessage(text: string, type: 'ok' | 'error'): void {
+  if (!draftModeMessageEl) {
+    return
+  }
+
+  draftModeMessageEl.textContent = text
+  draftModeMessageEl.classList.remove('ok', 'error')
+  draftModeMessageEl.classList.add(type)
+}
+
+function renderDraftModeControls(): void {
+  if (draftModeStatusEl) {
+    if (!draftModeEnabled) {
+      draftModeStatusEl.textContent = 'Draft Mode: Off'
+    } else if (draftOrder.length === 0) {
+      draftModeStatusEl.textContent = 'Draft Mode: On (waiting for order)'
+    } else if (draftComplete) {
+      draftModeStatusEl.textContent = `Draft Mode: Complete (${draftOrder.join(' -> ')})`
+    } else {
+      draftModeStatusEl.textContent = `Draft Mode: ${draftCurrentTurn ?? 'Unknown'}'s turn (${draftOrder.join(' -> ')})`
+    }
+  }
+
+  if (adminDraftModeBtn) {
+    adminDraftModeBtn.textContent = draftModeEnabled ? 'Disable Draft Mode' : 'Enable Draft Mode'
+    adminDraftModeBtn.disabled = !draftModeEnabled && !draftModeCanEnable
+    adminDraftModeBtn.classList.toggle('draft-mode-btn--active', draftModeEnabled)
+    adminDraftModeBtn.title = !draftModeEnabled && !draftModeCanEnable
+      ? 'All users must have empty teams to enable draft mode'
+      : ''
+  }
+
+  if (adminSaveDraftOrderBtn) {
+    adminSaveDraftOrderBtn.disabled = !draftModeEnabled || draftComplete
+  }
+}
+
+async function refreshDraftMode(): Promise<void> {
+  try {
+    const response = await fetch('/api/draft-mode', { cache: 'no-store' })
+    if (!response.ok) {
+      return
+    }
+
+    const data = (await response.json()) as {
+      enabled?: boolean
+      canEnable?: boolean
+      order?: string[]
+      currentTurn?: string | null
+      complete?: boolean
+    }
+    draftModeEnabled = data.enabled === true
+    draftModeCanEnable = data.canEnable === true
+    draftOrder = Array.isArray(data.order) ? data.order.filter((value) => typeof value === 'string') : []
+    draftCurrentTurn = typeof data.currentTurn === 'string' ? data.currentTurn : null
+    draftComplete = data.complete === true
+  } catch {
+    // Keep current values on fetch failure.
+  }
+
+  renderDraftModeControls()
 }
 
 function renderTeamNameEditor(): void {
@@ -315,12 +400,65 @@ if (resetAllBtn) {
   })
 }
 
+if (adminDraftModeBtn) {
+  adminDraftModeBtn.addEventListener('click', async () => {
+    const enabling = !draftModeEnabled
+    try {
+      const response = await fetch('/api/draft-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enabling, user: currentUsername }),
+      })
+      const payload = (await response.json()) as { error?: string }
+      if (!response.ok) {
+        setDraftModeMessage(payload.error ?? 'Unable to update draft mode.', 'error')
+        return
+      }
+
+      setDraftModeMessage(`Draft mode ${enabling ? 'enabled' : 'disabled'}.`, 'ok')
+      await refreshDraftMode()
+    } catch {
+      setDraftModeMessage('Unable to update draft mode.', 'error')
+    }
+  })
+}
+
+if (adminSaveDraftOrderBtn && adminDraftOrderInput) {
+  adminSaveDraftOrderBtn.addEventListener('click', async () => {
+    const rawOrder = adminDraftOrderInput.value.trim()
+    if (!rawOrder) {
+      setDraftModeMessage('Enter a draft order first.', 'error')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/draft-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentUsername, order: rawOrder }),
+      })
+      const payload = (await response.json()) as { error?: string }
+      if (!response.ok) {
+        setDraftModeMessage(payload.error ?? 'Unable to save draft order.', 'error')
+        return
+      }
+
+      setDraftModeMessage('Draft order saved.', 'ok')
+      await refreshDraftMode()
+    } catch {
+      setDraftModeMessage('Unable to save draft order.', 'error')
+    }
+  })
+}
+
 window.addEventListener(sharedLeagueUpdatedEvent, () => {
   renderTeamNameEditor()
   renderPointAdjustor()
   renderPasswordResetList()
+  void refreshDraftMode()
 })
 
 renderTeamNameEditor()
 renderPointAdjustor()
 renderPasswordResetList()
+void refreshDraftMode()
