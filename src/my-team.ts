@@ -17,6 +17,8 @@ function playerKey(player: SelectablePlayer): string {
 }
 
 const maxTeamSize = 11
+const maxBenchSize = 4
+const minBenchGoalkeepers = 1
 const maxBudget = 100
 const maxTransfersPerMatchday = 3
 const currentUsername = requireAuth()
@@ -34,6 +36,7 @@ const positionLimits: Record<string, number> = {
 const allPlayers = getAllPlayers()
 const minimumPlayerPrice = allPlayers.reduce((min, player) => Math.min(min, player.price), Number.POSITIVE_INFINITY)
 let selectedPlayers: SelectablePlayer[] = []
+let benchPlayers: SelectablePlayer[] = []
 let claimedByOthers: Map<string, string> = new Map()
 let draftModeEnabled = false
 let draftOrder: string[] = []
@@ -292,6 +295,11 @@ const myTeamMarkup = `
 			</div>
 			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 			<div class="football-pitch" id="selected-team"></div>
+			<div class="bench-section" id="bench-section">
+				<h3>Bench <span id="bench-count">0/4</span></h3>
+				<p class="players-help">Pick 4 bench players (must include 1 goalkeeper). Swap to/from active team for free.</p>
+				<div class="bench-players" id="bench-players"></div>
+			</div>
 		</div>
 	</section>
 `
@@ -321,6 +329,7 @@ const filterCountry = document.querySelector<HTMLSelectElement>('#filter-country
 
 type SavedTeamState = {
 	selectedPlayerKeys: string[]
+	benchPlayerKeys?: string[]
 	isTeamLocked: boolean
 	transfersUsedThisMatchday: number
 	currentMatchday: number
@@ -334,6 +343,7 @@ type SavedTeamState = {
 function saveTeamState(): void {
 	const state: SavedTeamState = {
 		selectedPlayerKeys: selectedPlayers.map(playerKey),
+		benchPlayerKeys: benchPlayers.map(playerKey),
 		isTeamLocked,
 		transfersUsedThisMatchday,
 		currentMatchday,
@@ -377,6 +387,7 @@ function loadTeamState(): void {
 	const raw = getSharedItem(teamStateStorageKey)
 	if (!raw) {
 		selectedPlayers = []
+		benchPlayers = []
 		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
@@ -395,14 +406,22 @@ function loadTeamState(): void {
 			.map((key) => findPlayerByKey(key))
 			.filter((player): player is SelectablePlayer => Boolean(player))
 
+		const benchKeys = Array.isArray(state.benchPlayerKeys) ? state.benchPlayerKeys : []
+		benchPlayers = benchKeys
+			.map((key) => findPlayerByKey(key))
+			.filter((player): player is SelectablePlayer => Boolean(player))
+
 		isTeamLocked = Boolean(state.isTeamLocked)
 		transfersUsedThisMatchday = Number.isFinite(state.transfersUsedThisMatchday)
 			? Math.max(0, Math.min(maxTransfersPerMatchday, state.transfersUsedThisMatchday))
 			: 0
 		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(1, state.currentMatchday) : 1
+		
+		const allTeamPlayers = [...selectedPlayers, ...benchPlayers]
 		remainingBudget = Number.isFinite(state.remainingBudget)
 			? Math.max(0, Math.min(maxBudget, Number(state.remainingBudget)))
-			: Math.max(0, Number((maxBudget - getTotalPrice(selectedPlayers)).toFixed(1)))
+			: Math.max(0, Number((maxBudget - getTotalPrice(allTeamPlayers)).toFixed(1)))
+		
 		captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
 		captainChangesThisMatchday = Number.isFinite(state.captainChangesThisMatchday)
 			? Math.max(0, Math.min(1, state.captainChangesThisMatchday ?? 0))
@@ -415,6 +434,7 @@ function loadTeamState(): void {
 		}
 	} catch {
 		selectedPlayers = []
+		benchPlayers = []
 		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
@@ -508,7 +528,73 @@ function canLockTeam(): boolean {
 		return false
 	}
 
-	return !isTeamLocked && selectedPlayers.length === maxTeamSize
+	return !isTeamLocked && selectedPlayers.length === maxTeamSize && benchPlayers.length === maxBenchSize
+}
+
+function canAddPlayerToBench(player: SelectablePlayer): boolean {
+	if (benchPlayers.length >= maxBenchSize) {
+		return false
+	}
+
+	if (remainingBudget < player.price) {
+		return false
+	}
+
+	const bucket = positionBucket(player.position)
+	const countInBucket = countByBucket(benchPlayers, bucket)
+	
+	// If this is a goalkeeper, check if we already have one on the bench
+	if (bucket === 'Goalkeeper' && countInBucket >= minBenchGoalkeepers) {
+		return false
+	}
+
+	return true
+}
+
+function canSwapWithBench(activePlayerKey: string, benchPlayerKey: string): boolean {
+	// Can always swap in non-draft mode
+	if (!draftModeEnabled) {
+		return true
+	}
+
+	// In draft mode, check position limits after swap
+	const activePlayer = findPlayerByKey(activePlayerKey)
+	const benchPlayer = findPlayerByKey(benchPlayerKey)
+	if (!activePlayer || !benchPlayer) {
+		return false
+	}
+
+	const activeBucket = positionBucket(activePlayer.position)
+	const benchBucket = positionBucket(benchPlayer.position)
+
+	// If moving to a different position bucket, check if bench bucket would exceed limits
+	if (activeBucket !== benchBucket) {
+		const countInBenchBucket = countByBucket(selectedPlayers, benchBucket)
+		if (countInBenchBucket >= positionLimits[benchBucket]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+function swapPlayerWithBench(activePlayerKey: string, benchPlayerKey: string): void {
+	if (!canSwapWithBench(activePlayerKey, benchPlayerKey)) {
+		return
+	}
+
+	const activeIndex = selectedPlayers.findIndex((p) => playerKey(p) === activePlayerKey)
+	const benchIndex = benchPlayers.findIndex((p) => playerKey(p) === benchPlayerKey)
+
+	if (activeIndex < 0 || benchIndex < 0) {
+		return
+	}
+
+	[selectedPlayers[activeIndex], benchPlayers[benchIndex]] = [benchPlayers[benchIndex], selectedPlayers[activeIndex]]
+	saveTeamState()
+	renderSelectedTeam()
+	renderBench()
+	renderSearchResults()
 }
 
 function getTransfersRemaining(): number {
@@ -715,6 +801,44 @@ function renderSelectedTeam(): void {
 	`
 }
 
+function renderBench(): void {
+	const benchSection = document.querySelector<HTMLDivElement>('#bench-section')
+	const benchList = document.querySelector<HTMLDivElement>('#bench-players')
+	const benchCountEl = document.querySelector<HTMLSpanElement>('#bench-count')
+
+	if (!benchSection || !benchList || !benchCountEl) {
+		return
+	}
+
+	benchCountEl.textContent = `${benchPlayers.length}/${maxBenchSize}`
+
+	if (benchPlayers.length === 0) {
+		benchList.innerHTML = '<p class="players-help">No bench players selected yet.</p>'
+		return
+	}
+
+	const benchMarkup = benchPlayers
+		.map(
+			(player) => `
+				<div class="bench-player-item">
+					<div class="bench-player-card">
+						<div class="player-name">${escapeHtml(player.name)}</div>
+						<div class="player-details">
+							<div class="player-price">£${player.price.toFixed(1)}</div>
+							<div class="player-flag">${getCountryFlag(player.team)}</div>
+							<div class="player-position">${player.position}</div>
+							<div class="player-points">${isTeamLocked ? getPlayerPoints(player.name, player.team) : 0}pts</div>
+						</div>
+					</div>
+					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player">⇄</button>
+				</div>
+			`,
+		)
+		.join('')
+
+	benchList.innerHTML = benchMarkup
+}
+
 function renderSearchResults(): void {
 	if (!searchInput || !searchResults || !searchCount) {
 		return
@@ -768,35 +892,53 @@ function renderSearchResults(): void {
 		.map((player) => {
 			const key = playerKey(player)
 			const alreadySelected = selectedKeys.has(key)
-			const takenByOther = !alreadySelected && claimedKeys.has(key)
+			const benchKeys = new Set(benchPlayers.map(playerKey))
+			const alreadyOnBench = benchKeys.has(key)
+			const takenByOther = !alreadySelected && !alreadyOnBench && claimedKeys.has(key)
 			const owner = claimedKeys.get(key) ?? null
 			const hasPendingRequest = outgoingTransferRequests.some((request) => request.status === 'pending' && request.playerKey === key)
-			const blockedByTurn = !alreadySelected && notCurrentTurn
-			// Only block adding when team is full AND no transfers remain.
-			// If the team has a free slot (player was removed), adding is always allowed.
+			const blockedByTurn = !alreadySelected && !alreadyOnBench && notCurrentTurn
+			
+			// Check if we can add to bench
+			const canAddToBench = !alreadyOnBench && !alreadySelected && !takenByOther && canAddPlayerToBench(player)
+			const teamIsFull = selectedPlayers.length >= maxTeamSize
+			const benchIsFull = benchPlayers.length >= maxBenchSize
+			
 			const lockedAndNoTransfersLeft = isTeamLocked && !alreadySelected && selectedPlayers.length >= maxTeamSize && transfersUsedThisMatchday >= maxTransfersPerMatchday
 			const isRequestMode = takenByOther && !isDraftPhaseActive() && owner !== null
-			const disabled = alreadySelected || (!isRequestMode && (takenByOther || !canAddPlayer(player)))
+			const canAddToActive = !alreadySelected && canAddPlayer(player)
+			const disabled = alreadySelected || (!isRequestMode && (takenByOther || !canAddToActive))
 			const isDisabled = disabled || lockedAndNoTransfersLeft || blockedByTurn
+			
 			const buttonLabel = alreadySelected
 				? 'Added'
-				: isRequestMode
-					? hasPendingRequest
-						? 'Requested'
-						: 'Request'
-					: takenByOther
-						? 'Taken'
-						: blockedByTurn
-							? 'Wait Turn'
-							: 'Add'
+				: alreadyOnBench
+					? 'On Bench'
+					: isRequestMode
+						? hasPendingRequest
+							? 'Requested'
+							: 'Request'
+						: takenByOther
+							? 'Taken'
+							: blockedByTurn
+								? 'Wait Turn'
+								: teamIsFull && canAddToBench && !benchIsFull
+									? 'Add to Bench'
+									: 'Add'
+			
 			const buttonClass = isRequestMode
 				? `request-btn${hasPendingRequest ? ' request-btn--pending' : ''}`
-				: `add-btn${takenByOther ? ' add-btn--taken' : ''}`
+				: teamIsFull && canAddToBench && !benchIsFull
+					? 'add-bench-btn'
+					: `add-btn${takenByOther ? ' add-btn--taken' : ''}`
+			
 			const buttonDataAttrs = isRequestMode
 				? `data-key="${escapeHtml(key)}" data-owner="${escapeHtml(owner)}"`
 				: `data-key="${escapeHtml(key)}"`
+			
 			const requestDisabled = isRequestMode && (hasPendingRequest || selectedPlayers.length >= maxTeamSize)
-			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : isDisabled
+			const benchDisabled = canAddToBench && benchIsFull
+			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : (canAddToBench ? benchDisabled : isDisabled)
 
 			return `
 				<li class="search-item${takenByOther ? ' player-taken' : ''}">
@@ -817,6 +959,7 @@ function findPlayerByKey(key: string): SelectablePlayer | undefined {
 
 function refreshLivePointsView(): void {
 	renderSelectedTeam()
+	renderBench()
 	renderSearchResults()
 }
 
@@ -894,12 +1037,47 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
-		const button = target.closest<HTMLButtonElement>('button.add-btn')
-		if (!button) {
+		const button = target.closest<HTMLButtonElement>('button.add-bench-btn')
+		if (button) {
+			const key = button.dataset.key
+			if (!key) {
+				return
+			}
+
+			const player = findPlayerByKey(key)
+			const benchKeys = new Set(benchPlayers.map(playerKey))
+			const selectedSet = new Set(selectedPlayers.map(playerKey))
+			if (!player || benchKeys.has(key) || selectedSet.has(key)) {
+				return
+			}
+
+			if (!canAddPlayerToBench(player)) {
+				alert(`Cannot add ${player.name}. Check position limits for bench.`)
+				return
+			}
+
+			benchPlayers = [...benchPlayers, player]
+			remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
+			saveTeamState()
+			void logTransferHistoryEvent({
+				type: 'market-buy',
+				playerKey: key,
+				playerName: player.name,
+				marketPrice: player.price,
+				salePrice: player.price,
+			})
+			renderBench()
+			renderSelectedTeam()
+			renderSearchResults()
 			return
 		}
 
-		const key = button.dataset.key
+		const addButton = target.closest<HTMLButtonElement>('button.add-btn')
+		if (!addButton) {
+			return
+		}
+
+		const key = addButton.dataset.key
 		if (!key) {
 			return
 		}
@@ -1020,6 +1198,39 @@ if (searchInput && searchResults && selectedTeamList) {
 		renderSelectedTeam()
 		renderSearchResults()
 	})
+
+	const benchList = document.querySelector<HTMLDivElement>('#bench-players')
+	if (benchList) {
+		benchList.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement
+			const swapBtn = target.closest<HTMLButtonElement>('button.swap-player-btn')
+			if (!swapBtn) {
+				return
+			}
+
+			const benchKey = swapBtn.dataset.benchKey
+			if (!benchKey) {
+				return
+			}
+
+			// Show a selection modal for which active player to swap with
+			const playerNames = selectedPlayers.map((p) => `${p.name} (${p.position})`).join('\n')
+			const selectedText = window.prompt(`Swap with which active player?\n\n${playerNames}`, '')
+			if (!selectedText) {
+				return
+			}
+
+			// Find the matching player
+			const selectedActive = selectedPlayers.find((p) => p.name === selectedText.replace(/\s*\([^)]*\)/, ''))
+			if (!selectedActive) {
+				alert('Player not found.')
+				return
+			}
+
+			const activeKey = playerKey(selectedActive)
+			swapPlayerWithBench(activeKey, benchKey)
+		})
+	}
 
 	if (endMatchdayBtn) {
 		endMatchdayBtn.addEventListener('click', () => {
@@ -1152,6 +1363,7 @@ if (searchInput && searchResults && selectedTeamList) {
 	setGlobalMatchday(getGlobalMatchday())
 	syncWithGlobalMatchday()
 	renderSelectedTeam()
+	renderBench()
 	void refreshDraftMode().then(() => {
 		void refreshClaimedPlayers().then(() => {
 			void refreshTransferRequests()
