@@ -14,6 +14,7 @@ const envFilePath = path.join(__dirname, '.env')
 const teamStatePrefix = 'fantasy-football-my-team-state::'
 const usersStorageKey = 'fantasy-football-users'
 const draftModeStorageKey = 'fantasy-football-draft-mode'
+const benchModeStorageKey = 'fantasy-football-bench-mode'
 const draftOrderStorageKey = 'fantasy-football-draft-order'
 const draftNextIndexStorageKey = 'fantasy-football-draft-next-index'
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
@@ -284,6 +285,21 @@ function parseSelectedPlayerKeys(rawValue) {
   }
 }
 
+function parseBenchPlayerKeys(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object') {
+      return []
+    }
+
+    return Array.isArray(parsed.benchPlayerKeys)
+      ? parsed.benchPlayerKeys.filter((value) => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
 function getTeamPlayerCounts(storage) {
   const counts = new Map()
 
@@ -308,9 +324,20 @@ function areAllTeamsEmpty(storage) {
     if (parseSelectedPlayerKeys(rawValue).length > 0) {
       return false
     }
+
+    if (parseBenchPlayerKeys(rawValue).length > 0) {
+      return false
+    }
   }
 
   return true
+}
+
+function getBenchModeStatus(storage) {
+  return {
+    enabled: storage[benchModeStorageKey] !== 'false',
+    canToggle: areAllTeamsEmpty(storage),
+  }
 }
 
 function normalizeDraftOrder(rawOrder, validUsernames) {
@@ -685,6 +712,43 @@ async function handleApiRequest(request, response) {
       })
     } catch {
       sendJson(response, 500, { error: 'Unable to read draft mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/bench-mode') {
+    try {
+      const state = await readLeagueState()
+      const benchMode = getBenchModeStatus(state.storage)
+      sendJson(response, 200, benchMode)
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read bench mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/bench-mode') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can change bench mode.' })
+        return true
+      }
+
+      const enabled = body.enabled === true
+      const state = await readLeagueState()
+      const benchMode = getBenchModeStatus(state.storage)
+      if (!benchMode.canToggle) {
+        sendJson(response, 409, { error: 'Cannot change bench mode while users have players selected.' })
+        return true
+      }
+
+      const nextStorage = { ...state.storage, [benchModeStorageKey]: enabled ? 'true' : 'false' }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { enabled })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to update bench mode.' })
     }
     return true
   }

@@ -18,14 +18,15 @@ function playerKey(player: SelectablePlayer): string {
 
 const maxTeamSize = 11
 const maxBenchSize = 4
-const minBenchGoalkeepers = 1
-const maxBudget = 100
+const defaultBudget = 100
 const maxTransfersPerMatchday = 3
 const currentUsername = requireAuth()
 const isCurrentUserLee = currentUsername.toLowerCase() === 'lee'
 const currentTeamName = getTeamNameForUser(currentUsername) ?? 'Unnamed Team'
 const teamStateStorageKey = userScopedStorageKey('fantasy-football-my-team-state', currentUsername)
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const globalBudgetStorageKey = 'fantasy-football-global-budget'
+const benchModeStorageKey = 'fantasy-football-bench-mode'
 const positionLimits: Record<string, number> = {
 	Goalkeeper: 1,
 	Defender: 5,
@@ -35,6 +36,7 @@ const positionLimits: Record<string, number> = {
 
 const allPlayers = getAllPlayers()
 const minimumPlayerPrice = allPlayers.reduce((min, player) => Math.min(min, player.price), Number.POSITIVE_INFINITY)
+let maxBudget = defaultBudget
 let selectedPlayers: SelectablePlayer[] = []
 let benchPlayers: SelectablePlayer[] = []
 let claimedByOthers: Map<string, string> = new Map()
@@ -42,6 +44,7 @@ let draftModeEnabled = false
 let draftOrder: string[] = []
 let draftCurrentTurn: string | null = null
 let draftComplete = false
+let benchModeEnabled = getSharedItem(benchModeStorageKey) !== 'false'
 let remainingBudget = maxBudget
 let incomingTransferRequests: TransferRequest[] = []
 let outgoingTransferRequests: TransferRequest[] = []
@@ -135,6 +138,38 @@ async function refreshDraftMode(): Promise<void> {
 		// Keep existing state on failure.
 	}
 	renderDraftStatus()
+}
+
+function normalizeBenchStateForMode(): boolean {
+	if (benchModeEnabled || benchPlayers.length === 0) {
+		return false
+	}
+
+	benchPlayers = []
+	remainingBudget = Math.max(0, Number((maxBudget - getTotalPrice(selectedPlayers)).toFixed(1)))
+	return true
+}
+
+async function refreshBenchMode(): Promise<void> {
+	try {
+		const response = await fetch('/api/bench-mode', { cache: 'no-store' })
+		if (!response.ok) return
+		const data = (await response.json()) as {
+			enabled?: boolean
+		}
+		benchModeEnabled = data.enabled !== false
+	} catch {
+		// Keep existing state on failure.
+	}
+
+	const benchStateChanged = normalizeBenchStateForMode()
+	if (benchStateChanged) {
+		saveTeamState()
+	}
+
+	renderSelectedTeam()
+	renderBench()
+	renderSearchResults()
 }
 
 function renderDraftStatus(): void {
@@ -231,6 +266,7 @@ let captainChangesThisMatchday = 0
 let captainBonusTotal = 0
 let manualPointsAdjustment = 0
 let isCaptainSelectMode = false
+let swapBenchKey: string | null = null
 
 // Extract unique positions and countries from all players
 const uniquePositions = Array.from(new Set(allPlayers.map((p) => p.position))).sort()
@@ -239,11 +275,15 @@ const uniqueCountries = Array.from(new Set(allPlayers.map((p) => p.team))).sort(
 const myTeamMarkup = `
 	<section class="my-team-grid">
 		<div class="my-team-panel">
-			<h2>Search Players</h2>
-			<input id="player-search" type="text" placeholder="Search by player name" aria-label="Search players" />
-			<p class="transfer-badge" id="transfer-remaining-badge">Transfers Remaining: 3</p>
-			
-			<div class="filters-section">
+			<div class="search-panel-header">
+				<h2>Search Players</h2>
+				<button id="toggle-player-list-btn" type="button" class="player-list-toggle-btn" aria-expanded="true">Collapse Search</button>
+			</div>
+			<div id="search-panel-section">
+				<input id="player-search" type="text" placeholder="Search by player name" aria-label="Search players" />
+				<p class="transfer-badge" id="transfer-remaining-badge">Transfers Remaining: 3</p>
+				
+				<div class="filters-section">
 				<div class="filter-group">
 					<label for="filter-position">Position:</label>
 					<select id="filter-position" aria-label="Filter by position">
@@ -269,11 +309,12 @@ const myTeamMarkup = `
 						${uniqueCountries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join('')}
 					</select>
 				</div>
-			</div>
+				</div>
 
-			<p class="players-help" id="draft-status">Draft Mode: Off</p>
-			<p class="players-help" id="search-count"></p>
-			<ul class="search-results" id="search-results"></ul>
+				<p class="players-help" id="draft-status">Draft Mode: Off</p>
+				<p class="players-help" id="search-count"></p>
+				<ul class="search-results" id="search-results"></ul>
+			</div>
 		</div>
 
 		<div class="my-team-panel pitch-container">
@@ -295,9 +336,9 @@ const myTeamMarkup = `
 			</div>
 			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 			<div class="football-pitch" id="selected-team"></div>
-			<div class="bench-section" id="bench-section">
+			<div class="bench-section" id="bench-section" hidden>
 				<h3>Bench <span id="bench-count">0/4</span></h3>
-				<p class="players-help">Pick 4 bench players (must include 1 goalkeeper). Swap to/from active team for free.</p>
+				<p class="players-help">Pick 4 bench players. Swap to/from active team for free.</p>
 				<div class="bench-players" id="bench-players"></div>
 			</div>
 		</div>
@@ -326,6 +367,20 @@ const filterPosition = document.querySelector<HTMLSelectElement>('#filter-positi
 const filterMinPrice = document.querySelector<HTMLInputElement>('#filter-min-price')
 const filterMaxPrice = document.querySelector<HTMLInputElement>('#filter-max-price')
 const filterCountry = document.querySelector<HTMLSelectElement>('#filter-country')
+const togglePlayerListBtn = document.querySelector<HTMLButtonElement>('#toggle-player-list-btn')
+const searchPanelSection = document.querySelector<HTMLDivElement>('#search-panel-section')
+
+let isPlayerListCollapsed = false
+
+function renderPlayerListVisibility(): void {
+	if (!togglePlayerListBtn || !searchPanelSection) {
+		return
+	}
+
+	searchPanelSection.hidden = isPlayerListCollapsed
+	togglePlayerListBtn.textContent = isPlayerListCollapsed ? 'Expand Search' : 'Collapse Search'
+	togglePlayerListBtn.setAttribute('aria-expanded', String(!isPlayerListCollapsed))
+}
 
 type SavedTeamState = {
 	selectedPlayerKeys: string[]
@@ -338,6 +393,20 @@ type SavedTeamState = {
 	captainChangesThisMatchday?: number
 	captainBonusTotal?: number
 	manualPointsAdjustment?: number
+}
+
+function getGlobalBudget(): number {
+	const raw = getSharedItem(globalBudgetStorageKey)
+	const parsed = raw ? Number.parseFloat(raw) : Number.NaN
+	if (!Number.isFinite(parsed)) {
+		return defaultBudget
+	}
+
+	return Math.max(1, Number(parsed.toFixed(1)))
+}
+
+function syncMaxBudget(): void {
+	maxBudget = getGlobalBudget()
 }
 
 function saveTeamState(): void {
@@ -384,6 +453,7 @@ function syncWithGlobalMatchday(): void {
 }
 
 function loadTeamState(): void {
+	syncMaxBudget()
 	const raw = getSharedItem(teamStateStorageKey)
 	if (!raw) {
 		selectedPlayers = []
@@ -417,10 +487,15 @@ function loadTeamState(): void {
 			: 0
 		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(1, state.currentMatchday) : 1
 		
-		const allTeamPlayers = [...selectedPlayers, ...benchPlayers]
-		remainingBudget = Number.isFinite(state.remainingBudget)
-			? Math.max(0, Math.min(maxBudget, Number(state.remainingBudget)))
-			: Math.max(0, Number((maxBudget - getTotalPrice(allTeamPlayers)).toFixed(1)))
+		const allTeamPlayers = benchModeEnabled ? [...selectedPlayers, ...benchPlayers] : [...selectedPlayers]
+		const playersAreEmpty = allTeamPlayers.length === 0
+		remainingBudget = playersAreEmpty
+			? maxBudget
+			: Number.isFinite(state.remainingBudget)
+				? Math.max(0, Math.min(maxBudget, Number(state.remainingBudget)))
+				: Math.max(0, Number((maxBudget - getTotalPrice(allTeamPlayers)).toFixed(1)))
+
+		normalizeBenchStateForMode()
 		
 		captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
 		captainChangesThisMatchday = Number.isFinite(state.captainChangesThisMatchday)
@@ -528,10 +603,18 @@ function canLockTeam(): boolean {
 		return false
 	}
 
-	return !isTeamLocked && selectedPlayers.length === maxTeamSize && benchPlayers.length === maxBenchSize
+	if (benchModeEnabled) {
+		return !isTeamLocked && selectedPlayers.length === maxTeamSize && benchPlayers.length === maxBenchSize
+	}
+
+	return !isTeamLocked && selectedPlayers.length === maxTeamSize
 }
 
 function canAddPlayerToBench(player: SelectablePlayer): boolean {
+	if (!benchModeEnabled) {
+		return false
+	}
+
 	if (benchPlayers.length >= maxBenchSize) {
 		return false
 	}
@@ -540,18 +623,14 @@ function canAddPlayerToBench(player: SelectablePlayer): boolean {
 		return false
 	}
 
-	const bucket = positionBucket(player.position)
-	const countInBucket = countByBucket(benchPlayers, bucket)
-	
-	// If this is a goalkeeper, check if we already have one on the bench
-	if (bucket === 'Goalkeeper' && countInBucket >= minBenchGoalkeepers) {
-		return false
-	}
-
 	return true
 }
 
 function canSwapWithBench(activePlayerKey: string, benchPlayerKey: string): boolean {
+	if (!benchModeEnabled) {
+		return false
+	}
+
 	// Can always swap in non-draft mode
 	if (!draftModeEnabled) {
 		return true
@@ -765,22 +844,30 @@ function renderSelectedTeam(): void {
 	const renderRow = (label: string, players: SelectablePlayer[]): string => {
 		if (players.length === 0) return ''
 		const playerCards = players
-			.map(
-				(player) => `
+			.map((player) => {
+				const key = playerKey(player)
+				let swapBtnMarkup = ''
+				if (swapBenchKey) {
+					const canSwap = canSwapWithBench(key, swapBenchKey)
+					const btnClass = canSwap ? 'swap-here-btn swap-here-btn--ok' : 'swap-here-btn swap-here-btn--bad'
+						swapBtnMarkup = `<button class="${btnClass}" type="button" data-pitch-key="${escapeHtml(key)}"${canSwap ? '' : ' disabled'}>${canSwap ? 'Swap Here' : "Can't Swap"}</button>`
+				}
+				return `
 					<div class="pitch-player">
-						<div class="player-card ${isCaptainSelectMode && canSetCaptain(playerKey(player)) ? 'captain-selectable' : ''}" data-player-key="${escapeHtml(playerKey(player))}">
-							${captainPlayerKey === playerKey(player) ? '<div class="captain-badge">C</div>' : ''}
+						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}" data-player-key="${escapeHtml(key)}">
+							${captainPlayerKey === key ? '<div class="captain-badge">C</div>' : ''}
 							<div class="player-name">${escapeHtml(player.name)}</div>
 							<div class="player-details">
 								<div class="player-price">£${player.price.toFixed(1)}</div>
 								<div class="player-flag">${getCountryFlag(player.team)}</div>
 								<div class="player-points">${isTeamLocked ? getPlayerPoints(player.name, player.team) : 0}pts</div>
 							</div>
-							<button class="remove-player-btn" type="button" data-key="${escapeHtml(playerKey(player))}" title="Remove player" ${canRemovePlayer() ? '' : 'disabled'}>×</button>
+							<button class="remove-player-btn" type="button" data-key="${escapeHtml(key)}" title="Remove player" ${canRemovePlayer() ? '' : 'disabled'}>×</button>
+							${swapBtnMarkup}
 						</div>
 					</div>
-				`,
-			)
+				`
+			})
 			.join('')
 
 		return `
@@ -810,6 +897,15 @@ function renderBench(): void {
 		return
 	}
 
+	if (!benchModeEnabled) {
+		benchSection.hidden = true
+		benchList.innerHTML = ''
+		benchCountEl.textContent = `0/${maxBenchSize}`
+		return
+	}
+
+	benchSection.hidden = false
+
 	benchCountEl.textContent = `${benchPlayers.length}/${maxBenchSize}`
 
 	if (benchPlayers.length === 0) {
@@ -830,7 +926,7 @@ function renderBench(): void {
 							<div class="player-points">${isTeamLocked ? getPlayerPoints(player.name, player.team) : 0}pts</div>
 						</div>
 					</div>
-					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player">⇄</button>
+					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player" ${swapBenchKey ? 'disabled' : ''}>⇄</button>
 				</div>
 			`,
 		)
@@ -964,6 +1060,14 @@ function refreshLivePointsView(): void {
 }
 
 if (searchInput && searchResults && selectedTeamList) {
+	if (togglePlayerListBtn && searchPanelSection) {
+		togglePlayerListBtn.addEventListener('click', () => {
+			isPlayerListCollapsed = !isPlayerListCollapsed
+			renderPlayerListVisibility()
+		})
+		renderPlayerListVisibility()
+	}
+
 	searchInput.addEventListener('input', renderSearchResults)
 
 	if (filterPosition) {
@@ -1039,6 +1143,10 @@ if (searchInput && searchResults && selectedTeamList) {
 
 		const button = target.closest<HTMLButtonElement>('button.add-bench-btn')
 		if (button) {
+			if (!benchModeEnabled) {
+				return
+			}
+
 			const key = button.dataset.key
 			if (!key) {
 				return
@@ -1201,34 +1309,44 @@ if (searchInput && searchResults && selectedTeamList) {
 
 	const benchList = document.querySelector<HTMLDivElement>('#bench-players')
 	if (benchList) {
+				// Optional: clicking anywhere else on the pitch cancels swap mode
+				selectedTeamList.addEventListener('click', (event) => {
+					const target = event.target as HTMLElement
+					if (swapBenchKey && !target.closest('button.swap-here-btn')) {
+						swapBenchKey = null
+						renderSelectedTeam()
+						renderBench()
+					}
+				}, true)
+			// Add event handler for swap-here buttons on pitch
+			selectedTeamList.addEventListener('click', (event) => {
+				const target = event.target as HTMLElement
+				const swapHereBtn = target.closest<HTMLButtonElement>('button.swap-here-btn')
+				if (swapHereBtn && swapBenchKey) {
+					const pitchKey = swapHereBtn.dataset.pitchKey
+					if (!pitchKey) return
+					swapPlayerWithBench(pitchKey, swapBenchKey)
+					swapBenchKey = null
+					renderSelectedTeam()
+					renderBench()
+					return
+				}
+			})
 		benchList.addEventListener('click', (event) => {
+			if (!benchModeEnabled) {
+				return
+			}
+
 			const target = event.target as HTMLElement
 			const swapBtn = target.closest<HTMLButtonElement>('button.swap-player-btn')
-			if (!swapBtn) {
+			if (swapBtn) {
+				const benchKey = swapBtn.dataset.benchKey
+				if (!benchKey) return
+				swapBenchKey = benchKey
+				renderSelectedTeam()
+				renderBench()
 				return
 			}
-
-			const benchKey = swapBtn.dataset.benchKey
-			if (!benchKey) {
-				return
-			}
-
-			// Show a selection modal for which active player to swap with
-			const playerNames = selectedPlayers.map((p) => `${p.name} (${p.position})`).join('\n')
-			const selectedText = window.prompt(`Swap with which active player?\n\n${playerNames}`, '')
-			if (!selectedText) {
-				return
-			}
-
-			// Find the matching player
-			const selectedActive = selectedPlayers.find((p) => p.name === selectedText.replace(/\s*\([^)]*\)/, ''))
-			if (!selectedActive) {
-				alert('Player not found.')
-				return
-			}
-
-			const activeKey = playerKey(selectedActive)
-			swapPlayerWithBench(activeKey, benchKey)
 		})
 	}
 
@@ -1285,8 +1403,12 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (
 			event.key === 'fantasy-football-player-points' ||
 			event.key === 'fantasy-football-total-points' ||
-			event.key === globalMatchdayStorageKey
+			event.key === globalMatchdayStorageKey ||
+			event.key === globalBudgetStorageKey
 		) {
+			if (event.key === globalBudgetStorageKey) {
+				syncMaxBudget()
+			}
 			syncWithGlobalMatchday()
 			refreshLivePointsView()
 		}
@@ -1296,6 +1418,7 @@ if (searchInput && searchResults && selectedTeamList) {
 		syncWithGlobalMatchday()
 		void refreshClaimedPlayers().then(() => refreshLivePointsView())
 		void refreshDraftMode()
+		void refreshBenchMode()
 		void refreshTransferRequests()
 	})
 	const transferRequestsContainer = document.querySelector<HTMLDivElement>('#transfer-requests')
@@ -1364,6 +1487,7 @@ if (searchInput && searchResults && selectedTeamList) {
 	syncWithGlobalMatchday()
 	renderSelectedTeam()
 	renderBench()
+	void refreshBenchMode()
 	void refreshDraftMode().then(() => {
 		void refreshClaimedPlayers().then(() => {
 			void refreshTransferRequests()

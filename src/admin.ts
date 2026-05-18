@@ -1,9 +1,12 @@
 import { renderPage } from './renderPage'
 import {
+  adjustGlobalBudget,
   adjustUserPoints,
+  canAdjustUserBudgets,
   clearAllUsersAndTeams,
   getAllUsernames,
   getCurrentUsername,
+  getGlobalBudget,
   getPasswordResetRequests,
   getTeamNameForUser,
   getUserTotalPoints,
@@ -45,6 +48,15 @@ const adminMarkup = `
     </section>
 
     <section class="admin-card">
+      <h2>Bench Mode</h2>
+      <p id="bench-mode-status" class="admin-message" aria-live="polite">Loading bench status...</p>
+      <p id="bench-mode-message" class="admin-message" aria-live="polite"></p>
+      <div class="draft-mode-section">
+        <button id="admin-bench-mode-btn" type="button" class="draft-mode-btn">Disable Bench</button>
+      </div>
+    </section>
+
+    <section class="admin-card">
       <h2>Edit User Team Names</h2>
       <p id="admin-message" class="admin-message" aria-live="polite"></p>
       <div id="team-name-editor" class="admin-list"></div>
@@ -54,6 +66,12 @@ const adminMarkup = `
       <h2>Adjust User Points</h2>
       <p id="adjust-message" class="admin-message" aria-live="polite"></p>
       <div id="point-adjustor" class="admin-list"></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>League Budget</h2>
+      <p id="budget-message" class="admin-message" aria-live="polite"></p>
+      <div id="budget-adjustor" class="admin-list"></div>
     </section>
 
     <section class="admin-card">
@@ -74,9 +92,11 @@ renderPage('Admin', 'admin', adminMarkup)
 
 const messageEl = document.querySelector<HTMLParagraphElement>('#admin-message')
 const adjustMessageEl = document.querySelector<HTMLParagraphElement>('#adjust-message')
+const budgetMessageEl = document.querySelector<HTMLParagraphElement>('#budget-message')
 const passwordResetMessageEl = document.querySelector<HTMLParagraphElement>('#password-reset-message')
 const teamNameEditor = document.querySelector<HTMLDivElement>('#team-name-editor')
 const pointAdjustor = document.querySelector<HTMLDivElement>('#point-adjustor')
+const budgetAdjustor = document.querySelector<HTMLDivElement>('#budget-adjustor')
 const passwordResetList = document.querySelector<HTMLDivElement>('#password-reset-list')
 const resetAllBtn = document.querySelector<HTMLButtonElement>('#reset-all-btn')
 const draftModeStatusEl = document.querySelector<HTMLParagraphElement>('#draft-mode-status')
@@ -84,12 +104,17 @@ const draftModeMessageEl = document.querySelector<HTMLParagraphElement>('#draft-
 const adminDraftModeBtn = document.querySelector<HTMLButtonElement>('#admin-draft-mode-btn')
 const adminDraftOrderInput = document.querySelector<HTMLInputElement>('#admin-draft-order-input')
 const adminSaveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#admin-save-draft-order-btn')
+const benchModeStatusEl = document.querySelector<HTMLParagraphElement>('#bench-mode-status')
+const benchModeMessageEl = document.querySelector<HTMLParagraphElement>('#bench-mode-message')
+const adminBenchModeBtn = document.querySelector<HTMLButtonElement>('#admin-bench-mode-btn')
 
 let draftModeEnabled = false
 let draftModeCanEnable = false
 let draftOrder: string[] = []
 let draftComplete = false
 let draftCurrentTurn: string | null = null
+let benchModeEnabled = true
+let benchModeCanToggle = false
 
 function setMessage(text: string, type: 'ok' | 'error'): void {
   if (!messageEl) {
@@ -111,6 +136,16 @@ function setAdjustMessage(text: string, type: 'ok' | 'error'): void {
   adjustMessageEl.classList.add(type)
 }
 
+function setBudgetMessage(text: string, type: 'ok' | 'error'): void {
+  if (!budgetMessageEl) {
+    return
+  }
+
+  budgetMessageEl.textContent = text
+  budgetMessageEl.classList.remove('ok', 'error')
+  budgetMessageEl.classList.add(type)
+}
+
 function setPasswordResetMessage(text: string, type: 'ok' | 'error'): void {
   if (!passwordResetMessageEl) {
     return
@@ -129,6 +164,16 @@ function setDraftModeMessage(text: string, type: 'ok' | 'error'): void {
   draftModeMessageEl.textContent = text
   draftModeMessageEl.classList.remove('ok', 'error')
   draftModeMessageEl.classList.add(type)
+}
+
+function setBenchModeMessage(text: string, type: 'ok' | 'error'): void {
+  if (!benchModeMessageEl) {
+    return
+  }
+
+  benchModeMessageEl.textContent = text
+  benchModeMessageEl.classList.remove('ok', 'error')
+  benchModeMessageEl.classList.add(type)
 }
 
 function renderDraftModeControls(): void {
@@ -158,6 +203,21 @@ function renderDraftModeControls(): void {
   }
 }
 
+function renderBenchModeControls(): void {
+  if (benchModeStatusEl) {
+    benchModeStatusEl.textContent = benchModeEnabled ? 'Bench Mode: On' : 'Bench Mode: Off'
+  }
+
+  if (adminBenchModeBtn) {
+    adminBenchModeBtn.textContent = benchModeEnabled ? 'Disable Bench' : 'Enable Bench'
+    adminBenchModeBtn.disabled = !benchModeCanToggle
+    adminBenchModeBtn.classList.toggle('draft-mode-btn--active', benchModeEnabled)
+    adminBenchModeBtn.title = !benchModeCanToggle
+      ? 'All users must have empty teams to change bench mode'
+      : ''
+  }
+}
+
 async function refreshDraftMode(): Promise<void> {
   try {
     const response = await fetch('/api/draft-mode', { cache: 'no-store' })
@@ -182,6 +242,27 @@ async function refreshDraftMode(): Promise<void> {
   }
 
   renderDraftModeControls()
+}
+
+async function refreshBenchMode(): Promise<void> {
+  try {
+    const response = await fetch('/api/bench-mode', { cache: 'no-store' })
+    if (!response.ok) {
+      return
+    }
+
+    const data = (await response.json()) as {
+      enabled?: boolean
+      canToggle?: boolean
+    }
+
+    benchModeEnabled = data.enabled !== false
+    benchModeCanToggle = data.canToggle === true
+  } catch {
+    // Keep current values on fetch failure.
+  }
+
+  renderBenchModeControls()
 }
 
 function renderTeamNameEditor(): void {
@@ -256,6 +337,42 @@ function renderPointAdjustor(): void {
       `
     })
     .join('')
+}
+
+function renderBudgetAdjustor(): void {
+  if (!budgetAdjustor) {
+    return
+  }
+
+  const currentBudget = getGlobalBudget()
+  const canAdjust = canAdjustUserBudgets()
+
+  budgetAdjustor.innerHTML = `
+    <form class="admin-user-row" id="budget-adjust-form">
+      <div class="admin-user-meta">
+        <strong>Universal Budget</strong>
+        <span>Current Budget: £${currentBudget.toFixed(1)}</span>
+      </div>
+      <div class="admin-point-inputs">
+        <input
+          class="admin-point-input"
+          name="budgetAdjustment"
+          type="number"
+          step="0.5"
+          placeholder="Add/subtract budget"
+          value="0"
+          ${canAdjust ? '' : 'disabled'}
+        />
+      </div>
+      <button type="submit" class="lock-team-btn" ${canAdjust ? '' : 'disabled'}>Adjust</button>
+    </form>
+  `
+
+  if (canAdjust) {
+    setBudgetMessage('Budget can be changed now (all teams are empty).', 'ok')
+  } else {
+    setBudgetMessage('Budget can only be changed when all users have empty teams.', 'error')
+  }
 }
 
 function renderPasswordResetList(): void {
@@ -355,6 +472,43 @@ if (pointAdjustor) {
   })
 }
 
+if (budgetAdjustor) {
+  budgetAdjustor.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const form = event.target as HTMLFormElement
+    if (form.id !== 'budget-adjust-form') {
+      return
+    }
+
+    const budgetInput = form.querySelector<HTMLInputElement>('input[name="budgetAdjustment"]')
+    if (!budgetInput) {
+      return
+    }
+
+    const adjustment = Number.parseFloat(budgetInput.value)
+    if (!Number.isFinite(adjustment)) {
+      setBudgetMessage('Please enter a valid number.', 'error')
+      return
+    }
+
+    const result = adjustGlobalBudget(adjustment)
+    if (!result.ok) {
+      setBudgetMessage(result.error ?? 'Unable to adjust budget.', 'error')
+      renderBudgetAdjustor()
+      return
+    }
+
+    await flushSharedLeagueStorage()
+
+    setBudgetMessage(
+      `${adjustment > 0 ? '+' : ''}${adjustment.toFixed(1)} budget applied. New budget: £${getGlobalBudget().toFixed(1)}.`,
+      'ok',
+    )
+    renderBudgetAdjustor()
+  })
+}
+
 if (passwordResetList) {
   passwordResetList.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -386,7 +540,7 @@ if (passwordResetList) {
 if (resetAllBtn) {
   resetAllBtn.addEventListener('click', async () => {
     const confirmed = window.confirm(
-      'Are you sure you want to reset everything? This will remove all users, all saved teams, and all points.',
+      'Are you sure you want to reset everything? This will remove all users, all saved teams, all points, and transfer history.',
     )
 
     if (!confirmed) {
@@ -451,14 +605,52 @@ if (adminSaveDraftOrderBtn && adminDraftOrderInput) {
   })
 }
 
+if (adminBenchModeBtn) {
+  adminBenchModeBtn.addEventListener('click', async () => {
+    const nextEnabled = !benchModeEnabled
+
+    try {
+      const response = await fetch('/api/bench-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user: currentUsername,
+          enabled: nextEnabled,
+        }),
+      })
+      const data = (await response.json()) as { error?: string; enabled?: boolean }
+      if (!response.ok) {
+        setBenchModeMessage(data.error ?? 'Unable to update bench mode.', 'error')
+        await refreshBenchMode()
+        return
+      }
+
+      benchModeEnabled = data.enabled !== false
+      setBenchModeMessage(
+        benchModeEnabled ? 'Bench mode enabled.' : 'Bench mode disabled.',
+        'ok',
+      )
+
+      await flushSharedLeagueStorage()
+      await refreshBenchMode()
+    } catch {
+      setBenchModeMessage('Unable to update bench mode.', 'error')
+    }
+  })
+}
+
 window.addEventListener(sharedLeagueUpdatedEvent, () => {
   renderTeamNameEditor()
   renderPointAdjustor()
+  renderBudgetAdjustor()
   renderPasswordResetList()
   void refreshDraftMode()
+  void refreshBenchMode()
 })
 
 renderTeamNameEditor()
 renderPointAdjustor()
+renderBudgetAdjustor()
 renderPasswordResetList()
 void refreshDraftMode()
+void refreshBenchMode()
