@@ -575,6 +575,80 @@ body {
   cursor: not-allowed;
 }
 
+.draft-mode-section {
+  margin: 0.5rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.draft-mode-btn {
+  padding: 0.55rem 0.9rem;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.draft-mode-btn:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.draft-mode-btn--active {
+  background: #dc2626;
+}
+
+.draft-mode-btn--active:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.draft-mode-btn:disabled {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.draft-order-input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.draft-order-save-btn {
+  padding: 0.5rem 0.8rem;
+  background: #0f766e;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.draft-order-save-btn:hover:not(:disabled) {
+  background: #115e59;
+}
+
+.draft-order-save-btn:disabled {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.player-taken {
+  opacity: 0.6;
+}
+
+.add-btn--taken {
+  background: #6b7280 !important;
+  cursor: not-allowed !important;
+}
+
 .search-results,
 .selected-team {
   margin: 0.75rem 0 0;
@@ -620,6 +694,104 @@ body {
 .add-btn[disabled] {
   background: #cbd5e1;
   cursor: not-allowed;
+}
+
+.request-btn {
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.request-btn--pending,
+.request-btn[disabled] {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.transfer-requests-section {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.transfer-requests-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.transfer-request-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.transfer-request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.transfer-request-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.transfer-request-action {
+  border: 0;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.transfer-request-action--accept {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.transfer-request-action--deny {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.history-table-wrap {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.history-table th,
+.history-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.history-table th {
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .remove-btn {

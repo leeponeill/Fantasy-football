@@ -11,6 +11,14 @@ const leagueStatePath = path.join(dataDirectory, 'league-state.json')
 const fixturesPath = path.join(dataDirectory, 'fixtures.json')
 const distDirectory = path.join(__dirname, 'dist')
 const envFilePath = path.join(__dirname, '.env')
+const teamStatePrefix = 'fantasy-football-my-team-state::'
+const usersStorageKey = 'fantasy-football-users'
+const draftModeStorageKey = 'fantasy-football-draft-mode'
+const draftOrderStorageKey = 'fantasy-football-draft-order'
+const draftNextIndexStorageKey = 'fantasy-football-draft-next-index'
+const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const transferRequestsStorageKey = 'fantasy-football-transfer-requests'
+const transferHistoryStorageKey = 'fantasy-football-transfer-history'
 
 function stripWrappingQuotes(value) {
   if (
@@ -204,6 +212,263 @@ async function writeLeagueState(storage) {
   return nextState
 }
 
+function getRegisteredUsernames(storage) {
+  const raw = storage[usersStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    const usernames = []
+    for (const entry of parsed) {
+      const username = typeof entry?.username === 'string' ? entry.username.trim() : ''
+      if (username.length > 0) {
+        usernames.push(username)
+      }
+    }
+
+    return usernames
+  } catch {
+    return []
+  }
+}
+
+function getGlobalMatchday(storage) {
+  const raw = storage[globalMatchdayStorageKey]
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1
+}
+
+function parseSelectedPlayerKeys(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object') {
+      return []
+    }
+
+    return Array.isArray(parsed.selectedPlayerKeys)
+      ? parsed.selectedPlayerKeys.filter((value) => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function getTeamPlayerCounts(storage) {
+  const counts = new Map()
+
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    const username = storageKey.slice(teamStatePrefix.length)
+    counts.set(username, parseSelectedPlayerKeys(rawValue).length)
+  }
+
+  return counts
+}
+
+function areAllTeamsEmpty(storage) {
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    if (parseSelectedPlayerKeys(rawValue).length > 0) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function normalizeDraftOrder(rawOrder, validUsernames) {
+  const canonicalByLower = new Map(validUsernames.map((username) => [username.toLowerCase(), username]))
+  const seen = new Set()
+  const order = []
+
+  for (const entry of rawOrder) {
+    if (typeof entry !== 'string') {
+      continue
+    }
+
+    const normalized = entry.trim().toLowerCase()
+    if (!normalized || seen.has(normalized) || !canonicalByLower.has(normalized)) {
+      continue
+    }
+
+    seen.add(normalized)
+    order.push(canonicalByLower.get(normalized))
+  }
+
+  return order
+}
+
+function getDraftOrder(storage, validUsernames) {
+  const raw = storage[draftOrderStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return normalizeDraftOrder(parsed, validUsernames)
+  } catch {
+    return []
+  }
+}
+
+function getNextEligibleDraftIndex(order, counts, startIndex) {
+  if (order.length === 0) {
+    return -1
+  }
+
+  for (let offset = 0; offset < order.length; offset += 1) {
+    const index = (startIndex + offset) % order.length
+    const username = order[index]
+    const playerCount = counts.get(username) ?? 0
+    if (playerCount < 11) {
+      return index
+    }
+  }
+
+  return -1
+}
+
+function getDraftStatus(storage) {
+  const enabled = storage[draftModeStorageKey] === 'true'
+  const usernames = getRegisteredUsernames(storage)
+  const order = getDraftOrder(storage, usernames)
+  const playerCounts = getTeamPlayerCounts(storage)
+  const matchday = getGlobalMatchday(storage)
+  const canEnable = matchday === 1 && areAllTeamsEmpty(storage)
+
+  const rawNextIndex = Number.parseInt(storage[draftNextIndexStorageKey] ?? '0', 10)
+  const startIndex = Number.isFinite(rawNextIndex) && rawNextIndex >= 0 ? rawNextIndex : 0
+  const currentIndex = getNextEligibleDraftIndex(order, playerCounts, startIndex)
+
+  return {
+    enabled,
+    canEnable,
+    order,
+    complete: order.length > 0 && currentIndex === -1,
+    currentTurn: currentIndex === -1 ? null : order[currentIndex],
+    currentIndex,
+    matchday,
+    playerCounts,
+  }
+}
+
+function getUserTeamState(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+    }
+
+    const remainingBudgetRaw = parsed.remainingBudget
+    const remainingBudget = Number.isFinite(remainingBudgetRaw) ? Number(remainingBudgetRaw) : 100
+
+    return {
+      base: parsed,
+      selectedPlayerKeys: Array.isArray(parsed.selectedPlayerKeys)
+        ? parsed.selectedPlayerKeys.filter((value) => typeof value === 'string')
+        : [],
+      remainingBudget: Math.max(0, Number(remainingBudget.toFixed(1))),
+    }
+  } catch {
+    return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+  }
+}
+
+function readTransferRequests(storage) {
+  const raw = storage[transferRequestsStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        id: typeof item.id === 'string' ? item.id : '',
+        playerKey: typeof item.playerKey === 'string' ? item.playerKey : '',
+        playerName: typeof item.playerName === 'string' ? item.playerName : '',
+        marketPrice: Number.isFinite(item.marketPrice) ? Number(item.marketPrice) : 0,
+        fromUser: typeof item.fromUser === 'string' ? item.fromUser : '',
+        toUser: typeof item.toUser === 'string' ? item.toUser : '',
+        offeredPrice: Number.isFinite(item.offeredPrice) ? Number(item.offeredPrice) : 0,
+        status: typeof item.status === 'string' ? item.status : 'pending',
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+        resolvedAt: typeof item.resolvedAt === 'string' ? item.resolvedAt : '',
+      }))
+      .filter((item) => item.id && item.playerKey && item.fromUser && item.toUser)
+  } catch {
+    return []
+  }
+}
+
+function getPlayerOwner(storage, playerKey) {
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    const selectedPlayerKeys = parseSelectedPlayerKeys(rawValue)
+    if (selectedPlayerKeys.includes(playerKey)) {
+      return storageKey.slice(teamStatePrefix.length)
+    }
+  }
+
+  return null
+}
+
+function readTransferHistory(storage) {
+  const raw = storage[transferHistoryStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        id: typeof item.id === 'string' ? item.id : '',
+        playerKey: typeof item.playerKey === 'string' ? item.playerKey : '',
+        playerName: typeof item.playerName === 'string' ? item.playerName : '',
+        buyerUser: typeof item.buyerUser === 'string' ? item.buyerUser : '',
+        sellerUser: typeof item.sellerUser === 'string' ? item.sellerUser : '',
+        marketPrice: Number.isFinite(item.marketPrice) ? Number(item.marketPrice) : 0,
+        salePrice: Number.isFinite(item.salePrice) ? Number(item.salePrice) : 0,
+        type: typeof item.type === 'string' ? item.type : 'unknown',
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+      }))
+      .filter((item) => item.id && item.playerKey && item.createdAt)
+  } catch {
+    return []
+  }
+}
+
 async function readJsonBody(request) {
   const chunks = []
 
@@ -379,6 +644,495 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
 
 async function handleApiRequest(request, response) {
   const url = new URL(request.url ?? '/', 'http://localhost')
+
+  if (request.method === 'GET' && url.pathname === '/api/draft-mode') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      sendJson(response, 200, {
+        enabled: draft.enabled,
+        canEnable: draft.canEnable,
+        order: draft.order,
+        currentTurn: draft.currentTurn,
+        complete: draft.complete,
+        matchday: draft.matchday,
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read draft mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-mode') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can change draft mode.' })
+        return true
+      }
+      const enabling = body.enabled === true
+      const state = await readLeagueState()
+
+      const matchday = getGlobalMatchday(state.storage)
+      if (matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft mode can only be changed before matchday 1 starts.' })
+        return true
+      }
+
+      if (enabling) {
+        if (!areAllTeamsEmpty(state.storage)) {
+          sendJson(response, 409, { error: 'Cannot enable draft mode while users have players selected.' })
+          return true
+        }
+      }
+
+      const nextStorage = { ...state.storage, [draftModeStorageKey]: enabling ? 'true' : 'false' }
+      if (!enabling) {
+        delete nextStorage[draftOrderStorageKey]
+        delete nextStorage[draftNextIndexStorageKey]
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { enabled: enabling })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to update draft mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-order') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can set draft order.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Enable draft mode first.' })
+        return true
+      }
+      if (draft.matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft can only be configured before matchday 1 starts.' })
+        return true
+      }
+      if (!areAllTeamsEmpty(state.storage)) {
+        sendJson(response, 409, { error: 'All users must have empty teams before setting draft order.' })
+        return true
+      }
+
+      const usernames = getRegisteredUsernames(state.storage)
+      if (usernames.length < 2) {
+        sendJson(response, 409, { error: 'At least two registered users are required for draft mode.' })
+        return true
+      }
+
+      const rawOrder = Array.isArray(body.order)
+        ? body.order
+        : typeof body.order === 'string'
+          ? body.order.split(',')
+          : []
+      const order = normalizeDraftOrder(rawOrder, usernames)
+
+      if (order.length !== usernames.length) {
+        sendJson(response, 400, { error: 'Draft order must include each registered user exactly once.' })
+        return true
+      }
+
+      const nextStorage = {
+        ...state.storage,
+        [draftOrderStorageKey]: JSON.stringify(order),
+        [draftNextIndexStorageKey]: '0',
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { order, currentTurn: order[0] })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to save draft order.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-pick') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Draft mode is not enabled.' })
+        return true
+      }
+      if (draft.matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft picks are only allowed before matchday 1 starts.' })
+        return true
+      }
+      if (draft.complete || !draft.currentTurn || draft.currentIndex < 0) {
+        sendJson(response, 409, { error: 'Draft is complete or not configured yet.' })
+        return true
+      }
+
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      if (!user || !playerKey) {
+        sendJson(response, 400, { error: 'user and playerKey are required.' })
+        return true
+      }
+      if (user.toLowerCase() !== draft.currentTurn.toLowerCase()) {
+        sendJson(response, 409, { error: `It is ${draft.currentTurn}'s turn.` })
+        return true
+      }
+
+      for (const [storageKey, rawValue] of Object.entries(state.storage)) {
+        if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+          continue
+        }
+        const pickedKeys = parseSelectedPlayerKeys(rawValue)
+        if (pickedKeys.includes(playerKey)) {
+          sendJson(response, 409, { error: 'That player has already been drafted.' })
+          return true
+        }
+      }
+
+      const userStorageKey = `${teamStatePrefix}${draft.currentTurn}`
+      const currentUserState = getUserTeamState(state.storage[userStorageKey] ?? '{}')
+      if (currentUserState.selectedPlayerKeys.length >= 11) {
+        sendJson(response, 409, { error: 'Current turn user already has 11 players.' })
+        return true
+      }
+
+      const nextUserKeys = [...currentUserState.selectedPlayerKeys, playerKey]
+      const nextStorage = {
+        ...state.storage,
+        [userStorageKey]: JSON.stringify({
+          ...currentUserState.base,
+          selectedPlayerKeys: nextUserKeys,
+        }),
+      }
+
+      const nextCounts = getTeamPlayerCounts(nextStorage)
+      const nextIndex = getNextEligibleDraftIndex(draft.order, nextCounts, draft.currentIndex + 1)
+      nextStorage[draftNextIndexStorageKey] = String(nextIndex < 0 ? 0 : nextIndex)
+
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, {
+        complete: nextIndex < 0,
+        currentTurn: nextIndex < 0 ? null : draft.order[nextIndex],
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to save draft pick.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/player-transfer-requests') {
+    const user = (url.searchParams.get('user') ?? '').trim()
+    if (!user) {
+      sendJson(response, 400, { error: 'user is required.' })
+      return true
+    }
+
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 200, { incoming: [], outgoing: [] })
+        return true
+      }
+      const requests = readTransferRequests(state.storage)
+      const incoming = requests.filter((item) => item.toUser.toLowerCase() === user.toLowerCase())
+      const outgoing = requests.filter((item) => item.fromUser.toLowerCase() === user.toLowerCase())
+      sendJson(response, 200, { incoming, outgoing })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read transfer requests.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/transfer-history') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 200, { sales: [] })
+        return true
+      }
+
+      const sales = readTransferHistory(state.storage)
+        .slice()
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      sendJson(response, 200, { sales })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read transfer history.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/transfer-history') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const eventType = typeof body.type === 'string' ? body.type.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      const playerName = typeof body.playerName === 'string' ? body.playerName.trim() : ''
+      const marketPriceRaw = Number(body.marketPrice)
+      const salePriceRaw = Number(body.salePrice)
+      const marketPrice = Number.isFinite(marketPriceRaw) ? Number(marketPriceRaw.toFixed(1)) : Number.NaN
+      const salePrice = Number.isFinite(salePriceRaw) ? Number(salePriceRaw.toFixed(1)) : Number.NaN
+
+      if (!user || !playerKey || !playerName || !Number.isFinite(marketPrice) || !Number.isFinite(salePrice)) {
+        sendJson(response, 400, { error: 'Invalid transfer history payload.' })
+        return true
+      }
+
+      if (eventType !== 'market-buy' && eventType !== 'market-sell') {
+        sendJson(response, 400, { error: 'Invalid transfer history type.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Transfer history is only tracked in draft mode.' })
+        return true
+      }
+
+      const sales = readTransferHistory(state.storage)
+      const nextSale = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        playerKey,
+        playerName,
+        buyerUser: eventType === 'market-buy' ? user : 'Open Market',
+        sellerUser: eventType === 'market-sell' ? user : 'Open Market',
+        marketPrice,
+        salePrice,
+        type: eventType,
+        createdAt: new Date().toISOString(),
+      }
+
+      const nextStorage = {
+        ...state.storage,
+        [transferHistoryStorageKey]: JSON.stringify([...sales, nextSale]),
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { sale: nextSale })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to write transfer history.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/player-transfer-requests') {
+    try {
+      const body = await readJsonBody(request)
+      const fromUser = typeof body.user === 'string' ? body.user.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      const playerName = typeof body.playerName === 'string' ? body.playerName.trim() : ''
+      const marketPriceRaw = Number(body.marketPrice)
+      const marketPrice = Number.isFinite(marketPriceRaw) ? Number(marketPriceRaw.toFixed(1)) : Number.NaN
+      const offeredPriceRaw = Number(body.offeredPrice)
+      const offeredPrice = Number.isFinite(offeredPriceRaw) ? Number(offeredPriceRaw.toFixed(1)) : Number.NaN
+      if (!fromUser || !playerKey || !playerName || !Number.isFinite(marketPrice) || !Number.isFinite(offeredPrice) || offeredPrice < 0) {
+        sendJson(response, 400, { error: 'user, playerKey, playerName, marketPrice and a valid offeredPrice are required.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Transfer requests require draft mode to be enabled.' })
+        return true
+      }
+      if (draft.matchday === 1 && !draft.complete) {
+        sendJson(response, 409, { error: 'Transfer requests are only available after the draft is complete.' })
+        return true
+      }
+
+      const owner = getPlayerOwner(state.storage, playerKey)
+      if (!owner) {
+        sendJson(response, 404, { error: 'Player is not currently owned.' })
+        return true
+      }
+      if (owner.toLowerCase() === fromUser.toLowerCase()) {
+        sendJson(response, 409, { error: 'You already own that player.' })
+        return true
+      }
+
+      const requests = readTransferRequests(state.storage)
+      const hasPending = requests.some(
+        (item) =>
+          item.status === 'pending' &&
+          item.playerKey === playerKey &&
+          item.fromUser.toLowerCase() === fromUser.toLowerCase() &&
+          item.toUser.toLowerCase() === owner.toLowerCase(),
+      )
+      if (hasPending) {
+        sendJson(response, 409, { error: 'A request for this player is already pending.' })
+        return true
+      }
+
+      const nextRequest = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        playerKey,
+        playerName,
+        marketPrice,
+        fromUser,
+        toUser: owner,
+        offeredPrice,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      }
+      const nextStorage = {
+        ...state.storage,
+        [transferRequestsStorageKey]: JSON.stringify([...requests, nextRequest]),
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { request: nextRequest })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to create transfer request.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/player-transfer-requests/respond') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const requestId = typeof body.requestId === 'string' ? body.requestId.trim() : ''
+      const decision = typeof body.decision === 'string' ? body.decision.trim().toLowerCase() : ''
+
+      if (!user || !requestId || (decision !== 'accept' && decision !== 'deny')) {
+        sendJson(response, 400, { error: 'user, requestId and decision (accept|deny) are required.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Transfer responses require draft mode to be enabled.' })
+        return true
+      }
+      const requests = readTransferRequests(state.storage)
+      const requestIndex = requests.findIndex((item) => item.id === requestId)
+      if (requestIndex < 0) {
+        sendJson(response, 404, { error: 'Transfer request not found.' })
+        return true
+      }
+
+      const targetRequest = requests[requestIndex]
+      if (targetRequest.toUser.toLowerCase() !== user.toLowerCase()) {
+        sendJson(response, 403, { error: 'Only the current owner can respond to this request.' })
+        return true
+      }
+      if (targetRequest.status !== 'pending') {
+        sendJson(response, 409, { error: 'This request has already been processed.' })
+        return true
+      }
+
+      const now = new Date().toISOString()
+      const nextStorage = { ...state.storage }
+
+      if (decision === 'accept') {
+        const ownerStorageKey = `${teamStatePrefix}${targetRequest.toUser}`
+        const requesterStorageKey = `${teamStatePrefix}${targetRequest.fromUser}`
+        const ownerState = getUserTeamState(state.storage[ownerStorageKey] ?? '{}')
+        const requesterState = getUserTeamState(state.storage[requesterStorageKey] ?? '{}')
+
+        if (!ownerState.selectedPlayerKeys.includes(targetRequest.playerKey)) {
+          sendJson(response, 409, { error: 'Owner no longer has this player.' })
+          return true
+        }
+        if (requesterState.selectedPlayerKeys.includes(targetRequest.playerKey)) {
+          sendJson(response, 409, { error: 'Requester already has this player.' })
+          return true
+        }
+        if (requesterState.selectedPlayerKeys.length >= 11) {
+          sendJson(response, 409, { error: 'Requester already has 11 players.' })
+          return true
+        }
+        if (requesterState.remainingBudget < targetRequest.offeredPrice) {
+          sendJson(response, 409, { error: 'Requester does not have enough budget for this offer.' })
+          return true
+        }
+
+        const nextOwnerBudget = Number((ownerState.remainingBudget + targetRequest.offeredPrice).toFixed(1))
+        const nextRequesterBudget = Number((requesterState.remainingBudget - targetRequest.offeredPrice).toFixed(1))
+
+        nextStorage[ownerStorageKey] = JSON.stringify({
+          ...ownerState.base,
+          selectedPlayerKeys: ownerState.selectedPlayerKeys.filter((key) => key !== targetRequest.playerKey),
+          remainingBudget: nextOwnerBudget,
+        })
+        nextStorage[requesterStorageKey] = JSON.stringify({
+          ...requesterState.base,
+          selectedPlayerKeys: [...requesterState.selectedPlayerKeys, targetRequest.playerKey],
+          remainingBudget: Math.max(0, nextRequesterBudget),
+        })
+
+        const sales = readTransferHistory(state.storage)
+        const nextSale = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          playerKey: targetRequest.playerKey,
+          playerName: targetRequest.playerName ?? targetRequest.playerKey,
+          buyerUser: targetRequest.fromUser,
+          sellerUser: targetRequest.toUser,
+          marketPrice: Number.isFinite(targetRequest.marketPrice)
+            ? Number(targetRequest.marketPrice)
+            : Number(targetRequest.offeredPrice ?? 0),
+          salePrice: Number(targetRequest.offeredPrice ?? 0),
+          type: 'user-transfer',
+          createdAt: now,
+        }
+        nextStorage[transferHistoryStorageKey] = JSON.stringify([...sales, nextSale])
+      }
+
+      const nextRequests = [...requests]
+      nextRequests[requestIndex] = {
+        ...targetRequest,
+        status: decision === 'accept' ? 'accepted' : 'denied',
+        resolvedAt: now,
+      }
+      nextStorage[transferRequestsStorageKey] = JSON.stringify(nextRequests)
+
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { ok: true })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to respond to transfer request.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/claimed-players') {
+    const requestingUser = (url.searchParams.get('user') ?? '').trim()
+    try {
+      const state = await readLeagueState()
+      if (state.storage[draftModeStorageKey] !== 'true') {
+        sendJson(response, 200, { claimed: {} })
+        return true
+      }
+      // Map of playerKey -> username for all players claimed by other users
+      const claimed = {}
+      for (const [storageKey, rawValue] of Object.entries(state.storage)) {
+        if (!storageKey.startsWith(teamStatePrefix)) continue
+        const owner = storageKey.slice(teamStatePrefix.length)
+        if (owner === requestingUser) continue
+        try {
+          const teamState = JSON.parse(rawValue)
+          if (!Array.isArray(teamState.selectedPlayerKeys)) continue
+          for (const playerKey of teamState.selectedPlayerKeys) {
+            if (typeof playerKey === 'string') {
+              claimed[playerKey] = owner
+            }
+          }
+        } catch { /* skip malformed entries */ }
+      }
+      sendJson(response, 200, { claimed })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read claimed players.' })
+    }
+    return true
+  }
 
   if (request.method === 'GET' && url.pathname === '/api/fixtures') {
     try {

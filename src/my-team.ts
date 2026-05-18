@@ -34,6 +34,210 @@ const positionLimits: Record<string, number> = {
 const allPlayers = getAllPlayers()
 const minimumPlayerPrice = allPlayers.reduce((min, player) => Math.min(min, player.price), Number.POSITIVE_INFINITY)
 let selectedPlayers: SelectablePlayer[] = []
+let claimedByOthers: Map<string, string> = new Map()
+let draftModeEnabled = false
+let draftModeCanEnable = false
+let draftOrder: string[] = []
+let draftCurrentTurn: string | null = null
+let draftComplete = false
+let remainingBudget = maxBudget
+let incomingTransferRequests: TransferRequest[] = []
+let outgoingTransferRequests: TransferRequest[] = []
+
+type TransferRequest = {
+	id: string
+	playerKey: string
+	playerName?: string
+	marketPrice?: number
+	fromUser: string
+	toUser: string
+	offeredPrice?: number
+	status: 'pending' | 'accepted' | 'denied' | string
+	createdAt?: string
+	resolvedAt?: string
+}
+
+async function logTransferHistoryEvent(payload: {
+	type: 'market-buy' | 'market-sell'
+	playerKey: string
+	playerName: string
+	marketPrice: number
+	salePrice: number
+}): Promise<void> {
+	if (!draftModeEnabled) {
+		return
+	}
+
+	try {
+		await fetch('/api/transfer-history', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				user: currentUsername,
+				type: payload.type,
+				playerKey: payload.playerKey,
+				playerName: payload.playerName,
+				marketPrice: Number(payload.marketPrice.toFixed(1)),
+				salePrice: Number(payload.salePrice.toFixed(1)),
+			}),
+		})
+	} catch {
+		// Non-blocking: history logging should never block the transfer action.
+	}
+}
+
+async function refreshClaimedPlayers(): Promise<void> {
+	try {
+		const response = await fetch(`/api/claimed-players?user=${encodeURIComponent(currentUsername)}`)
+		if (!response.ok) return
+		const data = (await response.json()) as { claimed?: Record<string, string> }
+		claimedByOthers = new Map(Object.entries(data.claimed ?? {}))
+	} catch {
+		// Keep the existing cached set on failure.
+	}
+}
+
+async function refreshTransferRequests(): Promise<void> {
+	try {
+		const response = await fetch(`/api/player-transfer-requests?user=${encodeURIComponent(currentUsername)}`)
+		if (!response.ok) return
+		const data = (await response.json()) as {
+			incoming?: TransferRequest[]
+			outgoing?: TransferRequest[]
+		}
+		incomingTransferRequests = Array.isArray(data.incoming) ? data.incoming : []
+		outgoingTransferRequests = Array.isArray(data.outgoing) ? data.outgoing : []
+	} catch {
+		// Keep existing state on failure.
+	}
+	renderTransferRequests()
+}
+
+async function refreshDraftMode(): Promise<void> {
+	try {
+		const response = await fetch('/api/draft-mode')
+		if (!response.ok) return
+		const data = (await response.json()) as {
+			enabled?: boolean
+			canEnable?: boolean
+			order?: string[]
+			currentTurn?: string | null
+			complete?: boolean
+		}
+		draftModeEnabled = data.enabled === true
+		draftModeCanEnable = data.canEnable === true
+		draftOrder = Array.isArray(data.order) ? data.order.filter((value) => typeof value === 'string') : []
+		draftCurrentTurn = typeof data.currentTurn === 'string' ? data.currentTurn : null
+		draftComplete = data.complete === true
+	} catch {
+		// Keep existing state on failure.
+	}
+	renderDraftModeButton()
+	renderDraftStatus()
+}
+
+function renderDraftModeButton(): void {
+	const btn = document.querySelector<HTMLButtonElement>('#draft-mode-btn')
+	if (!btn) return
+	btn.textContent = draftModeEnabled ? 'Disable Draft Mode' : 'Enable Draft Mode'
+	btn.disabled = !draftModeEnabled && !draftModeCanEnable
+	btn.classList.toggle('draft-mode-btn--active', draftModeEnabled)
+	btn.title = !draftModeEnabled && !draftModeCanEnable
+		? 'All users must have empty teams to enable draft mode'
+		: ''
+
+	const saveOrderBtn = document.querySelector<HTMLButtonElement>('#save-draft-order-btn')
+	if (saveOrderBtn) {
+		saveOrderBtn.disabled = !draftModeEnabled || draftComplete
+	}
+}
+
+function renderDraftStatus(): void {
+	const status = document.querySelector<HTMLParagraphElement>('#draft-status')
+	if (!status) return
+
+	if (!draftModeEnabled) {
+		status.textContent = 'Draft Mode: Off'
+		return
+	}
+
+	if (draftOrder.length === 0) {
+		status.textContent = 'Draft Mode: On (waiting for order)'
+		return
+	}
+
+	if (draftComplete) {
+		status.textContent = `Draft Mode: Complete (${draftOrder.join(' -> ')})`
+		return
+	}
+
+	const turnLabel = draftCurrentTurn ? draftCurrentTurn : 'Unknown'
+	status.textContent = `Draft Mode: ${turnLabel}'s turn (${draftOrder.join(' -> ')})`
+}
+
+function isDraftPhaseActive(): boolean {
+	return draftModeEnabled && !draftComplete && currentMatchday === 1
+}
+
+function renderTransferRequests(): void {
+	const section = document.querySelector<HTMLDivElement>('#transfer-requests-section')
+	const container = document.querySelector<HTMLDivElement>('#transfer-requests')
+	if (!container || !section) return
+
+	section.hidden = !draftModeEnabled
+	if (!draftModeEnabled) {
+		container.innerHTML = ''
+		return
+	}
+
+	const incomingPending = incomingTransferRequests.filter((request) => request.status === 'pending')
+	const outgoingPending = outgoingTransferRequests.filter((request) => request.status === 'pending')
+
+	if (incomingPending.length === 0 && outgoingPending.length === 0) {
+		container.innerHTML = '<p class="players-help">No pending transfer requests.</p>'
+		return
+	}
+
+	const incomingMarkup = incomingPending
+		.map((request) => {
+			const player = findPlayerByKey(request.playerKey)
+			const playerLabel = player ? `${player.name} (${player.team})` : request.playerKey
+			return `
+				<li class="transfer-request-item">
+					<div>
+						<strong>${escapeHtml(playerLabel)}</strong>
+						<div class="selected-meta">Requested by ${escapeHtml(request.fromUser)} for £${Number(request.offeredPrice ?? 0).toFixed(1)}</div>
+					</div>
+					<div class="transfer-request-actions">
+						<button type="button" class="transfer-request-action transfer-request-action--accept" data-request-id="${escapeHtml(request.id)}" data-decision="accept">Accept</button>
+						<button type="button" class="transfer-request-action transfer-request-action--deny" data-request-id="${escapeHtml(request.id)}" data-decision="deny">Deny</button>
+					</div>
+				</li>
+			`
+		})
+		.join('')
+
+	const outgoingMarkup = outgoingPending
+		.map((request) => {
+			const player = findPlayerByKey(request.playerKey)
+			const playerLabel = player ? `${player.name} (${player.team})` : request.playerKey
+			return `
+				<li class="transfer-request-item">
+					<div>
+						<strong>${escapeHtml(playerLabel)}</strong>
+						<div class="selected-meta">Offer £${Number(request.offeredPrice ?? 0).toFixed(1)} pending with ${escapeHtml(request.toUser)}</div>
+					</div>
+				</li>
+			`
+		})
+		.join('')
+
+	container.innerHTML = `
+		${incomingPending.length > 0 ? `<p class="players-help">Incoming Requests</p><ul class="transfer-request-list">${incomingMarkup}</ul>` : ''}
+		${outgoingPending.length > 0 ? `<p class="players-help">Outgoing Requests</p><ul class="transfer-request-list">${outgoingMarkup}</ul>` : ''}
+	`
+}
+
 let isTeamLocked = false
 let transfersUsedThisMatchday = 0
 let currentMatchday = 1
@@ -82,6 +286,7 @@ const myTeamMarkup = `
 				</div>
 			</div>
 
+			<p class="players-help" id="draft-status">Draft Mode: Off</p>
 			<p class="players-help" id="search-count"></p>
 			<ul class="search-results" id="search-results"></ul>
 		</div>
@@ -103,6 +308,8 @@ const myTeamMarkup = `
 				</div>
 				<button id="end-matchday-btn" type="button" class="end-matchday-btn" title="End matchday and accumulate points">End Matchday</button>
 			</div>
+			${isCurrentUserLee ? `<div class="draft-mode-section"><button id="draft-mode-btn" type="button" class="draft-mode-btn">Enable Draft Mode</button><input id="draft-order-input" class="draft-order-input" type="text" placeholder="Draft order e.g. lee, sam, alex" aria-label="Draft order" /><button id="save-draft-order-btn" type="button" class="draft-order-save-btn">Save Draft Order</button></div>` : ''}
+			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 			<div class="football-pitch" id="selected-team"></div>
 		</div>
 	</section>
@@ -136,6 +343,7 @@ type SavedTeamState = {
 	isTeamLocked: boolean
 	transfersUsedThisMatchday: number
 	currentMatchday: number
+	remainingBudget?: number
 	captainPlayerKey?: string | null
 	captainChangesThisMatchday?: number
 	captainBonusTotal?: number
@@ -148,6 +356,7 @@ function saveTeamState(): void {
 		isTeamLocked,
 		transfersUsedThisMatchday,
 		currentMatchday,
+		remainingBudget: Number(remainingBudget.toFixed(1)),
 		captainPlayerKey,
 		captainChangesThisMatchday,
 		captainBonusTotal,
@@ -155,6 +364,7 @@ function saveTeamState(): void {
 	}
 
 	setSharedItem(teamStateStorageKey, JSON.stringify(state))
+	void refreshClaimedPlayers().then(() => { renderSearchResults() })
 }
 
 function getGlobalMatchday(): number {
@@ -189,6 +399,7 @@ function loadTeamState(): void {
 		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
+		remainingBudget = maxBudget
 		captainPlayerKey = null
 		captainChangesThisMatchday = 0
 		captainBonusTotal = 0
@@ -208,6 +419,9 @@ function loadTeamState(): void {
 			? Math.max(0, Math.min(maxTransfersPerMatchday, state.transfersUsedThisMatchday))
 			: 0
 		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(1, state.currentMatchday) : 1
+		remainingBudget = Number.isFinite(state.remainingBudget)
+			? Math.max(0, Math.min(maxBudget, Number(state.remainingBudget)))
+			: Math.max(0, Number((maxBudget - getTotalPrice(selectedPlayers)).toFixed(1)))
 		captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
 		captainChangesThisMatchday = Number.isFinite(state.captainChangesThisMatchday)
 			? Math.max(0, Math.min(1, state.captainChangesThisMatchday ?? 0))
@@ -223,6 +437,7 @@ function loadTeamState(): void {
 		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
+		remainingBudget = maxBudget
 		captainPlayerKey = null
 		captainChangesThisMatchday = 0
 		captainBonusTotal = 0
@@ -277,8 +492,7 @@ function canAddPlayer(player: SelectablePlayer): boolean {
 		return false
 	}
 
-	const totalAfterAdding = getTotalPrice(selectedPlayers) + player.price
-	if (totalAfterAdding > maxBudget) {
+	if (remainingBudget < player.price) {
 		return false
 	}
 
@@ -288,7 +502,7 @@ function canAddPlayer(player: SelectablePlayer): boolean {
 		remainingSlotsAfterAdding > 0 && Number.isFinite(minimumPlayerPrice)
 			? remainingSlotsAfterAdding * minimumPlayerPrice
 			: 0
-	if (totalAfterAdding + minimumBudgetNeededForRemainingSlots > maxBudget) {
+	if (remainingBudget - player.price < minimumBudgetNeededForRemainingSlots) {
 		return false
 	}
 
@@ -297,6 +511,10 @@ function canAddPlayer(player: SelectablePlayer): boolean {
 }
 
 function canRemovePlayer(): boolean {
+	if (isDraftPhaseActive()) {
+		return false
+	}
+
 	if (!isTeamLocked) {
 		return true
 	}
@@ -305,6 +523,10 @@ function canRemovePlayer(): boolean {
 }
 
 function canLockTeam(): boolean {
+	if (isDraftPhaseActive()) {
+		return false
+	}
+
 	return !isTeamLocked && selectedPlayers.length === maxTeamSize
 }
 
@@ -395,7 +617,8 @@ function renderSelectedTeam(): void {
 
 	teamCount.textContent = `${selectedPlayers.length}/${maxTeamSize}`
 	if (budgetCount) {
-		budgetCount.textContent = `Budget: £${getTotalPrice(selectedPlayers).toFixed(1)} / £${maxBudget.toFixed(1)}`
+		const spent = Number((maxBudget - remainingBudget).toFixed(1))
+		budgetCount.textContent = `Budget: £${spent.toFixed(1)} / £${maxBudget.toFixed(1)} (Remaining: £${remainingBudget.toFixed(1)})`
 	}
 	if (matchdayPointsDisplay) {
 		matchdayPointsDisplay.textContent = `${isTeamLocked ? getMatchdayPoints(selectedPlayers) : 0}`
@@ -449,7 +672,7 @@ function renderSelectedTeam(): void {
 			endMatchdayBtn.textContent = 'Only lee can end matchday'
 			endMatchdayBtn.title = 'Only user lee can end the matchday for everyone'
 		}
-		endMatchdayBtn.disabled = !isTeamLocked || !isCurrentUserLee
+		endMatchdayBtn.disabled = !isTeamLocked || !isCurrentUserLee || isDraftPhaseActive()
 	}
 
 	if (selectedPlayers.length === 0) {
@@ -508,6 +731,11 @@ function renderSearchResults(): void {
 
 	const query = searchInput.value.trim().toLowerCase()
 	const selectedKeys = new Set(selectedPlayers.map(playerKey))
+	const claimedKeys = claimedByOthers
+	const notCurrentTurn =
+		isDraftPhaseActive() &&
+		draftCurrentTurn !== null &&
+		draftCurrentTurn.toLowerCase() !== currentUsername.toLowerCase()
 
 	// Get filter values
 	const selectedPositionFilter = filterPosition?.value || null
@@ -549,20 +777,43 @@ function renderSearchResults(): void {
 		.map((player) => {
 			const key = playerKey(player)
 			const alreadySelected = selectedKeys.has(key)
+			const takenByOther = !alreadySelected && claimedKeys.has(key)
+			const owner = claimedKeys.get(key) ?? null
+			const hasPendingRequest = outgoingTransferRequests.some((request) => request.status === 'pending' && request.playerKey === key)
+			const blockedByTurn = !alreadySelected && notCurrentTurn
 			// Only block adding when team is full AND no transfers remain.
 			// If the team has a free slot (player was removed), adding is always allowed.
 			const lockedAndNoTransfersLeft = isTeamLocked && !alreadySelected && selectedPlayers.length >= maxTeamSize && transfersUsedThisMatchday >= maxTransfersPerMatchday
-			const disabled = alreadySelected || !canAddPlayer(player)
-			const isDisabled = disabled || lockedAndNoTransfersLeft
-			const buttonLabel = alreadySelected ? 'Added' : 'Add'
+			const isRequestMode = takenByOther && !isDraftPhaseActive() && owner !== null
+			const disabled = alreadySelected || (!isRequestMode && (takenByOther || !canAddPlayer(player)))
+			const isDisabled = disabled || lockedAndNoTransfersLeft || blockedByTurn
+			const buttonLabel = alreadySelected
+				? 'Added'
+				: isRequestMode
+					? hasPendingRequest
+						? 'Requested'
+						: 'Request'
+					: takenByOther
+						? 'Taken'
+						: blockedByTurn
+							? 'Wait Turn'
+							: 'Add'
+			const buttonClass = isRequestMode
+				? `request-btn${hasPendingRequest ? ' request-btn--pending' : ''}`
+				: `add-btn${takenByOther ? ' add-btn--taken' : ''}`
+			const buttonDataAttrs = isRequestMode
+				? `data-key="${escapeHtml(key)}" data-owner="${escapeHtml(owner)}"`
+				: `data-key="${escapeHtml(key)}"`
+			const requestDisabled = isRequestMode && (hasPendingRequest || selectedPlayers.length >= maxTeamSize)
+			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : isDisabled
 
 			return `
-				<li class="search-item">
+				<li class="search-item${takenByOther ? ' player-taken' : ''}">
 					<div>
 						<strong>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span></strong>
 						<div class="selected-meta">${escapeHtml(player.team)} (${escapeHtml(player.position)})</div>
 					</div>
-					<button class="add-btn" type="button" data-key="${escapeHtml(key)}" ${isDisabled ? 'disabled' : ''}>${buttonLabel}</button>
+					<button class="${buttonClass}" type="button" ${buttonDataAttrs} ${finalDisabled ? 'disabled' : ''}>${buttonLabel}</button>
 				</li>
 			`
 		})
@@ -594,8 +845,54 @@ if (searchInput && searchResults && selectedTeamList) {
 		filterCountry.addEventListener('change', renderSearchResults)
 	}
 
-	searchResults.addEventListener('click', (event) => {
+	searchResults.addEventListener('click', async (event) => {
 		const target = event.target as HTMLElement
+		const requestButton = target.closest<HTMLButtonElement>('button.request-btn')
+		if (requestButton) {
+			const requestedPlayerKey = requestButton.dataset.key
+			if (!requestedPlayerKey) {
+				return
+			}
+			const requestedPlayer = findPlayerByKey(requestedPlayerKey)
+			const offeredPriceText = window.prompt('Enter transfer offer price (£):')
+			if (offeredPriceText === null) {
+				return
+			}
+			const offeredPrice = Number.parseFloat(offeredPriceText)
+			if (!Number.isFinite(offeredPrice) || offeredPrice < 0) {
+				alert('Please enter a valid offer price.')
+				return
+			}
+			if (offeredPrice > remainingBudget) {
+				alert('You do not have enough remaining budget for that offer.')
+				return
+			}
+
+			try {
+				const response = await fetch('/api/player-transfer-requests', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						user: currentUsername,
+						playerKey: requestedPlayerKey,
+						playerName: requestedPlayer?.name ?? requestedPlayerKey,
+						marketPrice: requestedPlayer?.price ?? 0,
+						offeredPrice: Number(offeredPrice.toFixed(1)),
+					}),
+				})
+				const data = (await response.json()) as { error?: string }
+				if (!response.ok) {
+					alert(data.error ?? 'Unable to send transfer request.')
+					return
+				}
+				await refreshTransferRequests()
+				renderSearchResults()
+			} catch {
+				alert('Unable to send transfer request.')
+			}
+			return
+		}
+
 		const button = target.closest<HTMLButtonElement>('button.add-btn')
 		if (!button) {
 			return
@@ -611,6 +908,18 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
+		if (claimedByOthers.has(key)) {
+			return
+		}
+
+		if (
+			isDraftPhaseActive() &&
+			draftCurrentTurn !== null &&
+			draftCurrentTurn.toLowerCase() !== currentUsername.toLowerCase()
+		) {
+			return
+		}
+
 		if (!canAddPlayer(player)) {
 			return
 		}
@@ -618,8 +927,47 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
+		if (isDraftPhaseActive()) {
+			try {
+				const res = await fetch('/api/draft-pick', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ user: currentUsername, playerKey: key }),
+				})
+				const payload = (await res.json()) as { error?: string; currentTurn?: string | null; complete?: boolean }
+				if (!res.ok) {
+					alert(payload.error ?? 'Unable to save draft pick.')
+					await refreshDraftMode()
+					await refreshClaimedPlayers()
+					renderSearchResults()
+					return
+				}
+
+				selectedPlayers = [...selectedPlayers, player]
+				remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
+				saveTeamState()
+				draftCurrentTurn = typeof payload.currentTurn === 'string' ? payload.currentTurn : null
+				draftComplete = payload.complete === true
+				renderDraftStatus()
+				await refreshClaimedPlayers()
+				renderSelectedTeam()
+				renderSearchResults()
+			} catch {
+				alert('Unable to save draft pick.')
+			}
+			return
+		}
+
 		selectedPlayers = [...selectedPlayers, player]
+		remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
 		saveTeamState()
+		void logTransferHistoryEvent({
+			type: 'market-buy',
+			playerKey: key,
+			playerName: player.name,
+			marketPrice: player.price,
+			salePrice: player.price,
+		})
 		renderSelectedTeam()
 		renderSearchResults()
 	})
@@ -650,6 +998,17 @@ if (searchInput && searchResults && selectedTeamList) {
 		}
 
 		selectedPlayers = selectedPlayers.filter((player) => playerKey(player) !== key)
+		const removedPlayer = findPlayerByKey(key)
+		if (removedPlayer) {
+			remainingBudget = Math.min(maxBudget, Number((remainingBudget + removedPlayer.price).toFixed(1)))
+			void logTransferHistoryEvent({
+				type: 'market-sell',
+				playerKey: key,
+				playerName: removedPlayer.name,
+				marketPrice: removedPlayer.price,
+				salePrice: removedPlayer.price,
+			})
+		}
 		if (captainPlayerKey === key) {
 			captainPlayerKey = null
 		}
@@ -723,13 +1082,110 @@ if (searchInput && searchResults && selectedTeamList) {
 	window.addEventListener(sharedLeagueUpdatedEvent, () => {
 		loadTeamState()
 		syncWithGlobalMatchday()
-		refreshLivePointsView()
+		void refreshClaimedPlayers().then(() => refreshLivePointsView())
+		void refreshDraftMode()
+		void refreshTransferRequests()
 	})
+
+	const draftModeBtn = document.querySelector<HTMLButtonElement>('#draft-mode-btn')
+	if (draftModeBtn) {
+		draftModeBtn.addEventListener('click', async () => {
+			const enabling = !draftModeEnabled
+			try {
+				const res = await fetch('/api/draft-mode', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ enabled: enabling, user: currentUsername }),
+				})
+				if (!res.ok) {
+					const err = (await res.json()) as { error?: string }
+					alert(err.error ?? 'Failed to update draft mode.')
+					return
+				}
+				draftModeEnabled = enabling
+			} catch {
+				alert('Failed to update draft mode.')
+				return
+			}
+			await refreshDraftMode()
+			await refreshClaimedPlayers()
+			renderSelectedTeam()
+			renderSearchResults()
+		})
+	}
+
+	const saveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#save-draft-order-btn')
+	const draftOrderInput = document.querySelector<HTMLInputElement>('#draft-order-input')
+	const transferRequestsContainer = document.querySelector<HTMLDivElement>('#transfer-requests')
+	if (transferRequestsContainer) {
+		transferRequestsContainer.addEventListener('click', async (event) => {
+			const target = event.target as HTMLElement
+			const actionBtn = target.closest<HTMLButtonElement>('button.transfer-request-action')
+			if (!actionBtn) {
+				return
+			}
+
+			const requestId = actionBtn.dataset.requestId
+			const decision = actionBtn.dataset.decision
+			if (!requestId || (decision !== 'accept' && decision !== 'deny')) {
+				return
+			}
+
+			try {
+				const response = await fetch('/api/player-transfer-requests/respond', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ user: currentUsername, requestId, decision }),
+				})
+				const data = (await response.json()) as { error?: string }
+				if (!response.ok) {
+					alert(data.error ?? 'Unable to process transfer request.')
+					return
+				}
+
+				loadTeamState()
+				await refreshClaimedPlayers()
+				await refreshTransferRequests()
+				renderSelectedTeam()
+				renderSearchResults()
+			} catch {
+				alert('Unable to process transfer request.')
+			}
+		})
+	}
+
+	if (saveDraftOrderBtn && draftOrderInput) {
+		saveDraftOrderBtn.addEventListener('click', async () => {
+			const rawOrder = draftOrderInput.value.trim()
+			if (!rawOrder) {
+				alert('Enter a draft order first.')
+				return
+			}
+
+			try {
+				const res = await fetch('/api/draft-order', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ user: currentUsername, order: rawOrder }),
+				})
+				const payload = (await res.json()) as { error?: string }
+				if (!res.ok) {
+					alert(payload.error ?? 'Unable to save draft order.')
+					return
+				}
+				await refreshDraftMode()
+				renderSearchResults()
+			} catch {
+				alert('Unable to save draft order.')
+			}
+		})
+	}
 	document.addEventListener('visibilitychange', () => {
 		if (document.visibilityState === 'visible') {
 			loadTeamState()
 			syncWithGlobalMatchday()
 			refreshLivePointsView()
+			void refreshTransferRequests()
 		}
 	})
 
@@ -737,5 +1193,11 @@ if (searchInput && searchResults && selectedTeamList) {
 	setGlobalMatchday(getGlobalMatchday())
 	syncWithGlobalMatchday()
 	renderSelectedTeam()
-	renderSearchResults()
+	void refreshDraftMode().then(() => {
+		void refreshClaimedPlayers().then(() => {
+			void refreshTransferRequests()
+			renderSelectedTeam()
+			renderSearchResults()
+		})
+	})
 }

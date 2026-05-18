@@ -1,13 +1,15 @@
 import './style.css'
 import { getCurrentUsername, requireCurrentUserTeamName, signOut } from './auth'
+import { getSharedItem } from './sharedLeague'
 
-export type Tab = 'fixtures' | 'players' | 'my-team' | 'stats' | 'table' | 'admin'
+export type Tab = 'fixtures' | 'players' | 'my-team' | 'stats' | 'table' | 'admin' | 'transfer-history'
 
 export function renderPage(title: string, activeTab: Tab, content = ''): void {
   const app = document.querySelector<HTMLDivElement>('#app')
   const username = getCurrentUsername()
   requireCurrentUserTeamName()
   const canAwardPoints = username?.toLowerCase() === 'lee'
+  const isDraftModeEnabled = getSharedItem('fantasy-football-draft-mode') === 'true'
 
   if (!app) {
     return
@@ -31,6 +33,7 @@ export function renderPage(title: string, activeTab: Tab, content = ''): void {
         <a class="tab ${activeTab === 'fixtures' ? 'active' : ''}" href="/fixtures.html">Fixtures</a>
         <a class="tab ${activeTab === 'players' ? 'active' : ''}" href="/players.html">Players</a>
         <a class="tab ${activeTab === 'my-team' ? 'active' : ''}" href="/my-team.html">My Team</a>
+        ${isDraftModeEnabled ? `<a class="tab ${activeTab === 'transfer-history' ? 'active' : ''}" href="/transfer-history.html">Transfer History</a>` : ''}
         ${canAwardPoints ? `<a class="tab ${activeTab === 'stats' ? 'active' : ''}" href="/stats.html">Award Points</a>` : ''}
         ${canAwardPoints ? `<a class="tab ${activeTab === 'admin' ? 'active' : ''}" href="/admin.html">Admin</a>` : ''}
         <a class="tab ${activeTab === 'table' ? 'active' : ''}" href="/table.html">Table</a>
