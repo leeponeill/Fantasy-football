@@ -1,0 +1,18 @@
+{
+  "name": "fantasy_football",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs --mode development --host 127.0.0.1 --port 5173",
+    "dev:lan": "node server.mjs --mode development --host 0.0.0.0 --port 5173",
+    "build": "tsc && vite build",
+    "preview": "npm run build && node server.mjs --host 127.0.0.1 --port 4173",
+    "preview:lan": "npm run build && node server.mjs --host 0.0.0.0 --port 4173",
+    "host:lan": "npm run preview:lan"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12"
+  }
+}

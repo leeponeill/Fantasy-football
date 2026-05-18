@@ -1,0 +1,11 @@
+{
+  "storage": {
+    "fantasy-football-player-points": "{}",
+    "fantasy-football-total-points": "{}",
+    "fantasy-football-users": "[{\"username\":\"lee\",\"password\":\"test\"},{\"username\":\"Kieran\",\"password\":\"TEST\"}]",
+    "fantasy-football-user-profiles": "{\"lee\":{\"teamName\":\"lee team test\"},\"Kieran\":{\"teamName\":\"Kieran\"}}",
+    "fantasy-football-global-matchday": "1",
+    "fantasy-football-my-team-state::lee": "{\"selectedPlayerKeys\":[\"England::Aaron Ramsdale\",\"United States::Aaron Long\",\"Qatar::Abdelkarim Hassan\",\"Senegal::Abdou Diallo\",\"Ghana::Abdul Rahman Baba\",\"Saudi Arabia::Abdullah Madu\",\"Morocco::Abde Ezzalzouli\",\"Poland::Adam Buksa\",\"Morocco::Abdelhamid Sabiri\",\"Wales::Aaron Ramsey\",\"Australia::Aaron Mooy\"],\"isTeamLocked\":true,\"transfersUsedThisMatchday\":0,\"currentMatchday\":1,\"captainPlayerKey\":\"Wales::Aaron Ramsey\",\"captainChangesThisMatchday\":1,\"captainBonusTotal\":0,\"manualPointsAdjustment\":0}"
+  },
+  "updatedAt": "2026-05-18T17:23:04.194Z"
+}

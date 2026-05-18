@@ -1,0 +1,158 @@
+export type FixtureGame = {
+  match: string
+  time: string
+  country: 'Mexico' | 'USA' | 'Canada'
+  date: string
+}
+
+export type FixtureMatchday = {
+  matchday: number
+  games: FixtureGame[]
+}
+
+export const fixtureMatchdays: FixtureMatchday[] = [
+  {
+    matchday: 1,
+    games: [
+      { match: 'Mexico vs South Africa', time: '8pm', country: 'Mexico', date: 'Thursday, June 11' },
+      { match: 'South Korea vs Czech Republic', time: '3am', country: 'Mexico', date: 'Friday, June 12' },
+      { match: 'Canada vs Bosnia & Herzegovina', time: '8pm', country: 'Canada', date: 'Friday, June 12' },
+      { match: 'USA vs Paraguay', time: '2am', country: 'USA', date: 'Saturday, June 13' },
+      { match: 'Qatar vs Switzerland', time: '8pm', country: 'USA', date: 'Saturday, June 13' },
+      { match: 'Brazil vs Morocco', time: '11pm', country: 'USA', date: 'Saturday, June 13' },
+      { match: 'Haiti vs Scotland', time: '2am', country: 'USA', date: 'Sunday, June 14' },
+      { match: 'Australia vs Turkey', time: '5am', country: 'Canada', date: 'Sunday, June 14' },
+      { match: 'Germany vs Curacao', time: '6pm', country: 'USA', date: 'Sunday, June 14' },
+      { match: 'Netherlands vs Japan', time: '9pm', country: 'USA', date: 'Sunday, June 14' },
+      { match: 'Ivory Coast vs Ecuador', time: '12am', country: 'USA', date: 'Monday, June 15' },
+      { match: 'Sweden vs Tunisia', time: '3am', country: 'Mexico', date: 'Monday, June 15' },
+      { match: 'Spain vs Cape Verde', time: '5pm', country: 'USA', date: 'Monday, June 15' },
+      { match: 'Belgium vs Egypt', time: '8pm', country: 'USA', date: 'Monday, June 15' },
+      { match: 'Saudi Arabia vs Uruguay', time: '11pm', country: 'USA', date: 'Monday, June 15' },
+      { match: 'Iran vs New Zealand', time: '2am', country: 'USA', date: 'Tuesday, June 16' },
+      { match: 'France vs Senegal', time: '8pm', country: 'USA', date: 'Tuesday, June 16' },
+      { match: 'Iraq vs Norway', time: '11pm', country: 'USA', date: 'Tuesday, June 16' },
+      { match: 'Argentina vs Algeria', time: '2am', country: 'USA', date: 'Wednesday, June 17' },
+      { match: 'Austria vs Jordan', time: '5am', country: 'USA', date: 'Wednesday, June 17' },
+      { match: 'Portugal vs DR Congo', time: '6pm', country: 'USA', date: 'Wednesday, June 17' },
+      { match: 'England vs Croatia', time: '9pm', country: 'USA', date: 'Wednesday, June 17' },
+    ],
+  },
+  {
+    matchday: 2,
+    games: [
+      { match: 'Ghana vs Panama', time: '12am', country: 'Canada', date: 'Thursday, June 18' },
+      { match: 'Uzbekistan vs Colombia', time: '3am', country: 'Mexico', date: 'Thursday, June 18' },
+      { match: 'Czech Republic vs South Africa', time: '5pm', country: 'USA', date: 'Thursday, June 18' },
+      { match: 'Switzerland vs Bosnia & Herzegovina', time: '8pm', country: 'USA', date: 'Thursday, June 18' },
+      { match: 'Canada vs Qatar', time: '11pm', country: 'Canada', date: 'Thursday, June 18' },
+      { match: 'Mexico vs South Korea', time: '2am', country: 'Mexico', date: 'Friday, June 19' },
+      { match: 'USA vs Australia', time: '8pm', country: 'USA', date: 'Friday, June 19' },
+      { match: 'Scotland vs Morocco', time: '11pm', country: 'USA', date: 'Friday, June 19' },
+      { match: 'Brazil vs Haiti', time: '1.30am', country: 'USA', date: 'Saturday, June 20' },
+      { match: 'Turkey vs Paraguay', time: '4am', country: 'USA', date: 'Saturday, June 20' },
+      { match: 'Netherlands vs Sweden', time: '6pm', country: 'USA', date: 'Saturday, June 20' },
+      { match: 'Germany vs Ivory Coast', time: '9pm', country: 'Canada', date: 'Saturday, June 20' },
+      { match: 'Ecuador vs Curacao', time: '1am', country: 'USA', date: 'Sunday, June 21' },
+      { match: 'Tunisia vs Japan', time: '5am', country: 'Mexico', date: 'Sunday, June 21' },
+      { match: 'Spain vs Saudi Arabia', time: '5pm', country: 'USA', date: 'Sunday, June 21' },
+      { match: 'Belgium vs Iran', time: '8pm', country: 'USA', date: 'Sunday, June 21' },
+      { match: 'Uruguay vs Cape Verde', time: '11pm', country: 'USA', date: 'Sunday, June 21' },
+      { match: 'New Zealand vs Egypt', time: '2am', country: 'Canada', date: 'Monday, June 22' },
+      { match: 'Argentina vs Austria', time: '6pm', country: 'USA', date: 'Monday, June 22' },
+      { match: 'France vs Iraq', time: '10pm', country: 'USA', date: 'Monday, June 22' },
+      { match: 'Norway vs Senegal', time: '1am', country: 'Canada', date: 'Tuesday, June 23' },
+      { match: 'Jordan vs Algeria', time: '4am', country: 'USA', date: 'Tuesday, June 23' },
+      { match: 'Portugal vs Uzbekistan', time: '6pm', country: 'USA', date: 'Tuesday, June 23' },
+      { match: 'England vs Ghana', time: '9pm', country: 'USA', date: 'Tuesday, June 23' },
+    ],
+  },
+  {
+    matchday: 3,
+    games: [
+      { match: 'Panama vs Croatia', time: '12am', country: 'USA', date: 'Wednesday, June 24' },
+      { match: 'Colombia vs DR Congo', time: '3am', country: 'Mexico', date: 'Wednesday, June 24' },
+      { match: 'Switzerland vs Canada', time: '8pm', country: 'Canada', date: 'Wednesday, June 24' },
+      { match: 'Bosnia & Herzegovina vs Qatar', time: '8pm', country: 'USA', date: 'Wednesday, June 24' },
+      { match: 'Morocco vs Haiti', time: '11pm', country: 'USA', date: 'Wednesday, June 24' },
+      { match: 'Scotland vs Brazil', time: '11pm', country: 'USA', date: 'Wednesday, June 24' },
+      { match: 'South Africa vs South Korea', time: '2am', country: 'Mexico', date: 'Thursday, June 25' },
+      { match: 'Czech Republic vs Mexico', time: '2am', country: 'Mexico', date: 'Thursday, June 25' },
+      { match: 'Curacao vs Ivory Coast', time: '9pm', country: 'USA', date: 'Thursday, June 25' },
+      { match: 'Ecuador vs Germany', time: '9pm', country: 'USA', date: 'Thursday, June 25' },
+      { match: 'Tunisia vs Netherlands', time: '12am', country: 'USA', date: 'Friday, June 26' },
+      { match: 'Japan vs Sweden', time: '12am', country: 'USA', date: 'Friday, June 26' },
+      { match: 'Turkey vs USA', time: '3am', country: 'USA', date: 'Friday, June 26' },
+      { match: 'Paraguay vs Australia', time: '3am', country: 'USA', date: 'Friday, June 26' },
+      { match: 'Norway vs France', time: '8pm', country: 'USA', date: 'Friday, June 26' },
+      { match: 'Senegal vs Iraq', time: '8pm', country: 'Canada', date: 'Friday, June 26' },
+      { match: 'Cape Verde vs Saudi Arabia', time: '1am', country: 'USA', date: 'Saturday, June 27' },
+      { match: 'Uruguay vs Spain', time: '1am', country: 'Mexico', date: 'Saturday, June 27' },
+      { match: 'New Zealand vs Belgium', time: '4am', country: 'Canada', date: 'Saturday, June 27' },
+      { match: 'Egypt vs Iran', time: '4am', country: 'USA', date: 'Saturday, June 27' },
+      { match: 'Panama vs England', time: '10pm', country: 'USA', date: 'Saturday, June 27' },
+      { match: 'Croatia vs Ghana', time: '10pm', country: 'USA', date: 'Saturday, June 27' },
+      { match: 'Colombia vs Portugal', time: '12.30am', country: 'USA', date: 'Sunday, June 28' },
+      { match: 'DR Congo vs Uzbekistan', time: '12.30am', country: 'USA', date: 'Sunday, June 28' },
+      { match: 'Algeria vs Austria', time: '3am', country: 'USA', date: 'Sunday, June 28' },
+      { match: 'Jordan vs Argentina', time: '3am', country: 'USA', date: 'Sunday, June 28' },
+    ],
+  },
+  {
+    matchday: 4,
+    games: [
+      { match: 'Round of 32 - Match 1: Group A Winner vs Group B Runner-up', time: '6pm', country: 'USA', date: 'Sunday, June 29' },
+      { match: 'Round of 32 - Match 2: Group C Winner vs Group D Runner-up', time: '9pm', country: 'Mexico', date: 'Sunday, June 29' },
+      { match: 'Round of 32 - Match 3: Group E Winner vs Group F Runner-up', time: '12am', country: 'Canada', date: 'Monday, June 30' },
+      { match: 'Round of 32 - Match 4: Group G Winner vs Group H Runner-up', time: '3am', country: 'USA', date: 'Monday, June 30' },
+      { match: 'Round of 32 - Match 5: Group B Winner vs Group A Runner-up', time: '6pm', country: 'Mexico', date: 'Monday, June 30' },
+      { match: 'Round of 32 - Match 6: Group D Winner vs Group C Runner-up', time: '9pm', country: 'USA', date: 'Monday, June 30' },
+      { match: 'Round of 32 - Match 7: Group F Winner vs Group E Runner-up', time: '12am', country: 'USA', date: 'Tuesday, July 1' },
+      { match: 'Round of 32 - Match 8: Group H Winner vs Group G Runner-up', time: '3am', country: 'Canada', date: 'Tuesday, July 1' },
+      { match: 'Round of 32 - Match 9: Group I Winner vs Group J Runner-up', time: '6pm', country: 'USA', date: 'Tuesday, July 1' },
+      { match: 'Round of 32 - Match 10: Group K Winner vs Group L Runner-up', time: '9pm', country: 'Mexico', date: 'Tuesday, July 1' },
+      { match: 'Round of 32 - Match 11: Group J Winner vs Group I Runner-up', time: '12am', country: 'USA', date: 'Wednesday, July 2' },
+      { match: 'Round of 32 - Match 12: Group L Winner vs Group K Runner-up', time: '3am', country: 'Canada', date: 'Wednesday, July 2' },
+      { match: 'Round of 32 - Match 13: Group M Winner vs Group N Runner-up', time: '6pm', country: 'Mexico', date: 'Wednesday, July 2' },
+      { match: 'Round of 32 - Match 14: Group O Winner vs Group P Runner-up', time: '9pm', country: 'USA', date: 'Wednesday, July 2' },
+      { match: 'Round of 32 - Match 15: Group N Winner vs Group M Runner-up', time: '12am', country: 'Canada', date: 'Thursday, July 3' },
+      { match: 'Round of 32 - Match 16: Group P Winner vs Group O Runner-up', time: '3am', country: 'USA', date: 'Thursday, July 3' },
+    ],
+  },
+  {
+    matchday: 5,
+    games: [
+      { match: 'Round of 16 - Match 1: Match 1 Winner vs Match 8 Winner', time: '6pm', country: 'USA', date: 'Friday, July 4' },
+      { match: 'Round of 16 - Match 2: Match 5 Winner vs Match 4 Winner', time: '9pm', country: 'Mexico', date: 'Friday, July 4' },
+      { match: 'Round of 16 - Match 3: Match 2 Winner vs Match 7 Winner', time: '12am', country: 'Canada', date: 'Saturday, July 5' },
+      { match: 'Round of 16 - Match 4: Match 6 Winner vs Match 3 Winner', time: '3am', country: 'USA', date: 'Saturday, July 5' },
+      { match: 'Round of 16 - Match 5: Match 9 Winner vs Match 16 Winner', time: '6pm', country: 'Mexico', date: 'Saturday, July 5' },
+      { match: 'Round of 16 - Match 6: Match 13 Winner vs Match 12 Winner', time: '9pm', country: 'USA', date: 'Saturday, July 5' },
+      { match: 'Round of 16 - Match 7: Match 10 Winner vs Match 15 Winner', time: '12am', country: 'USA', date: 'Sunday, July 6' },
+      { match: 'Round of 16 - Match 8: Match 14 Winner vs Match 11 Winner', time: '3am', country: 'Canada', date: 'Sunday, July 6' },
+    ],
+  },
+  {
+    matchday: 6,
+    games: [
+      { match: 'Quarterfinal 1: Match 1 Winner vs Match 4 Winner', time: '6pm', country: 'USA', date: 'Tuesday, July 8' },
+      { match: 'Quarterfinal 2: Match 2 Winner vs Match 3 Winner', time: '9pm', country: 'Mexico', date: 'Tuesday, July 8' },
+      { match: 'Quarterfinal 3: Match 5 Winner vs Match 8 Winner', time: '12am', country: 'Canada', date: 'Wednesday, July 9' },
+      { match: 'Quarterfinal 4: Match 6 Winner vs Match 7 Winner', time: '3am', country: 'USA', date: 'Wednesday, July 9' },
+    ],
+  },
+  {
+    matchday: 7,
+    games: [
+      { match: 'Semifinal 1: Quarterfinal 1 Winner vs Quarterfinal 2 Winner', time: '8pm', country: 'USA', date: 'Saturday, July 12' },
+      { match: 'Semifinal 2: Quarterfinal 3 Winner vs Quarterfinal 4 Winner', time: '8pm', country: 'Mexico', date: 'Wednesday, July 16' },
+    ],
+  },
+  {
+    matchday: 8,
+    games: [
+      { match: 'Third Place Playoff: Semifinal 1 Loser vs Semifinal 2 Loser', time: '10am', country: 'USA', date: 'Saturday, July 19' },
+      { match: 'Final: Semifinal 1 Winner vs Semifinal 2 Winner', time: '8pm', country: 'USA', date: 'Sunday, July 20' },
+    ],
+  },
+]
