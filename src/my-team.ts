@@ -48,6 +48,7 @@ type TransferRequest = {
 	playerKey: string
 	playerName?: string
 	marketPrice?: number
+	position?: string
 	fromUser: string
 	toUser: string
 	offeredPrice?: number
@@ -534,6 +535,16 @@ function canSetCaptain(targetKey: string): boolean {
 	return selectedPlayers.some((player) => playerKey(player) === targetKey)
 }
 
+function canAcceptTransfer(request: TransferRequest): boolean {
+	if (!request.position) {
+		return false
+	}
+
+	const bucket = positionBucket(request.position)
+	const currentCountInBucket = countByBucket(selectedPlayers, bucket)
+	return currentCountInBucket < positionLimits[bucket]
+}
+
 function setCaptain(targetKey: string): void {
 	if (!canSetCaptain(targetKey)) {
 		return
@@ -857,6 +868,7 @@ if (searchInput && searchResults && selectedTeamList) {
 						playerKey: requestedPlayerKey,
 						playerName: requestedPlayer?.name ?? requestedPlayerKey,
 						marketPrice: requestedPlayer?.price ?? 0,
+						position: requestedPlayer?.position ?? '',
 						offeredPrice: Number(offeredPrice.toFixed(1)),
 					}),
 				})
@@ -1081,11 +1093,24 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 
+			if (decision === 'accept') {
+				const targetRequest = incomingTransferRequests.find((r) => r.id === requestId)
+				if (targetRequest && !canAcceptTransfer(targetRequest)) {
+					alert(`Cannot accept: accepting this player would exceed the position limit for ${targetRequest.position}.`)
+					return
+				}
+			}
+
 			try {
 				const response = await fetch('/api/player-transfer-requests/respond', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ user: currentUsername, requestId, decision }),
+					body: JSON.stringify({
+						user: currentUsername,
+						requestId,
+						decision,
+						position: decision === 'accept' ? incomingTransferRequests.find((r) => r.id === requestId)?.position : undefined,
+					}),
 				})
 				const data = (await response.json()) as { error?: string }
 				if (!response.ok) {

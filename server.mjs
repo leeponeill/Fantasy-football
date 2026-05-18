@@ -99,6 +99,31 @@ function parseArgs(argv) {
   return args
 }
 
+const positionLimits = {
+  'Goalkeeper': 1,
+  'Defender': 5,
+  'Midfielder': 5,
+  'Forward': 3,
+}
+
+function positionBucket(position) {
+  if (!position || typeof position !== 'string') {
+    return 'Forward'
+  }
+
+  const upper = position.toUpperCase()
+  if (upper.includes('GOAL')) {
+    return 'Goalkeeper'
+  }
+  if (upper.includes('DEF') || upper === 'D') {
+    return 'Defender'
+  }
+  if (upper.includes('MID') || upper === 'M') {
+    return 'Midfielder'
+  }
+  return 'Forward'
+}
+
 async function ensureDataFile() {
   await mkdir(dataDirectory, { recursive: true })
 
@@ -410,6 +435,7 @@ function readTransferRequests(storage) {
         playerKey: typeof item.playerKey === 'string' ? item.playerKey : '',
         playerName: typeof item.playerName === 'string' ? item.playerName : '',
         marketPrice: Number.isFinite(item.marketPrice) ? Number(item.marketPrice) : 0,
+        position: typeof item.position === 'string' ? item.position : '',
         fromUser: typeof item.fromUser === 'string' ? item.fromUser : '',
         toUser: typeof item.toUser === 'string' ? item.toUser : '',
         offeredPrice: Number.isFinite(item.offeredPrice) ? Number(item.offeredPrice) : 0,
@@ -929,12 +955,13 @@ async function handleApiRequest(request, response) {
       const fromUser = typeof body.user === 'string' ? body.user.trim() : ''
       const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
       const playerName = typeof body.playerName === 'string' ? body.playerName.trim() : ''
+      const position = typeof body.position === 'string' ? body.position.trim() : ''
       const marketPriceRaw = Number(body.marketPrice)
       const marketPrice = Number.isFinite(marketPriceRaw) ? Number(marketPriceRaw.toFixed(1)) : Number.NaN
       const offeredPriceRaw = Number(body.offeredPrice)
       const offeredPrice = Number.isFinite(offeredPriceRaw) ? Number(offeredPriceRaw.toFixed(1)) : Number.NaN
-      if (!fromUser || !playerKey || !playerName || !Number.isFinite(marketPrice) || !Number.isFinite(offeredPrice) || offeredPrice < 0) {
-        sendJson(response, 400, { error: 'user, playerKey, playerName, marketPrice and a valid offeredPrice are required.' })
+      if (!fromUser || !playerKey || !playerName || !position || !Number.isFinite(marketPrice) || !Number.isFinite(offeredPrice) || offeredPrice < 0) {
+        sendJson(response, 400, { error: 'user, playerKey, playerName, position, marketPrice and a valid offeredPrice are required.' })
         return true
       }
 
@@ -977,6 +1004,7 @@ async function handleApiRequest(request, response) {
         playerKey,
         playerName,
         marketPrice,
+        position,
         fromUser,
         toUser: owner,
         offeredPrice,
