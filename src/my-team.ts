@@ -859,6 +859,15 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 
+			if (requestedPlayer) {
+				const bucket = positionBucket(requestedPlayer.position)
+				const countInBucket = countByBucket(selectedPlayers, bucket)
+				if (countInBucket >= positionLimits[bucket]) {
+					alert(`You already have the maximum number of ${bucket}s (${positionLimits[bucket]}). You cannot request this player.`)
+					return
+				}
+			}
+
 			try {
 				const response = await fetch('/api/player-transfer-requests', {
 					method: 'POST',
