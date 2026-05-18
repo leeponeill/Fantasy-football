@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const dataDirectory = path.join(__dirname, 'data')
 const leagueStatePath = path.join(dataDirectory, 'league-state.json')
+const fixturesPath = path.join(dataDirectory, 'fixtures.json')
 const distDirectory = path.join(__dirname, 'dist')
 const envFilePath = path.join(__dirname, '.env')
 
@@ -118,6 +119,60 @@ function sanitizeStorage(storage) {
         typeof value === 'string',
     ),
   )
+}
+
+function sanitizeFixtureMatchdays(value) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const validCountries = new Set(['Mexico', 'USA', 'Canada'])
+  const sanitized = []
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+
+    const matchdayRaw = item.matchday
+    const gamesRaw = item.games
+    if (!Number.isFinite(matchdayRaw) || !Array.isArray(gamesRaw)) {
+      continue
+    }
+
+    const games = gamesRaw
+      .filter((game) => game && typeof game === 'object')
+      .map((game) => ({
+        match: typeof game.match === 'string' ? game.match : '',
+        time: typeof game.time === 'string' ? game.time : '',
+        country: typeof game.country === 'string' && validCountries.has(game.country) ? game.country : null,
+        date: typeof game.date === 'string' ? game.date : '',
+      }))
+      .filter((game) => game.match && game.time && game.date && game.country)
+      .map((game) => ({
+        match: game.match,
+        time: game.time,
+        country: game.country,
+        date: game.date,
+      }))
+
+    if (games.length === 0) {
+      continue
+    }
+
+    sanitized.push({
+      matchday: Number(matchdayRaw),
+      games,
+    })
+  }
+
+  return sanitized
+}
+
+async function readFixtureMatchdays() {
+  const raw = await readFile(fixturesPath, 'utf8')
+  const parsed = JSON.parse(raw)
+  return sanitizeFixtureMatchdays(parsed)
 }
 
 async function readLeagueState() {
@@ -325,6 +380,16 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
 async function handleApiRequest(request, response) {
   const url = new URL(request.url ?? '/', 'http://localhost')
 
+  if (request.method === 'GET' && url.pathname === '/api/fixtures') {
+    try {
+      const matchdays = await readFixtureMatchdays()
+      sendJson(response, 200, { matchdays })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read fixtures file.' })
+    }
+    return true
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/league-state') {
     const state = await readLeagueState()
     sendJson(response, 200, state)
@@ -515,97 +580,6 @@ const serverAutoImportedIdsKey = 'fantasy-football-auto-imported-event-ids'
 const serverPlayerPointsKey = 'fantasy-football-player-points'
 const serverAutoScanDelayMs = 150 * 60 * 1000 // 2.5 hours
 const serverSchedulerMaxDelayMs = 2_147_000_000
-
-/** All fixture matchdays (mirrors fixturesData.ts) */
-const serverFixtureMatchdays = [
-  {
-    matchday: 1,
-    games: [
-      { match: 'Mexico vs South Africa', time: '8pm', date: 'Thursday, June 11' },
-      { match: 'South Korea vs Czech Republic', time: '3am', date: 'Friday, June 12' },
-      { match: 'Canada vs Bosnia & Herzegovina', time: '8pm', date: 'Friday, June 12' },
-      { match: 'USA vs Paraguay', time: '2am', date: 'Saturday, June 13' },
-      { match: 'Qatar vs Switzerland', time: '8pm', date: 'Saturday, June 13' },
-      { match: 'Brazil vs Morocco', time: '11pm', date: 'Saturday, June 13' },
-      { match: 'Haiti vs Scotland', time: '2am', date: 'Sunday, June 14' },
-      { match: 'Australia vs Turkey', time: '5am', date: 'Sunday, June 14' },
-      { match: 'Germany vs Curacao', time: '6pm', date: 'Sunday, June 14' },
-      { match: 'Netherlands vs Japan', time: '9pm', date: 'Sunday, June 14' },
-      { match: 'Ivory Coast vs Ecuador', time: '12am', date: 'Monday, June 15' },
-      { match: 'Sweden vs Tunisia', time: '3am', date: 'Monday, June 15' },
-      { match: 'Spain vs Cape Verde', time: '5pm', date: 'Monday, June 15' },
-      { match: 'Belgium vs Egypt', time: '8pm', date: 'Monday, June 15' },
-      { match: 'Saudi Arabia vs Uruguay', time: '11pm', date: 'Monday, June 15' },
-      { match: 'Iran vs New Zealand', time: '2am', date: 'Tuesday, June 16' },
-      { match: 'France vs Senegal', time: '8pm', date: 'Tuesday, June 16' },
-      { match: 'Iraq vs Norway', time: '11pm', date: 'Tuesday, June 16' },
-      { match: 'Argentina vs Algeria', time: '2am', date: 'Wednesday, June 17' },
-      { match: 'Austria vs Jordan', time: '5am', date: 'Wednesday, June 17' },
-      { match: 'Portugal vs DR Congo', time: '6pm', date: 'Wednesday, June 17' },
-      { match: 'England vs Croatia', time: '9pm', date: 'Wednesday, June 17' },
-    ],
-  },
-  {
-    matchday: 2,
-    games: [
-      { match: 'Ghana vs Panama', time: '12am', date: 'Thursday, June 18' },
-      { match: 'Uzbekistan vs Colombia', time: '3am', date: 'Thursday, June 18' },
-      { match: 'Czech Republic vs South Africa', time: '5pm', date: 'Thursday, June 18' },
-      { match: 'Switzerland vs Bosnia & Herzegovina', time: '8pm', date: 'Thursday, June 18' },
-      { match: 'Canada vs Qatar', time: '11pm', date: 'Thursday, June 18' },
-      { match: 'Mexico vs South Korea', time: '2am', date: 'Friday, June 19' },
-      { match: 'USA vs Australia', time: '8pm', date: 'Friday, June 19' },
-      { match: 'Scotland vs Morocco', time: '11pm', date: 'Friday, June 19' },
-      { match: 'Brazil vs Haiti', time: '1.30am', date: 'Saturday, June 20' },
-      { match: 'Turkey vs Paraguay', time: '4am', date: 'Saturday, June 20' },
-      { match: 'Netherlands vs Sweden', time: '6pm', date: 'Saturday, June 20' },
-      { match: 'Germany vs Ivory Coast', time: '9pm', date: 'Saturday, June 20' },
-      { match: 'Ecuador vs Curacao', time: '1am', date: 'Sunday, June 21' },
-      { match: 'Tunisia vs Japan', time: '5am', date: 'Sunday, June 21' },
-      { match: 'Spain vs Saudi Arabia', time: '5pm', date: 'Sunday, June 21' },
-      { match: 'Belgium vs Iran', time: '8pm', date: 'Sunday, June 21' },
-      { match: 'Uruguay vs Cape Verde', time: '11pm', date: 'Sunday, June 21' },
-      { match: 'New Zealand vs Egypt', time: '2am', date: 'Monday, June 22' },
-      { match: 'Argentina vs Austria', time: '6pm', date: 'Monday, June 22' },
-      { match: 'France vs Iraq', time: '10pm', date: 'Monday, June 22' },
-      { match: 'Norway vs Senegal', time: '1am', date: 'Tuesday, June 23' },
-      { match: 'Jordan vs Algeria', time: '4am', date: 'Tuesday, June 23' },
-      { match: 'Portugal vs Uzbekistan', time: '6pm', date: 'Tuesday, June 23' },
-      { match: 'England vs Ghana', time: '9pm', date: 'Tuesday, June 23' },
-    ],
-  },
-  {
-    matchday: 3,
-    games: [
-      { match: 'Panama vs Croatia', time: '12am', date: 'Wednesday, June 24' },
-      { match: 'Colombia vs DR Congo', time: '3am', date: 'Wednesday, June 24' },
-      { match: 'Switzerland vs Canada', time: '8pm', date: 'Wednesday, June 24' },
-      { match: 'Bosnia & Herzegovina vs Qatar', time: '8pm', date: 'Wednesday, June 24' },
-      { match: 'Morocco vs Haiti', time: '11pm', date: 'Wednesday, June 24' },
-      { match: 'Scotland vs Brazil', time: '11pm', date: 'Wednesday, June 24' },
-      { match: 'South Africa vs South Korea', time: '2am', date: 'Thursday, June 25' },
-      { match: 'Czech Republic vs Mexico', time: '2am', date: 'Thursday, June 25' },
-      { match: 'Curacao vs Ivory Coast', time: '9pm', date: 'Thursday, June 25' },
-      { match: 'Ecuador vs Germany', time: '9pm', date: 'Thursday, June 25' },
-      { match: 'Tunisia vs Netherlands', time: '12am', date: 'Friday, June 26' },
-      { match: 'Japan vs Sweden', time: '12am', date: 'Friday, June 26' },
-      { match: 'Turkey vs USA', time: '3am', date: 'Friday, June 26' },
-      { match: 'Paraguay vs Australia', time: '3am', date: 'Friday, June 26' },
-      { match: 'Norway vs France', time: '8pm', date: 'Friday, June 26' },
-      { match: 'Senegal vs Iraq', time: '8pm', date: 'Friday, June 26' },
-      { match: 'Cape Verde vs Saudi Arabia', time: '1am', date: 'Saturday, June 27' },
-      { match: 'Uruguay vs Spain', time: '1am', date: 'Saturday, June 27' },
-      { match: 'New Zealand vs Belgium', time: '4am', date: 'Saturday, June 27' },
-      { match: 'Egypt vs Iran', time: '4am', date: 'Saturday, June 27' },
-      { match: 'Panama vs England', time: '10pm', date: 'Saturday, June 27' },
-      { match: 'Croatia vs Ghana', time: '10pm', date: 'Saturday, June 27' },
-      { match: 'Colombia vs Portugal', time: '12.30am', date: 'Sunday, June 28' },
-      { match: 'DR Congo vs Uzbekistan', time: '12.30am', date: 'Sunday, June 28' },
-      { match: 'Algeria vs Austria', time: '3am', date: 'Sunday, June 28' },
-      { match: 'Jordan vs Argentina', time: '3am', date: 'Sunday, June 28' },
-    ],
-  },
-]
 
 // ---- Player data parsing (mirrors teamsData.ts) ----
 
@@ -893,6 +867,7 @@ async function serverScanDueFixturesAndImport() {
   console.log(`[auto-scan] Scanning due fixtures at ${new Date().toISOString()}`)
 
   try {
+    const fixtureMatchdays = await readFixtureMatchdays()
     const { players } = await getServerPlayers()
     const now = new Date()
     const state = await readLeagueState()
@@ -905,7 +880,7 @@ async function serverScanDueFixturesAndImport() {
     let alreadyImported = 0
     let errors = 0
 
-    for (const matchday of serverFixtureMatchdays) {
+    for (const matchday of fixtureMatchdays) {
       for (const game of matchday.games) {
         const teams = serverExtractFixtureTeams(game)
         if (!teams) continue
@@ -968,11 +943,19 @@ async function serverScanDueFixturesAndImport() {
 const serverScheduledKeys = new Set()
 
 async function scheduleServerFixtureScans() {
+  let fixtureMatchdays = []
+  try {
+    fixtureMatchdays = await readFixtureMatchdays()
+  } catch (err) {
+    console.error('[auto-scan] Unable to read fixtures file:', err.message)
+    return
+  }
+
   await getServerPlayers()
   const now = new Date()
   let shouldRunNow = false
 
-  for (const matchday of serverFixtureMatchdays) {
+  for (const matchday of fixtureMatchdays) {
     for (const game of matchday.games) {
       if (!serverExtractFixtureTeams(game)) continue
       const kickoff = serverParseFixtureKickoff(game, now)
