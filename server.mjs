@@ -1462,12 +1462,6 @@ async function handleApiRequest(request, response) {
   if (request.method === 'GET' && url.pathname === '/api/transfer-history') {
     try {
       const state = await readLeagueState()
-      const draft = getDraftStatus(state.storage)
-      if (!draft.enabled) {
-        sendJson(response, 200, { sales: [] })
-        return true
-      }
-
       const sales = readTransferHistory(state.storage)
         .slice()
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())

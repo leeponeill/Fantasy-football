@@ -76,16 +76,6 @@ async function refreshTransferHistory(): Promise<void> {
   const status = document.querySelector<HTMLParagraphElement>('#transfer-history-status')
 
   try {
-    const draftResponse = await fetch('/api/draft-mode', { cache: 'no-store' })
-    const draftData = (await draftResponse.json()) as { enabled?: boolean }
-    if (draftData.enabled !== true) {
-      if (status) {
-        status.textContent = 'Transfer history is only available while draft mode is enabled.'
-      }
-      renderHistory([])
-      return
-    }
-
     if (status) {
       status.textContent = 'Showing all player sales in chronological order.'
     }

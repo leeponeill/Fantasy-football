@@ -2,6 +2,14 @@ import { renderPage } from './renderPage'
 import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints as getPlayerTotalPoints, type SelectablePlayer, getCountryFlag } from './teamsData'
 import { getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
 import { getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
+import {
+	getTransferAwareMatchdayPoints,
+	getTransferAwarePlayerCurrentPoints,
+	parseTransferPointEvents,
+	pruneTransferPointEvents,
+	recordTransferPointEvent,
+	type TransferPointEvent,
+} from './transferPoints'
 
 function escapeHtml(value: string): string {
 	return value
@@ -266,6 +274,58 @@ let captainBonusTotal = 0
 let manualPointsAdjustment = 0
 let isCaptainSelectMode = false
 let swapBenchKey: string | null = null
+let transferPointEvents: TransferPointEvent[] = []
+let hasLoadedTeamState = false
+
+function getCurrentPointsByPlayerKey(key: string): number {
+	const parts = key.split('::')
+	if (parts.length < 2) {
+		return 0
+	}
+
+	const teamName = parts[0]
+	const playerName = parts.slice(1).join('::')
+	return getPlayerPoints(playerName, teamName)
+}
+
+function addTransferPointEvent(direction: 'in' | 'out', key: string): void {
+	if (!isTeamLocked) {
+		return
+	}
+
+	transferPointEvents = recordTransferPointEvent(
+		transferPointEvents,
+		key,
+		direction,
+		currentMatchday,
+		getCurrentPointsByPlayerKey,
+	)
+}
+
+function reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys: Set<string>, previousMatchday: number): void {
+	if (!hasLoadedTeamState || !isTeamLocked || previousMatchday !== currentMatchday) {
+		return
+	}
+
+	const nextSelectedKeys = new Set(selectedPlayers.map(playerKey))
+	const eventsBefore = transferPointEvents.length
+
+	for (const key of previousSelectedKeys) {
+		if (!nextSelectedKeys.has(key)) {
+			addTransferPointEvent('out', key)
+		}
+	}
+
+	for (const key of nextSelectedKeys) {
+		if (!previousSelectedKeys.has(key)) {
+			addTransferPointEvent('in', key)
+		}
+	}
+
+	if (transferPointEvents.length !== eventsBefore) {
+		saveTeamState()
+	}
+}
 
 // Extract unique positions and countries from all players
 const uniquePositions = Array.from(new Set(allPlayers.map((p) => p.position))).sort()
@@ -390,6 +450,7 @@ type SavedTeamState = {
 	captainChangesThisMatchday?: number
 	captainBonusTotal?: number
 	manualPointsAdjustment?: number
+	transferPointEvents?: TransferPointEvent[]
 }
 
 function getGlobalBudget(): number {
@@ -407,6 +468,8 @@ function syncMaxBudget(): void {
 }
 
 function saveTeamState(): void {
+	transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentMatchday)
+
 	const state: SavedTeamState = {
 		selectedPlayerKeys: selectedPlayers.map(playerKey),
 		benchPlayerKeys: benchPlayers.map(playerKey),
@@ -418,6 +481,7 @@ function saveTeamState(): void {
 		captainChangesThisMatchday,
 		captainBonusTotal,
 		manualPointsAdjustment,
+		transferPointEvents,
 	}
 
 	setSharedItem(teamStateStorageKey, JSON.stringify(state))
@@ -445,11 +509,15 @@ function syncWithGlobalMatchday(): void {
 		currentMatchday = globalMatchday
 		transfersUsedThisMatchday = 0
 		captainChangesThisMatchday = 0
+		transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentMatchday)
 		saveTeamState()
 	}
 }
 
 function loadTeamState(): void {
+	const previousSelectedKeys = new Set(selectedPlayers.map(playerKey))
+	const previousMatchday = currentMatchday
+
 	syncMaxBudget()
 	const raw = getSharedItem(teamStateStorageKey)
 	if (!raw) {
@@ -463,6 +531,8 @@ function loadTeamState(): void {
 		captainChangesThisMatchday = 0
 		captainBonusTotal = 0
 		manualPointsAdjustment = 0
+		transferPointEvents = []
+		hasLoadedTeamState = true
 		return
 	}
 
@@ -500,6 +570,7 @@ function loadTeamState(): void {
 			: 0
 		captainBonusTotal = Number.isFinite(state.captainBonusTotal) ? Math.max(0, state.captainBonusTotal ?? 0) : 0
 		manualPointsAdjustment = Number.isFinite(state.manualPointsAdjustment) ? state.manualPointsAdjustment ?? 0 : 0
+		transferPointEvents = pruneTransferPointEvents(parseTransferPointEvents(state.transferPointEvents), currentMatchday)
 
 		if (captainPlayerKey && !selectedPlayers.some((player) => playerKey(player) === captainPlayerKey)) {
 			captainPlayerKey = null
@@ -514,7 +585,11 @@ function loadTeamState(): void {
 		captainPlayerKey = null
 		captainChangesThisMatchday = 0
 		captainBonusTotal = 0
+		transferPointEvents = []
 	}
+
+	reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys, previousMatchday)
+	hasLoadedTeamState = true
 }
 
 function positionBucket(position: string): 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Forward' {
@@ -543,17 +618,26 @@ function getTotalPrice(players: SelectablePlayer[]): number {
 }
 
 function getMatchdayPoints(players: SelectablePlayer[]): number {
-	const basePoints = players.reduce((sum, player) => sum + getPlayerPoints(player.name, player.team), 0)
+	const selectedKeys = players.map(playerKey)
+	const basePoints = getTransferAwareMatchdayPoints(
+		selectedKeys,
+		currentMatchday,
+		transferPointEvents,
+		getCurrentPointsByPlayerKey,
+	)
 	if (!captainPlayerKey || !players.some((player) => playerKey(player) === captainPlayerKey)) {
 		return basePoints
 	}
 
-	const captain = players.find((player) => playerKey(player) === captainPlayerKey)
-	if (!captain) {
-		return basePoints
-	}
+	const captainCurrentPoints = getTransferAwarePlayerCurrentPoints(
+		captainPlayerKey,
+		selectedKeys,
+		currentMatchday,
+		transferPointEvents,
+		getCurrentPointsByPlayerKey,
+	)
 
-	return basePoints + getPlayerPoints(captain.name, captain.team)
+	return basePoints + captainCurrentPoints
 }
 
 function getTotalPoints(players: SelectablePlayer[]): number {
@@ -792,6 +876,7 @@ function renderSelectedTeam(): void {
 
 	const renderRow = (label: string, players: SelectablePlayer[]): string => {
 		if (players.length === 0) return ''
+		const selectedKeys = selectedPlayers.map(playerKey)
 		const playerCards = players
 			.map((player) => {
 				const key = playerKey(player)
@@ -809,7 +894,7 @@ function renderSelectedTeam(): void {
 							<div class="player-details">
 								<div class="player-price">£${player.price.toFixed(1)}</div>
 								<div class="player-flag">${getCountryFlag(player.team)}</div>
-								<div class="player-points">${isTeamLocked ? getPlayerPoints(player.name, player.team) : 0}pts</div>
+								<div class="player-points">${isTeamLocked ? getTransferAwarePlayerCurrentPoints(key, selectedKeys, currentMatchday, transferPointEvents, getCurrentPointsByPlayerKey) : 0}pts</div>
 							</div>
 							<button class="remove-player-btn" type="button" data-key="${escapeHtml(key)}" title="Remove player" ${canRemovePlayer() ? '' : 'disabled'}>×</button>
 							${swapBtnMarkup}
@@ -1196,6 +1281,7 @@ if (searchInput && searchResults && selectedTeamList) {
 		}
 
 		selectedPlayers = [...selectedPlayers, player]
+		addTransferPointEvent('in', key)
 		remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
 		saveTeamState()
 		void logTransferHistoryEvent({
@@ -1234,6 +1320,7 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
+		addTransferPointEvent('out', key)
 		selectedPlayers = selectedPlayers.filter((player) => playerKey(player) !== key)
 		const removedPlayer = findPlayerByKey(key)
 		if (removedPlayer) {
