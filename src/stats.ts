@@ -1,5 +1,5 @@
 import { renderPage } from './renderPage'
-import { getAllPlayers, updatePlayerPoints, type SelectablePlayer } from './teamsData'
+import { getAllPlayers, getPlayerPoints, updatePlayerPoints, type SelectablePlayer } from './teamsData'
 import { calculatePlayerPoints, getPointsBreakdownText, type PlayerPerformance } from './pointsCalculator'
 import { getCurrentUsername, requireAuth } from './auth'
 import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
@@ -57,6 +57,12 @@ type CalculatedImportRow = {
   breakdownText: string
 }
 
+type CalculatedImportResult = {
+  calculated: CalculatedImportRow[]
+  skipped: number
+  zeroPoint: number
+}
+
 type FixtureDueMatch = {
   game: FixtureGame
   kickoff: Date
@@ -86,11 +92,98 @@ const teamAliases: Record<string, string> = {
   republicofkorea: 'southkorea',
   czechrepublic: 'czechia',
   coteivoire: 'ivorycoast',
+  manutd: 'manchesterunited',
+  manchesterutd: 'manchesterunited',
+  manchesterunited: 'manchesterunited',
+  mancity: 'manchestercity',
+  manchestercity: 'manchestercity',
+  spurs: 'tottenham',
+  tottenham: 'tottenham',
+  tottenhamhotspur: 'tottenham',
+  nottmforest: 'nottinghamforest',
+  nottinghamforest: 'nottinghamforest',
+  westham: 'westham',
+  westhamunited: 'westham',
+  wolves: 'wolves',
+  wolverhampton: 'wolves',
+  wolverhamptonwanderers: 'wolves',
+  brighton: 'brighton',
+  brightonandhovealbion: 'brighton',
+  newcastle: 'newcastle',
+  newcastleunited: 'newcastle',
+}
+
+const fixtureTeamSearchExpansions: Record<string, string> = {
+  "Nott'm Forest": 'Nottingham Forest',
+  'Man Utd': 'Manchester United',
+  'Man City': 'Manchester City',
+  Spurs: 'Tottenham',
 }
 
 function normalizeTeamToken(teamName: string): string {
   const token = toToken(teamName)
   return teamAliases[token] ?? token
+}
+
+function getNameParts(value: string): string[] {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((part) => part.length > 0)
+}
+
+function namesMatchByInitialAndSurname(sourceName: string, candidateName: string): boolean {
+  const sourceParts = getNameParts(sourceName)
+  const candidateParts = getNameParts(candidateName)
+  if (sourceParts.length < 2 || candidateParts.length < 2) {
+    return false
+  }
+
+  const sourceSurname = sourceParts[sourceParts.length - 1]
+  const candidateSurname = candidateParts[candidateParts.length - 1]
+  if (sourceSurname !== candidateSurname) {
+    return false
+  }
+
+  const sourceInitial = sourceParts[0]?.[0] ?? ''
+  const candidateInitial = candidateParts[0]?.[0] ?? ''
+  return sourceInitial.length > 0 && sourceInitial === candidateInitial
+}
+
+function findLooseNameMatchInTeam(row: ImportedPlayerStat, teamToken: string): SelectablePlayer | null {
+  const sourceParts = getNameParts(row.playerName)
+  if (sourceParts.length === 0) {
+    return null
+  }
+
+  const teamPlayers = allPlayers.filter((player) => normalizeTeamToken(player.team) === teamToken)
+  if (teamPlayers.length === 0) {
+    return null
+  }
+
+  // Handle abbreviated source names such as "L. Smyth" by matching initial + surname.
+  const initialSurnameMatches = teamPlayers.filter((player) => namesMatchByInitialAndSurname(row.playerName, player.name))
+  if (initialSurnameMatches.length === 1) {
+    return initialSurnameMatches[0]
+  }
+
+  const sourceSurname = sourceParts[sourceParts.length - 1]
+  const surnameMatches = teamPlayers.filter((player) => {
+    const playerParts = getNameParts(player.name)
+    if (playerParts.length === 0) {
+      return false
+    }
+
+    return playerParts[playerParts.length - 1] === sourceSurname
+  })
+
+  if (surnameMatches.length === 1) {
+    return surnameMatches[0]
+  }
+
+  return null
 }
 
 function getPositionType(player: SelectablePlayer): 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Forward' {
@@ -111,7 +204,12 @@ function getPositionType(player: SelectablePlayer): 'Goalkeeper' | 'Defender' | 
 
 const allPlayers = getAllPlayers()
 const autoImportedEventIdsStorageKey = 'fantasy-football-auto-imported-event-ids'
-const autoScanDelayMs = 150 * 60 * 1000
+const autoImportedGameweeksStorageKey = 'fantasy-football-auto-imported-gameweeks'
+const autoAdvancedGameweeksStorageKey = 'fantasy-football-auto-advanced-gameweeks'
+const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const dueFixtureScanDelayMs = 150 * 60 * 1000
+const autoGameweekScanDelayMs = 180 * 60 * 1000
+const autoGameweekAdvanceDelayMs = 12 * 60 * 60 * 1000
 const oneTimeScanMaxDelayMs = 2_147_000_000
 let fixtureMatchdays: FixtureMatchday[] = []
 
@@ -145,7 +243,11 @@ function findPlayerForImportedStat(row: ImportedPlayerStat): SelectablePlayer | 
   }
 
   const byNameAndTeam = byName.find((player) => normalizeTeamToken(player.team) === teamToken)
-  return byNameAndTeam ?? null
+  if (byNameAndTeam) {
+    return byNameAndTeam
+  }
+
+  return findLooseNameMatchInTeam(row, teamToken)
 }
 
 const statsMarkup = `
@@ -169,7 +271,15 @@ const statsMarkup = `
         </div>
         <button id="import-match-btn" type="button" class="award-btn" disabled>Auto Calculate And Apply Points</button>
         <button id="scan-due-fixtures-btn" type="button" class="calculate-btn">Scan Due Fixtures (Kickoff + 2.5h)</button>
+        <div class="form-group">
+          <label for="gameweek-select">Gameweek</label>
+          <select id="gameweek-select">
+            <option value="">Select gameweek</option>
+          </select>
+        </div>
+        <button id="scan-gameweek-btn" type="button" class="calculate-btn" disabled>Scan Selected Gameweek</button>
         <p id="auto-import-message" class="search-info"></p>
+        <p id="auto-scan-schedule" class="search-info">Next auto scans: fixture - ; gameweek -</p>
       </div>
       <ul id="auto-import-preview" class="stats-results" style="margin-top: 1rem;"></ul>
     </section>
@@ -282,14 +392,43 @@ const matchSearchBtn = document.querySelector<HTMLButtonElement>('#match-search-
 const matchResultSelect = document.querySelector<HTMLSelectElement>('#match-result-select')
 const importMatchBtn = document.querySelector<HTMLButtonElement>('#import-match-btn')
 const scanDueFixturesBtn = document.querySelector<HTMLButtonElement>('#scan-due-fixtures-btn')
+const gameweekSelect = document.querySelector<HTMLSelectElement>('#gameweek-select')
+const scanGameweekBtn = document.querySelector<HTMLButtonElement>('#scan-gameweek-btn')
 const autoImportMessage = document.querySelector<HTMLParagraphElement>('#auto-import-message')
+const autoScanScheduleMessage = document.querySelector<HTMLParagraphElement>('#auto-scan-schedule')
 const autoImportPreview = document.querySelector<HTMLUListElement>('#auto-import-preview')
 
 let selectedPlayer: SelectablePlayer | null = null
 let calculatedPoints = 0
 let foundMatches: MatchSearchResult[] = []
 let isAutoScanRunning = false
-const scheduledAutoScanFixtureKeys = new Set<string>()
+const scheduledAutoScanGameweekKeys = new Set<number>()
+let nextScheduledFixtureScanAt: number | null = null
+let nextScheduledGameweekScanAt: number | null = null
+
+function formatAutoScanTime(timestamp: number | null): string {
+  if (timestamp === null) {
+    return '-'
+  }
+
+  const date = new Date(timestamp)
+  return date.toLocaleString([], {
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+function renderAutoScanScheduleMessage(): void {
+  if (!autoScanScheduleMessage) {
+    return
+  }
+
+  const fixtureLabel = formatAutoScanTime(nextScheduledFixtureScanAt)
+  const gameweekLabel = formatAutoScanTime(nextScheduledGameweekScanAt)
+  autoScanScheduleMessage.textContent = `Next auto scans: fixture ${fixtureLabel} ; gameweek ${gameweekLabel}`
+}
 
 function readAutoImportedEventIds(): Set<string> {
   const raw = getSharedItem(autoImportedEventIdsStorageKey)
@@ -311,6 +450,73 @@ function readAutoImportedEventIds(): Set<string> {
 
 function saveAutoImportedEventIds(ids: Set<string>): void {
   setSharedItem(autoImportedEventIdsStorageKey, JSON.stringify(Array.from(ids).sort()))
+}
+
+function readAutoImportedGameweeks(): Set<number> {
+  const raw = getSharedItem(autoImportedGameweeksStorageKey)
+  if (!raw) {
+    return new Set()
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+
+    const values = parsed
+      .map((value) => Number.parseInt(String(value), 10))
+      .filter((value) => Number.isFinite(value) && value >= 1)
+    return new Set(values)
+  } catch {
+    return new Set()
+  }
+}
+
+function saveAutoImportedGameweeks(gameweeks: Set<number>): void {
+  const sorted = Array.from(gameweeks.values()).sort((a, b) => a - b)
+  setSharedItem(autoImportedGameweeksStorageKey, JSON.stringify(sorted))
+}
+
+function readAutoAdvancedGameweeks(): Set<number> {
+  const raw = getSharedItem(autoAdvancedGameweeksStorageKey)
+  if (!raw) {
+    return new Set()
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+
+    const values = parsed
+      .map((value) => Number.parseInt(String(value), 10))
+      .filter((value) => Number.isFinite(value) && value >= 1)
+    return new Set(values)
+  } catch {
+    return new Set()
+  }
+}
+
+function saveAutoAdvancedGameweeks(gameweeks: Set<number>): void {
+  const sorted = Array.from(gameweeks.values()).sort((a, b) => a - b)
+  setSharedItem(autoAdvancedGameweeksStorageKey, JSON.stringify(sorted))
+}
+
+function getGlobalMatchday(): number {
+  const raw = getSharedItem(globalMatchdayStorageKey)
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  if (Number.isFinite(parsed) && parsed >= 1) {
+    return parsed
+  }
+
+  return 1
+}
+
+function setGlobalMatchday(matchday: number): void {
+  const safe = Math.max(1, Math.floor(matchday))
+  setSharedItem(globalMatchdayStorageKey, String(safe))
 }
 
 function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
@@ -392,8 +598,86 @@ function extractFixtureTeams(matchText: string): [string, string] | null {
   return [homeTeam, awayTeam]
 }
 
-function getFixtureKey(game: FixtureGame): string {
-  return `${game.date}::${game.time}::${game.match}`
+function getFixtureSearchQueries(matchText: string): string[] {
+  const queries = new Set<string>()
+  const normalized = matchText.trim()
+  if (normalized.length >= 3) {
+    queries.add(normalized)
+  }
+
+  if (!normalized.includes(' vs ')) {
+    return Array.from(queries)
+  }
+
+  const [rawHome, rawAway] = normalized.split(' vs ')
+  const home = rawHome.trim()
+  const away = rawAway.trim()
+  if (!home || !away) {
+    return Array.from(queries)
+  }
+
+  const expandedHome = fixtureTeamSearchExpansions[home] ?? home
+  const expandedAway = fixtureTeamSearchExpansions[away] ?? away
+
+  queries.add(`${expandedHome} vs ${expandedAway}`)
+  queries.add(`${expandedHome} ${expandedAway}`)
+  queries.add(`${home} ${away}`)
+
+  return Array.from(queries)
+}
+
+type ApiCallResult<T> = {
+  ok: boolean
+  payload: T
+  status: number
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+async function fetchJsonWithRetry<T>(url: string, maxAttempts = 2): Promise<ApiCallResult<T>> {
+  let lastStatus = 0
+  let lastPayload = {} as T
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url)
+      let payload = {} as T
+
+      try {
+        payload = (await response.json()) as T
+      } catch {
+        payload = {} as T
+      }
+
+      if (response.ok) {
+        return {
+          ok: true,
+          payload,
+          status: response.status,
+        }
+      }
+
+      lastStatus = response.status
+      lastPayload = payload
+    } catch {
+      lastStatus = 0
+      lastPayload = {} as T
+    }
+
+    if (attempt < maxAttempts) {
+      await delay(250 * attempt)
+    }
+  }
+
+  return {
+    ok: false,
+    payload: lastPayload,
+    status: lastStatus,
+  }
 }
 
 function getDueFixtureMatches(now: Date): FixtureDueMatch[] {
@@ -411,7 +695,7 @@ function getDueFixtureMatches(now: Date): FixtureDueMatch[] {
         continue
       }
 
-      if (kickoff.getTime() + autoScanDelayMs <= now.getTime()) {
+      if (kickoff.getTime() + dueFixtureScanDelayMs <= now.getTime()) {
         due.push({ game, kickoff })
       }
     }
@@ -496,6 +780,66 @@ function renderAutoImportPreview(rows: CalculatedImportRow[], skippedCount: numb
       : ''
 
   autoImportPreview.innerHTML = `${items}${skippedLine}`
+}
+
+function parseScoreValue(value: string): number | null {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return parsed
+}
+
+function getConcededFromFixtureScore(row: ImportedPlayerStat, event?: MatchSearchResult): number | null {
+  if (!event) {
+    return null
+  }
+
+  const homeToken = normalizeTeamToken(event.homeTeam)
+  const awayToken = normalizeTeamToken(event.awayTeam)
+  const teamToken = normalizeTeamToken(row.teamName)
+  const homeScore = parseScoreValue(event.homeScore)
+  const awayScore = parseScoreValue(event.awayScore)
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  if (teamToken === homeToken) {
+    return awayScore
+  }
+
+  if (teamToken === awayToken) {
+    return homeScore
+  }
+
+  return null
+}
+
+function setAutoScanButtonsDisabled(disabled: boolean): void {
+  if (scanDueFixturesBtn) {
+    scanDueFixturesBtn.disabled = disabled
+  }
+
+  if (scanGameweekBtn) {
+    scanGameweekBtn.disabled = disabled || !gameweekSelect?.value
+  }
+}
+
+function renderGameweekOptions(): void {
+  if (!gameweekSelect) {
+    return
+  }
+
+  const options = fixtureMatchdays
+    .map((matchday) => `<option value="${matchday.matchday}">Gameweek ${matchday.matchday}</option>`)
+    .join('')
+
+  gameweekSelect.innerHTML = '<option value="">Select gameweek</option>' + options
+
+  if (scanGameweekBtn) {
+    scanGameweekBtn.disabled = !gameweekSelect.value
+  }
 }
 
 function renderPlayerSearch(): void {
@@ -584,9 +928,15 @@ function calculatePointsForForm(): void {
   }
 }
 
-function calculateImportedRows(rows: ImportedPlayerStat[]): { calculated: CalculatedImportRow[]; skipped: number } {
+function calculateImportedRows(
+  rows: ImportedPlayerStat[],
+  event?: MatchSearchResult,
+  options?: { includeZeroPoints?: boolean },
+): CalculatedImportResult {
   const calculated: CalculatedImportRow[] = []
   let skipped = 0
+  let zeroPoint = 0
+  const includeZeroPoints = options?.includeZeroPoints === true
 
   for (const row of rows) {
     const matchedPlayer = findPlayerForImportedStat(row)
@@ -596,7 +946,11 @@ function calculateImportedRows(rows: ImportedPlayerStat[]): { calculated: Calcul
     }
 
     const minutesPlayed = Math.max(0, Math.floor(row.minutesPlayed))
-    const goalsConceded = Math.max(0, Math.floor(row.goalsConceded))
+    const resolvedConceded = getConcededFromFixtureScore(row, event)
+    const goalsConceded = Math.max(
+      0,
+      Math.floor(resolvedConceded === null ? row.goalsConceded : resolvedConceded),
+    )
 
     const performance: PlayerPerformance = {
       position: getPositionType(matchedPlayer),
@@ -616,6 +970,11 @@ function calculateImportedRows(rows: ImportedPlayerStat[]): { calculated: Calcul
     }
 
     const { points, breakdown } = calculatePlayerPoints(performance)
+    if (points === 0 && !includeZeroPoints) {
+      zeroPoint += 1
+      continue
+    }
+
     const breakdownText = getPointsBreakdownText(breakdown)
 
     calculated.push({
@@ -627,7 +986,7 @@ function calculateImportedRows(rows: ImportedPlayerStat[]): { calculated: Calcul
     })
   }
 
-  return { calculated, skipped }
+  return { calculated, skipped, zeroPoint }
 }
 
 async function searchMatches(): Promise<void> {
@@ -695,7 +1054,7 @@ async function importAndApplyMatchStats(): Promise<void> {
     }
 
     const importedRows = Array.isArray(payload.players) ? payload.players : []
-    const { calculated, skipped } = calculateImportedRows(importedRows)
+    const { calculated, skipped, zeroPoint } = calculateImportedRows(importedRows, payload.event)
 
     for (const row of calculated) {
       updatePlayerPoints(row.matchedPlayer.name, row.matchedPlayer.team, row.points)
@@ -710,7 +1069,7 @@ async function importAndApplyMatchStats(): Promise<void> {
     renderAutoImportPreview(calculated, skipped)
     const matchLabel = payload.event?.name ?? 'selected match'
     setAutoImportMessage(
-      `Auto import complete for ${matchLabel}: applied ${calculated.length} players, skipped ${skipped}.`,
+      `Auto import complete for ${matchLabel}: applied ${calculated.length} players, zero-point ${zeroPoint}, skipped ${skipped}.`,
       'ok',
     )
   } catch {
@@ -718,97 +1077,342 @@ async function importAndApplyMatchStats(): Promise<void> {
   }
 }
 
-async function scanDueFixturesAndImport(): Promise<void> {
+async function scanFixtureGamesAndImport(
+  games: FixtureGame[],
+  scanLabel: string,
+  options?: { skipAlreadyImported?: boolean; includeZeroPoints?: boolean; replaceExistingValues?: boolean },
+): Promise<void> {
   if (isAutoScanRunning) {
     return
   }
 
-  isAutoScanRunning = true
-  if (scanDueFixturesBtn) {
-    scanDueFixturesBtn.disabled = true
-  }
-  setAutoImportMessage('Scanning due fixtures (kickoff + 2.5h)...', 'info')
+  const skipAlreadyImported = options?.skipAlreadyImported !== false
+  const includeZeroPoints = options?.includeZeroPoints === true
+  const replaceExistingValues = options?.replaceExistingValues === true
 
-  const now = new Date()
-  const dueFixtures = getDueFixtureMatches(now)
+  isAutoScanRunning = true
+  setAutoScanButtonsDisabled(true)
+  setAutoImportMessage(`Scanning ${scanLabel}...`, 'info')
+
   const importedEventIds = readAutoImportedEventIds()
 
   let importedMatchCount = 0
   let appliedPlayerCount = 0
   let skippedPlayersTotal = 0
+  let zeroPointPlayersTotal = 0
   let alreadyImportedCount = 0
   let unresolvedCount = 0
   let errorCount = 0
+  let playerImportFailureCount = 0
+  let replacedValuesCount = 0
+  let lastSearchErrorDetail = ''
+  let lastPlayerImportErrorDetail = ''
   let lastPreviewRows: CalculatedImportRow[] = []
 
-  for (const dueFixture of dueFixtures) {
-    const fixtureQuery = dueFixture.game.match
+  try {
+    for (const game of games) {
+      const teams = extractFixtureTeams(game.match)
+      if (!teams) {
+        unresolvedCount += 1
+        continue
+      }
 
-    try {
-      const searchResponse = await fetch(`/api/match-stats/search?query=${encodeURIComponent(fixtureQuery)}`)
-      const searchPayload = (await searchResponse.json()) as { matches?: MatchSearchResult[]; error?: string }
-      if (!searchResponse.ok) {
+      const fixtureQuery = game.match
+
+      try {
+        const queries = getFixtureSearchQueries(fixtureQuery)
+        let matches: MatchSearchResult[] = []
+        let encounteredSearchError = false
+
+        for (let index = 0; index < queries.length; index += 1) {
+          const query = queries[index]
+          const searchCall = await fetchJsonWithRetry<{ matches?: MatchSearchResult[]; error?: string }>(
+            `/api/match-stats/search?query=${encodeURIComponent(query)}`,
+            3,
+          )
+
+          if (!searchCall.ok) {
+            encounteredSearchError = true
+            const payloadError = typeof searchCall.payload.error === 'string' ? searchCall.payload.error : ''
+            lastSearchErrorDetail = payloadError || `status ${searchCall.status || 'network'}`
+
+            // If the first query fails with server/network issue, skip extra fallback queries for this game.
+            if (index === 0) {
+              break
+            }
+
+            continue
+          }
+
+          matches = Array.isArray(searchCall.payload.matches) ? searchCall.payload.matches : []
+          if (matches.length > 0) {
+            break
+          }
+        }
+
+        if (matches.length === 0 && encounteredSearchError) {
+          errorCount += 1
+          continue
+        }
+
+        const bestMatch = selectBestMatchForFixture(game, matches)
+        if (!bestMatch) {
+          unresolvedCount += 1
+          continue
+        }
+
+        if (skipAlreadyImported && importedEventIds.has(bestMatch.idEvent)) {
+          alreadyImportedCount += 1
+          continue
+        }
+
+        const playerCall = await fetchJsonWithRetry<ImportedMatchResponse>(
+          `/api/match-stats/players?eventId=${encodeURIComponent(bestMatch.idEvent)}`,
+          2,
+        )
+        if (!playerCall.ok) {
+          playerImportFailureCount += 1
+          lastPlayerImportErrorDetail = playerCall.payload.error ?? `status ${playerCall.status || 'network'}`
+          unresolvedCount += 1
+          continue
+        }
+
+        const importedRows = Array.isArray(playerCall.payload.players) ? playerCall.payload.players : []
+        const eventForScoring = playerCall.payload.event ?? bestMatch
+        const { calculated, skipped, zeroPoint } = calculateImportedRows(importedRows, eventForScoring, {
+          includeZeroPoints,
+        })
+        for (const row of calculated) {
+          if (replaceExistingValues) {
+            const existingPoints = getPlayerPoints(row.matchedPlayer.name, row.matchedPlayer.team)
+            if (existingPoints !== row.points) {
+              replacedValuesCount += 1
+            }
+          }
+
+          updatePlayerPoints(row.matchedPlayer.name, row.matchedPlayer.team, row.points)
+        }
+
+        importedEventIds.add(bestMatch.idEvent)
+        importedMatchCount += 1
+        appliedPlayerCount += calculated.length
+        skippedPlayersTotal += skipped
+        zeroPointPlayersTotal += zeroPoint
+        lastPreviewRows = calculated
+      } catch {
         errorCount += 1
-        continue
       }
+    }
 
-      const matches = Array.isArray(searchPayload.matches) ? searchPayload.matches : []
-      const bestMatch = selectBestMatchForFixture(dueFixture.game, matches)
-      if (!bestMatch) {
-        unresolvedCount += 1
-        continue
-      }
+    if (importedMatchCount > 0) {
+      saveAutoImportedEventIds(importedEventIds)
+      await flushSharedLeagueStorage()
+    }
 
-      if (importedEventIds.has(bestMatch.idEvent)) {
-        alreadyImportedCount += 1
-        continue
-      }
+    if (lastPreviewRows.length > 0) {
+      renderAutoImportPreview(lastPreviewRows, skippedPlayersTotal)
+    }
 
-      const playerResponse = await fetch(`/api/match-stats/players?eventId=${encodeURIComponent(bestMatch.idEvent)}`)
-      const playerPayload = (await playerResponse.json()) as ImportedMatchResponse
-      if (!playerResponse.ok) {
-        unresolvedCount += 1
-        continue
-      }
+    const details: string[] = []
+    if (errorCount > 0 && lastSearchErrorDetail) {
+      details.push(`search error: ${lastSearchErrorDetail}`)
+    }
+    if (playerImportFailureCount > 0 && lastPlayerImportErrorDetail) {
+      details.push(`player import error: ${lastPlayerImportErrorDetail}`)
+    }
+    if (replaceExistingValues) {
+      details.push(`replaced values: ${replacedValuesCount}`)
+    }
 
-      const importedRows = Array.isArray(playerPayload.players) ? playerPayload.players : []
-      const { calculated, skipped } = calculateImportedRows(importedRows)
-      for (const row of calculated) {
-        updatePlayerPoints(row.matchedPlayer.name, row.matchedPlayer.team, row.points)
-      }
+    const detailSuffix = details.length > 0 ? ` (${details.join(' | ')})` : ''
 
-      importedEventIds.add(bestMatch.idEvent)
-      importedMatchCount += 1
-      appliedPlayerCount += calculated.length
-      skippedPlayersTotal += skipped
-      lastPreviewRows = calculated
-    } catch {
-      errorCount += 1
+    setAutoImportMessage(
+      `${scanLabel} complete: imported matches ${importedMatchCount}, players applied ${appliedPlayerCount}, zero-point ${zeroPointPlayersTotal}, already imported ${alreadyImportedCount}, unresolved ${unresolvedCount}, errors ${errorCount}.${detailSuffix}`,
+      importedMatchCount > 0 ? 'ok' : 'info',
+    )
+  } finally {
+    isAutoScanRunning = false
+    setAutoScanButtonsDisabled(false)
+  }
+}
+
+async function scanDueFixturesAndImport(): Promise<void> {
+  const now = new Date()
+  const dueFixtures = getDueFixtureMatches(now)
+  await scanFixtureGamesAndImport(
+    dueFixtures.map((dueFixture) => dueFixture.game),
+    'Due fixture scan (kickoff + 2.5h)',
+    { skipAlreadyImported: true },
+  )
+}
+
+async function scanSelectedGameweekAndImport(): Promise<void> {
+  if (!gameweekSelect) {
+    return
+  }
+
+  const selectedGameweek = Number.parseInt(gameweekSelect.value, 10)
+  if (!Number.isFinite(selectedGameweek)) {
+    setAutoImportMessage('Select a gameweek first.', 'error')
+    return
+  }
+
+  const matchday = fixtureMatchdays.find((entry) => entry.matchday === selectedGameweek)
+  if (!matchday) {
+    setAutoImportMessage(`Gameweek ${selectedGameweek} was not found in fixtures.`, 'error')
+    return
+  }
+
+  await scanFixtureGamesAndImport(matchday.games, `Gameweek ${selectedGameweek} scan`, {
+    skipAlreadyImported: false,
+    includeZeroPoints: true,
+    replaceExistingValues: true,
+  })
+}
+
+function getLatestKickoffForGameweek(matchday: FixtureMatchday, now: Date): Date | null {
+  let latestKickoff: Date | null = null
+
+  for (const game of matchday.games) {
+    const teams = extractFixtureTeams(game.match)
+    if (!teams) {
+      continue
+    }
+
+    const kickoff = parseFixtureKickoff(game, now)
+    if (!kickoff) {
+      continue
+    }
+
+    if (!latestKickoff || kickoff.getTime() > latestKickoff.getTime()) {
+      latestKickoff = kickoff
     }
   }
 
-  if (importedMatchCount > 0) {
-    saveAutoImportedEventIds(importedEventIds)
-    await flushSharedLeagueStorage()
+  return latestKickoff
+}
+
+async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
+  const matchday = fixtureMatchdays.find((entry) => entry.matchday === matchdayNumber)
+  if (!matchday) {
+    return
   }
 
-  if (lastPreviewRows.length > 0) {
-    renderAutoImportPreview(lastPreviewRows, skippedPlayersTotal)
+  const importedGameweeks = readAutoImportedGameweeks()
+  if (importedGameweeks.has(matchdayNumber)) {
+    return
   }
 
-  setAutoImportMessage(
-    `Due fixture scan complete: imported matches ${importedMatchCount}, players applied ${appliedPlayerCount}, already imported ${alreadyImportedCount}, unresolved ${unresolvedCount}, errors ${errorCount}.`,
-    importedMatchCount > 0 ? 'ok' : 'info',
+  if (isAutoScanRunning) {
+    window.setTimeout(() => {
+      void triggerAutoGameweekScan(matchdayNumber)
+    }, 30_000)
+    return
+  }
+
+  await scanFixtureGamesAndImport(
+    matchday.games,
+    `Gameweek ${matchdayNumber} scan (auto +3h after final kickoff)`,
+    {
+      skipAlreadyImported: false,
+      includeZeroPoints: true,
+      replaceExistingValues: true,
+    },
   )
 
-  if (scanDueFixturesBtn) {
-    scanDueFixturesBtn.disabled = false
+  importedGameweeks.add(matchdayNumber)
+  saveAutoImportedGameweeks(importedGameweeks)
+  await flushSharedLeagueStorage()
+}
+
+async function triggerAutoGameweekAdvance(matchdayNumber: number): Promise<void> {
+  const advancedGameweeks = readAutoAdvancedGameweeks()
+  if (advancedGameweeks.has(matchdayNumber)) {
+    return
   }
-  isAutoScanRunning = false
+
+  const current = getGlobalMatchday()
+  if (current <= matchdayNumber) {
+    setGlobalMatchday(matchdayNumber + 1)
+  }
+
+  advancedGameweeks.add(matchdayNumber)
+  saveAutoAdvancedGameweeks(advancedGameweeks)
+  await flushSharedLeagueStorage()
+}
+
+function scheduleOneTimeGameweekScans(now: Date): void {
+  const nowMs = now.getTime()
+  let nextRunAt: number | null = null
+  const advancedGameweeks = readAutoAdvancedGameweeks()
+
+  for (const matchday of fixtureMatchdays) {
+    if (scheduledAutoScanGameweekKeys.has(matchday.matchday)) {
+      continue
+    }
+
+    const latestKickoff = getLatestKickoffForGameweek(matchday, now)
+    if (!latestKickoff) {
+      continue
+    }
+
+    const runAtMs = latestKickoff.getTime() + autoGameweekScanDelayMs
+    const delayMs = runAtMs - now.getTime()
+    scheduledAutoScanGameweekKeys.add(matchday.matchday)
+    const advanceAtMs = runAtMs + autoGameweekAdvanceDelayMs
+    const advanceDelayMs = advanceAtMs - nowMs
+
+    if (delayMs <= 0) {
+      if (nextRunAt === null || nowMs < nextRunAt) {
+        nextRunAt = nowMs
+      }
+      void triggerAutoGameweekScan(matchday.matchday)
+    } else {
+      if (delayMs > oneTimeScanMaxDelayMs) {
+        continue
+      }
+
+      if (nextRunAt === null || runAtMs < nextRunAt) {
+        nextRunAt = runAtMs
+      }
+
+      window.setTimeout(() => {
+        void triggerAutoGameweekScan(matchday.matchday)
+      }, delayMs)
+    }
+
+    if (advancedGameweeks.has(matchday.matchday)) {
+      continue
+    }
+
+    if (advanceDelayMs <= 0) {
+      void triggerAutoGameweekAdvance(matchday.matchday)
+      continue
+    }
+
+    if (advanceDelayMs > oneTimeScanMaxDelayMs) {
+      continue
+    }
+
+    window.setTimeout(() => {
+      void triggerAutoGameweekAdvance(matchday.matchday)
+    }, advanceDelayMs)
+  }
+
+  nextScheduledGameweekScanAt = nextRunAt
+  renderAutoScanScheduleMessage()
+}
+
+const scheduledAutoScanFixtureKeys = new Set<string>()
+
+function getFixtureScheduleKey(game: FixtureGame): string {
+  return `${game.date}::${game.time}::${game.match}`
 }
 
 function scheduleOneTimeFixtureScans(now: Date): void {
   let shouldRunImmediateScan = false
+  const nowMs = now.getTime()
+  let nextRunAt: number | null = null
 
   for (const matchday of fixtureMatchdays) {
     for (const game of matchday.games) {
@@ -822,17 +1426,21 @@ function scheduleOneTimeFixtureScans(now: Date): void {
         continue
       }
 
-      const fixtureKey = getFixtureKey(game)
+      const fixtureKey = getFixtureScheduleKey(game)
       if (scheduledAutoScanFixtureKeys.has(fixtureKey)) {
         continue
       }
 
-      const dueAtMs = kickoff.getTime() + autoScanDelayMs
+      const dueAtMs = kickoff.getTime() + dueFixtureScanDelayMs
       const delayMs = dueAtMs - now.getTime()
 
+      scheduledAutoScanFixtureKeys.add(fixtureKey)
+
       if (delayMs <= 0) {
-        scheduledAutoScanFixtureKeys.add(fixtureKey)
         shouldRunImmediateScan = true
+        if (nextRunAt === null || nowMs < nextRunAt) {
+          nextRunAt = nowMs
+        }
         continue
       }
 
@@ -840,12 +1448,18 @@ function scheduleOneTimeFixtureScans(now: Date): void {
         continue
       }
 
-      scheduledAutoScanFixtureKeys.add(fixtureKey)
+      if (nextRunAt === null || dueAtMs < nextRunAt) {
+        nextRunAt = dueAtMs
+      }
+
       window.setTimeout(() => {
         void scanDueFixturesAndImport()
       }, delayMs)
     }
   }
+
+  nextScheduledFixtureScanAt = nextRunAt
+  renderAutoScanScheduleMessage()
 
   if (shouldRunImmediateScan) {
     void scanDueFixturesAndImport()
@@ -873,6 +1487,20 @@ if (importMatchBtn) {
 if (scanDueFixturesBtn) {
   scanDueFixturesBtn.addEventListener('click', () => {
     void scanDueFixturesAndImport()
+  })
+}
+
+if (gameweekSelect) {
+  gameweekSelect.addEventListener('change', () => {
+    if (scanGameweekBtn && !isAutoScanRunning) {
+      scanGameweekBtn.disabled = !gameweekSelect.value
+    }
+  })
+}
+
+if (scanGameweekBtn) {
+  scanGameweekBtn.addEventListener('click', () => {
+    void scanSelectedGameweekAndImport()
   })
 }
 
@@ -953,12 +1581,13 @@ async function initializeStatsPage(): Promise<void> {
 
   try {
     fixtureMatchdays = await getFixtureMatchdays()
+    renderGameweekOptions()
   } catch {
     setAutoImportMessage('Unable to load fixture list for auto scan.', 'error')
   }
 
-  void scanDueFixturesAndImport()
   scheduleOneTimeFixtureScans(new Date())
+  scheduleOneTimeGameweekScans(new Date())
 }
 
 void initializeStatsPage()

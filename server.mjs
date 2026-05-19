@@ -64,7 +64,20 @@ async function loadEnvFile() {
 }
 
 function getApiFootballKey() {
-  return process.env.APIFOOTBALL_API_KEY ?? process.env.API_FOOTBALL_KEY ?? process.env.APISPORTS_KEY ?? ''
+  return process.env.SPORTAPI_TOKEN
+    ?? process.env.SPORT_API_TOKEN
+    ?? process.env.SPORTAPI_BEARER_TOKEN
+    ?? process.env.APIFOOTBALL_API_KEY
+    ?? process.env.API_FOOTBALL_KEY
+    ?? process.env.APISPORTS_KEY
+    ?? ''
+}
+
+function getApiSportsKey() {
+  return process.env.APIFOOTBALL_API_KEY
+    ?? process.env.API_FOOTBALL_KEY
+    ?? process.env.APISPORTS_KEY
+    ?? ''
 }
 
 function parseArgs(argv) {
@@ -558,6 +571,18 @@ function getAsString(value) {
   return typeof value === 'string' ? value : ''
 }
 
+function getAsIdString(value) {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value))
+  }
+
+  return ''
+}
+
 function getAsNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -591,12 +616,39 @@ async function fetchJson(url, options = {}) {
 
 await loadEnvFile()
 
-// Expand abbreviated team names to the full names used by TheSportsDB
+const sportApiBaseUrl = process.env.SPORTAPI_BASE_URL?.trim() || 'https://sportapi.ai/api'
+const sportApiFixtureDateCache = new Map()
+
+// Expand abbreviated team names to the full names used by SportAPI fixtures.
 const fixtureTeamExpansions = {
   "Nott'm Forest": 'Nottingham Forest',
   'Man Utd': 'Manchester United',
   'Man City': 'Manchester City',
-  'Spurs': 'Tottenham',
+  Spurs: 'Tottenham',
+}
+
+const serverTeamAliases = {
+  manutd: 'manchesterunited',
+  manchesterutd: 'manchesterunited',
+  manchesterunited: 'manchesterunited',
+  mancity: 'manchestercity',
+  manchestercity: 'manchestercity',
+  spurs: 'tottenham',
+  tottenham: 'tottenham',
+  tottenhamhotspur: 'tottenham',
+  nottmforest: 'nottinghamforest',
+  nottinghamforest: 'nottinghamforest',
+  afcbournemouth: 'bournemouth',
+  leedsunited: 'leeds',
+  brightonhovealbion: 'brighton',
+  westhamunited: 'westham',
+  newcastleunited: 'newcastle',
+  wolverhamptonwanderers: 'wolves',
+  arsenalfc: 'arsenal',
+  burnleyfc: 'burnley',
+  crystalpalacefc: 'crystalpalace',
+  liverpoolfc: 'liverpool',
+  evertonfc: 'everton',
 }
 
 function expandTeamNameForSearch(name) {
@@ -609,65 +661,446 @@ function expandFixtureQueryForSearch(matchString) {
   return `${expandTeamNameForSearch(home.trim())} vs ${expandTeamNameForSearch(away.trim())}`
 }
 
-async function searchFinishedSoccerEvents(query) {
-  const encodedQuery = encodeURIComponent(expandFixtureQueryForSearch(query))
-  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodedQuery}`)
-  const events = Array.isArray(payload?.event) ? payload.event : []
-
-  return events
-    .filter((event) => getAsString(event?.strSport).toLowerCase() === 'soccer')
-    .filter((event) => {
-      const status = getAsString(event?.strStatus).toLowerCase()
-      if (status.includes('match finished') || status.includes('finished')) {
-        return true
-      }
-
-      const hasScore = getAsString(event?.intHomeScore) !== '' && getAsString(event?.intAwayScore) !== ''
-      return hasScore
-    })
-    .map((event) => ({
-      idEvent: getAsString(event?.idEvent),
-      idApiFootball: getAsString(event?.idAPIfootball),
-      name: getAsString(event?.strEvent),
-      date: getAsString(event?.dateEvent),
-      league: getAsString(event?.strLeague),
-      season: getAsString(event?.strSeason),
-      homeTeam: getAsString(event?.strHomeTeam),
-      awayTeam: getAsString(event?.strAwayTeam),
-      homeScore: getAsString(event?.intHomeScore),
-      awayScore: getAsString(event?.intAwayScore),
-      status: getAsString(event?.strStatus),
-    }))
-}
-
-async function getEventById(eventId) {
-  const encodedEventId = encodeURIComponent(eventId)
-  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/lookupevent.php?id=${encodedEventId}`)
-  const event = Array.isArray(payload?.events) ? payload.events[0] : null
-  if (!event) {
-    return null
+function sportApiAuthHeaders(token) {
+  if (!token) {
+    return {}
   }
 
   return {
-    idEvent: getAsString(event.idEvent),
-    idApiFootball: getAsString(event.idAPIfootball),
-    name: getAsString(event.strEvent),
-    date: getAsString(event.dateEvent),
-    league: getAsString(event.strLeague),
-    season: getAsString(event.strSeason),
-    homeTeam: getAsString(event.strHomeTeam),
-    awayTeam: getAsString(event.strAwayTeam),
-    homeScore: getAsString(event.intHomeScore),
-    awayScore: getAsString(event.intAwayScore),
-    status: getAsString(event.strStatus),
+    'X-Api-Key': token,
+    Authorization: `Bearer ${token}`,
   }
 }
 
+function formatDateYYYYMMDD(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function getDateCandidatesAroundNow(daysBack, daysAhead) {
+  const now = new Date()
+  const dates = []
+
+  for (let offset = -daysBack; offset <= daysAhead; offset += 1) {
+    const date = new Date(now)
+    date.setDate(now.getDate() + offset)
+    dates.push(formatDateYYYYMMDD(date))
+  }
+
+  return dates
+}
+
+function toTeamToken(value) {
+  const base = getAsString(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+  const raw = base.startsWith('afc') && base.length > 3
+    ? base.slice(3)
+    : base.endsWith('fc') && base.length > 2
+      ? base.slice(0, -2)
+      : base
+
+  return serverTeamAliases[raw] ?? raw
+}
+
+function getSportFixtureValue(fixture, keys, fallback = '') {
+  for (const key of keys) {
+    const value = key.split('.').reduce((acc, part) => (acc && typeof acc === 'object' ? acc[part] : undefined), fixture)
+    const text = getAsString(value)
+    if (text) {
+      return text
+    }
+  }
+
+  return fallback
+}
+
+function mapSportFixture(fixture) {
+  const homeTeam = getSportFixtureValue(fixture, ['home_team', 'homeTeam', 'home.name', 'teams.home.name'])
+  const awayTeam = getSportFixtureValue(fixture, ['away_team', 'awayTeam', 'away.name', 'teams.away.name'])
+  const homeScore = normalizeApiFootballScore(
+    fixture?.home_score
+      ?? fixture?.score?.home
+      ?? fixture?.scores?.home
+      ?? fixture?.goals?.home,
+  )
+  const awayScore = normalizeApiFootballScore(
+    fixture?.away_score
+      ?? fixture?.score?.away
+      ?? fixture?.scores?.away
+      ?? fixture?.goals?.away,
+  )
+
+  const id = getAsString(
+    fixture?.id
+      ?? fixture?.fixture_id
+      ?? fixture?.fixture?.id,
+  )
+    || getAsIdString(
+    fixture?.id
+      ?? fixture?.fixture_id
+      ?? fixture?.fixture?.id,
+  )
+
+  return {
+    idEvent: id,
+    idApiFootball: id,
+    name: `${homeTeam} vs ${awayTeam}`,
+    date: getSportFixtureValue(fixture, ['date', 'match_date', 'fixture.date', 'fixture_date']),
+    league: getSportFixtureValue(fixture, ['league_name', 'league.name', 'competition.name']),
+    season: getSportFixtureValue(fixture, ['season', 'league.season'], ''),
+    homeTeam,
+    awayTeam,
+    homeScore: homeScore ?? '',
+    awayScore: awayScore ?? '',
+    status: getSportFixtureValue(fixture, ['status', 'fixture.status.short', 'fixture.status.long']),
+  }
+}
+
+function isFinishedFixture(match) {
+  const status = getAsString(match.status).toUpperCase()
+  if (status === 'FT' || status === 'AET' || status === 'PEN') {
+    return true
+  }
+
+  if (status.includes('FINISHED')) {
+    return true
+  }
+
+  return match.homeScore !== '' && match.awayScore !== ''
+}
+
+async function getSportApiFixturesByDate(date, token) {
+  const cached = sportApiFixtureDateCache.get(date)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.fixtures
+  }
+
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
+    headers: sportApiAuthHeaders(token),
+  })
+
+  const fixtures = Array.isArray(payload?.fixtures)
+    ? payload.fixtures
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : []
+  sportApiFixtureDateCache.set(date, {
+    fixtures,
+    expiresAt: nowMs + 5 * 60 * 1000,
+  })
+  return fixtures
+}
+
+async function searchFinishedSoccerEvents(query) {
+  const token = getApiFootballKey()
+  const expandedQuery = expandFixtureQueryForSearch(query)
+  const [rawHome, rawAway] = expandedQuery.includes(' vs ')
+    ? expandedQuery.split(' vs ')
+    : [expandedQuery, '']
+  const expectedHome = toTeamToken(rawHome)
+  const expectedAway = toTeamToken(rawAway)
+
+  const dates = getDateCandidatesAroundNow(14, 1)
+  const mappedMatches = []
+  let fetchedAnyDate = false
+
+  for (const date of dates) {
+    try {
+      const fixtures = await getSportApiFixturesByDate(date, token)
+      fetchedAnyDate = true
+      for (const fixture of fixtures) {
+        const mapped = mapSportFixture(fixture)
+        if (!mapped.idEvent || !mapped.homeTeam || !mapped.awayTeam) {
+          continue
+        }
+
+        if (!isFinishedFixture(mapped)) {
+          continue
+        }
+
+        if (expectedAway) {
+          const homeToken = toTeamToken(mapped.homeTeam)
+          const awayToken = toTeamToken(mapped.awayTeam)
+          const strict = homeToken === expectedHome && awayToken === expectedAway
+          const swapped = homeToken === expectedAway && awayToken === expectedHome
+          if (!strict && !swapped) {
+            continue
+          }
+        } else if (!mapped.name.toLowerCase().includes(expandedQuery.toLowerCase())) {
+          continue
+        }
+
+        mappedMatches.push(mapped)
+      }
+    } catch {
+      continue
+    }
+  }
+
+  if (!fetchedAnyDate) {
+    throw new Error('Unable to query SportAPI fixtures by date.')
+  }
+
+  const seen = new Set()
+  const unique = []
+  for (const match of mappedMatches) {
+    if (seen.has(match.idEvent)) {
+      continue
+    }
+
+    seen.add(match.idEvent)
+    unique.push(match)
+  }
+
+  return unique
+}
+
+async function getEventById(eventId) {
+  const token = getApiFootballKey()
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(eventId)}`, {
+    headers: sportApiAuthHeaders(token),
+  })
+
+  const fixture = payload?.fixture ?? payload?.data?.fixture ?? payload?.data ?? payload
+  if (!fixture || typeof fixture !== 'object') {
+    return null
+  }
+
+  const mapped = mapSportFixture(fixture)
+  return mapped.idEvent ? mapped : null
+}
+
 async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
+  const authHeaders = sportApiAuthHeaders(apiFootballKey)
+  const fixtureResponse = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}`, {
+    headers: authHeaders,
+  })
+
+  let events = []
+  try {
+    const eventsResponse = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/events`, {
+      headers: authHeaders,
+    })
+    events = Array.isArray(eventsResponse?.events)
+      ? eventsResponse.events
+      : Array.isArray(eventsResponse?.data)
+        ? eventsResponse.data
+        : []
+  } catch {
+    events = []
+  }
+
+  const fixture = fixtureResponse?.fixture ?? fixtureResponse?.data?.fixture ?? fixtureResponse?.data ?? fixtureResponse
+  const homeTeam = getSportFixtureValue(fixture, ['home_team', 'home.name', 'teams.home.name'])
+  const awayTeam = getSportFixtureValue(fixture, ['away_team', 'away.name', 'teams.away.name'])
+  const fixtureDate = getSportFixtureValue(fixture, ['date', 'match_date', 'fixture.date', 'fixture_date'])
+
+  const rowsByKey = new Map()
+
+  function upsertRow(playerName, teamName, patch = {}) {
+    const cleanName = getAsString(playerName)
+    if (!cleanName) {
+      return
+    }
+
+    const cleanTeam = getAsString(teamName)
+    const key = `${cleanTeam}::${cleanName}`
+    const current = rowsByKey.get(key) ?? {
+      playerName: cleanName,
+      teamName: cleanTeam,
+      apiPosition: 'Midfielder',
+      minutesPlayed: 0,
+      goalsScored: 0,
+      assists: 0,
+      goalsConceded: 0,
+      shotSaves: 0,
+      yellowCards: 0,
+      redCards: 0,
+      penaltyMisses: 0,
+      penaltySaves: 0,
+      defensiveContributions: 0,
+    }
+
+    rowsByKey.set(key, {
+      ...current,
+      ...patch,
+    })
+  }
+
+  const maybePlayerLists = [
+    fixture?.players,
+    fixture?.home_players,
+    fixture?.away_players,
+    fixture?.events,
+    fixture?.lineups?.home?.players,
+    fixture?.lineups?.away?.players,
+    fixtureResponse?.players,
+    fixtureResponse?.squad,
+  ]
+
+  for (const list of maybePlayerLists) {
+    if (!Array.isArray(list)) {
+      continue
+    }
+
+    for (const entry of list) {
+      if (!entry || typeof entry !== 'object') {
+        continue
+      }
+
+      const stats = entry.stats ?? entry.statistics ?? {}
+      const teamName = getAsString(entry.team_name ?? entry?.team?.name)
+      const playerName = getAsString(entry.full_name ?? entry.player_name ?? entry.name ?? entry?.player?.name)
+      if (!playerName) {
+        continue
+      }
+
+      const tackles = getAsNumber(stats.tackles ?? stats.total_tackles)
+      const blocks = getAsNumber(stats.blocks)
+      const interceptions = getAsNumber(stats.interceptions)
+
+      upsertRow(playerName, teamName, {
+        apiPosition: getAsString(entry.position ?? stats.position) || 'Midfielder',
+        minutesPlayed: getAsNumber(entry.minutes ?? stats.minutes),
+        goalsScored: getAsNumber(entry.goals ?? stats.goals ?? stats.goals_scored),
+        assists: getAsNumber(entry.assists ?? stats.assists),
+        goalsConceded: getAsNumber(entry.goals_conceded ?? stats.goals_conceded),
+        shotSaves: getAsNumber(entry.saves ?? stats.saves),
+        yellowCards: getAsNumber(entry.yellow_cards ?? stats.yellow_cards),
+        redCards: getAsNumber(entry.red_cards ?? stats.red_cards),
+        penaltyMisses: getAsNumber(entry.penalty_missed ?? stats.penalty_missed),
+        penaltySaves: getAsNumber(entry.penalty_saved ?? stats.penalty_saved),
+        defensiveContributions: tackles + blocks + interceptions,
+      })
+    }
+  }
+
+  if (rowsByKey.size === 0) {
+    for (const event of events) {
+      const eventType = getAsString(event?.event_type ?? event?.type).toLowerCase()
+      const playerName = getAsString(event?.player_name ?? event?.player)
+      const assistName = getAsString(event?.assist_name)
+      const substitutionOutName = getAsString(event?.extra_info)
+      const minuteMatch = getAsString(event?.minute).match(/^(\d{1,3})/)
+      const eventMinute = minuteMatch ? Number.parseInt(minuteMatch[1], 10) : null
+      const teamSide = getAsString(event?.team_side).toLowerCase()
+      const teamName = teamSide === 'away' ? awayTeam : homeTeam
+
+      if (!playerName || !teamName) {
+        continue
+      }
+
+      if (eventType.includes('substitution')) {
+        const subInMinutes = Number.isFinite(eventMinute) ? Math.max(1, 90 - Number(eventMinute)) : 1
+        upsertRow(playerName, teamName, { minutesPlayed: subInMinutes })
+
+        if (substitutionOutName) {
+          const subOutMinutes = Number.isFinite(eventMinute)
+            ? Math.max(1, Math.min(120, Number(eventMinute)))
+            : 60
+          upsertRow(substitutionOutName, teamName, { minutesPlayed: subOutMinutes })
+        }
+      } else {
+        upsertRow(playerName, teamName, { minutesPlayed: 90 })
+      }
+
+      const row = rowsByKey.get(`${teamName}::${playerName}`)
+      if (!row) {
+        continue
+      }
+
+      if (eventType.includes('goal')) {
+        row.goalsScored += 1
+      }
+      if (eventType === 'assist' || eventType.includes('assist')) {
+        row.assists += 1
+      }
+      if (eventType.includes('yellow')) {
+        row.yellowCards += 1
+      }
+      if (eventType.includes('red')) {
+        row.redCards += 1
+      }
+      if (eventType.includes('penalty_missed') || eventType.includes('penalty missed')) {
+        row.penaltyMisses += 1
+      }
+      if (eventType.includes('penalty_saved') || eventType.includes('penalty saved')) {
+        row.penaltySaves += 1
+      }
+
+      if (assistName) {
+        upsertRow(assistName, teamName, { minutesPlayed: 90 })
+        const assistRow = rowsByKey.get(`${teamName}::${assistName}`)
+        if (assistRow) {
+          assistRow.assists += 1
+        }
+      }
+    }
+  }
+
+  // Hybrid mode: if API-Football key is available, augment with full per-player fixture stats.
+  // This greatly improves coverage beyond event-only players from SportAPI.
+  const apiSportsKey = getApiSportsKey()
+  if (apiSportsKey && homeTeam && awayTeam && fixtureDate) {
+    try {
+      const apiSportsFixtureId = await resolveApiSportsFixtureId(homeTeam, awayTeam, fixtureDate)
+      if (apiSportsFixtureId) {
+        const fullRows = await getApiSportsPlayerStats(apiSportsFixtureId, apiSportsKey)
+        for (const row of fullRows) {
+          upsertRow(row.playerName, row.teamName, {
+            apiPosition: row.apiPosition,
+            minutesPlayed: row.minutesPlayed,
+            goalsScored: row.goalsScored,
+            assists: row.assists,
+            goalsConceded: row.goalsConceded,
+            shotSaves: row.shotSaves,
+            yellowCards: row.yellowCards,
+            redCards: row.redCards,
+            penaltyMisses: row.penaltyMisses,
+            penaltySaves: row.penaltySaves,
+            defensiveContributions: row.defensiveContributions,
+          })
+        }
+      }
+    } catch {
+      // Keep SportAPI-only rows when secondary provider is unavailable.
+    }
+  }
+
+  return Array.from(rowsByKey.values())
+}
+
+async function resolveApiSportsFixtureId(homeTeam, awayTeam, date) {
+  const query = encodeURIComponent(`${homeTeam} vs ${awayTeam}`)
+  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${query}`)
+  const events = Array.isArray(payload?.event) ? payload.event : []
+  const expectedHome = toTeamToken(homeTeam)
+  const expectedAway = toTeamToken(awayTeam)
+
+  const matched = events.find((event) => {
+    const eventDate = getAsString(event?.dateEvent)
+    const home = toTeamToken(event?.strHomeTeam)
+    const away = toTeamToken(event?.strAwayTeam)
+    const strict = home === expectedHome && away === expectedAway
+    const swapped = home === expectedAway && away === expectedHome
+    return eventDate === date && (strict || swapped)
+  })
+
+  return getAsString(matched?.idAPIfootball)
+}
+
+async function getApiSportsPlayerStats(fixtureId, apiSportsKey) {
   const encodedFixtureId = encodeURIComponent(fixtureId)
   const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures/players?fixture=${encodedFixtureId}`, {
     headers: {
-      'x-apisports-key': apiFootballKey,
+      'x-apisports-key': apiSportsKey,
     },
   })
 
@@ -679,10 +1112,7 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
     const players = Array.isArray(teamEntry?.players) ? teamEntry.players : []
 
     for (const playerEntry of players) {
-      const statistics = Array.isArray(playerEntry?.statistics)
-        ? playerEntry.statistics[0]
-        : null
-
+      const statistics = Array.isArray(playerEntry?.statistics) ? playerEntry.statistics[0] : null
       if (!statistics) {
         continue
       }
@@ -731,20 +1161,27 @@ function normalizeApiFootballScore(value) {
 }
 
 async function getApiFootballFixtureScore(fixtureId, apiFootballKey) {
-  const encodedFixtureId = encodeURIComponent(fixtureId)
-  const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures?id=${encodedFixtureId}`, {
-    headers: {
-      'x-apisports-key': apiFootballKey,
-    },
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}`, {
+    headers: sportApiAuthHeaders(apiFootballKey),
   })
 
-  const fixture = Array.isArray(payload?.response) ? payload.response[0] : null
+  const fixture = payload?.fixture ?? payload?.data?.fixture ?? payload?.data ?? payload
   if (!fixture || typeof fixture !== 'object') {
     return null
   }
 
-  const homeScore = normalizeApiFootballScore(fixture?.goals?.home)
-  const awayScore = normalizeApiFootballScore(fixture?.goals?.away)
+  const homeScore = normalizeApiFootballScore(
+    fixture?.home_score
+      ?? fixture?.score?.home
+      ?? fixture?.scores?.home
+      ?? fixture?.goals?.home,
+  )
+  const awayScore = normalizeApiFootballScore(
+    fixture?.away_score
+      ?? fixture?.score?.away
+      ?? fixture?.scores?.away
+      ?? fixture?.goals?.away,
+  )
   if (homeScore === null || awayScore === null) {
     return null
   }
@@ -1323,7 +1760,7 @@ async function handleApiRequest(request, response) {
       const apiFootballKey = getApiFootballKey()
       if (!apiFootballKey) {
         sendJson(response, 422, {
-          error: 'Score checking requires APIFOOTBALL_API_KEY (or API_FOOTBALL_KEY/APISPORTS_KEY) on the server.',
+          error: 'Score checking requires SPORTAPI_TOKEN (or SPORT_API_TOKEN/SPORTAPI_BEARER_TOKEN) on the server.',
         })
         return true
       }
@@ -1461,7 +1898,7 @@ async function handleApiRequest(request, response) {
       if (!apiFootballKey) {
         sendJson(response, 422, {
           error:
-            'Player-stat auto import requires APIFOOTBALL_API_KEY (or API_FOOTBALL_KEY/APISPORTS_KEY) on the host server.',
+            'Player-stat auto import requires SPORTAPI_TOKEN (or SPORT_API_TOKEN/SPORTAPI_BEARER_TOKEN) on the host server.',
           event,
         })
         return true
@@ -1668,7 +2105,7 @@ function serverToToken(value) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-const serverTeamAliases = {
+const serverAutoScanTeamAliases = {
   unitedstates: 'usa',
   us: 'usa',
   korearepublic: 'southkorea',
@@ -1679,7 +2116,7 @@ const serverTeamAliases = {
 
 function serverNormalizeTeamToken(teamName) {
   const token = serverToToken(teamName)
-  return serverTeamAliases[token] ?? token
+  return serverAutoScanTeamAliases[token] ?? token
 }
 
 function serverFindPlayer(players, row) {
@@ -1998,7 +2435,7 @@ async function serverScanDueFixturesAndImport() {
   if (serverScanRunning) return
   const apiKey = getApiFootballKey()
   if (!apiKey) {
-    console.log('[auto-scan] Skipping — no APIFOOTBALL_API_KEY set.')
+    console.log('[auto-scan] Skipping — no SportAPI token set (SPORTAPI_TOKEN).')
     return
   }
 

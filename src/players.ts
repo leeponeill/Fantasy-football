@@ -1,5 +1,6 @@
 import { renderPage } from './renderPage'
 import { getTeamsSorted, positionOrder, type TeamSquad } from './teamsData'
+import { getPlayerPoints, getTotalAccumulatedPoints } from './teamsData'
 import { requireAuth } from './auth'
 
 requireAuth()
@@ -31,8 +32,10 @@ function renderTeams(teams: TeamSquad[]): string {
 				orderedPlayers.length > 0
 					? orderedPlayers
 							.map(
-								(player) =>
-									`<li>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span> <span class="player-points">(${player.points}pts)</span> <span class="player-position">(${escapeHtml(player.position)})</span></li>`,
+								(player) => {
+									const totalPoints = getTotalAccumulatedPoints(player.name, team.name) + getPlayerPoints(player.name, team.name)
+									return `<li>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span> <span class="player-points">(${totalPoints}pts)</span> <span class="player-position">(${escapeHtml(player.position)})</span></li>`
+								},
 							)
 							.join('')
 					: '<li>No players listed yet.</li>'

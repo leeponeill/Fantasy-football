@@ -22,11 +22,17 @@ The Award Points page now supports automatic point calculation from finished mat
 
 The app fetches available player stats for that game and calculates fantasy points using your existing points rules, then applies them to matching players.
 
-### Required API key for player-level import
+### Required API token for player-level import
 
-Match search works without configuration, but player-level stat import requires an API-Football key.
+Match search and player-level stat import now use SportAPI and require a token.
 
 Set one of these environment variables before starting the app server:
+
+- `SPORTAPI_TOKEN`
+- `SPORT_API_TOKEN`
+- `SPORTAPI_BEARER_TOKEN`
+
+Backward-compatible fallbacks are still accepted:
 
 - `APIFOOTBALL_API_KEY`
 - `API_FOOTBALL_KEY`
@@ -35,7 +41,7 @@ Set one of these environment variables before starting the app server:
 Example:
 
 ```bash
-export APIFOOTBALL_API_KEY="your_api_football_key_here"
+export SPORTAPI_TOKEN="your_sportapi_token_here"
 npm run dev:lan
 ```
 
