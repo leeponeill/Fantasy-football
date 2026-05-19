@@ -782,6 +782,7 @@ async function getSportApiFixturesByDate(date, token) {
     return cached.fixtures
   }
 
+  const hasToken = !!token
   const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
     headers: sportApiAuthHeaders(token),
   })
@@ -839,7 +840,12 @@ async function searchFinishedSoccerEvents(query) {
 
         mappedMatches.push(mapped)
       }
-    } catch {
+    } catch (err) {
+      if (!token) {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}): No API token available`)
+      } else {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}) failed for date ${date}:`, err.message)
+      }
       continue
     }
   }
