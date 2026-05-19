@@ -608,7 +608,15 @@ async function fetchJson(url, options = {}) {
   })
 
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`)
+    let bodyText = ''
+    try {
+      bodyText = await response.text()
+    } catch (e) {
+      bodyText = '[unable to read response body]'
+    }
+    const errorMsg = `API request failed with status ${response.status} from ${url}. Response: ${bodyText.slice(0, 500)}`
+    console.error(`[auto-scan] ${errorMsg}`)
+    throw new Error(errorMsg)
   }
 
   return response.json()
@@ -782,20 +790,29 @@ async function getSportApiFixturesByDate(date, token) {
     return cached.fixtures
   }
 
-  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
-    headers: sportApiAuthHeaders(token),
-  })
+  const hasToken = !!token
+  console.log(`[auto-scan] Fetching SportAPI fixtures for ${date} (token available: ${hasToken})`)
+  
+  try {
+    const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
+      headers: sportApiAuthHeaders(token),
+    })
 
-  const fixtures = Array.isArray(payload?.fixtures)
-    ? payload.fixtures
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : []
-  sportApiFixtureDateCache.set(date, {
-    fixtures,
-    expiresAt: nowMs + 5 * 60 * 1000,
-  })
-  return fixtures
+    const fixtures = Array.isArray(payload?.fixtures)
+      ? payload.fixtures
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    console.log(`[auto-scan] Successfully fetched ${fixtures.length} fixtures for ${date}`)
+    sportApiFixtureDateCache.set(date, {
+      fixtures,
+      expiresAt: nowMs + 5 * 60 * 1000,
+    })
+    return fixtures
+  } catch (err) {
+    console.error(`[auto-scan] getSportApiFixturesByDate(${date}) error:`, err.message)
+    throw err
+  }
 }
 
 async function searchFinishedSoccerEvents(query) {
@@ -839,7 +856,12 @@ async function searchFinishedSoccerEvents(query) {
 
         mappedMatches.push(mapped)
       }
-    } catch {
+    } catch (err) {
+      if (!token) {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}): No API token available`)
+      } else {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}) failed for date ${date}:`, err.message)
+      }
       continue
     }
   }
@@ -1440,12 +1462,6 @@ async function handleApiRequest(request, response) {
   if (request.method === 'GET' && url.pathname === '/api/transfer-history') {
     try {
       const state = await readLeagueState()
-      const draft = getDraftStatus(state.storage)
-      if (!draft.enabled) {
-        sendJson(response, 200, { sales: [] })
-        return true
-      }
-
       const sales = readTransferHistory(state.storage)
         .slice()
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())

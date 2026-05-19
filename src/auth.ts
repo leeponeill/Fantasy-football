@@ -1,5 +1,6 @@
 import { bootstrapSharedLeagueStorage, commitSharedStorageChanges, getSharedItem, setSharedItem } from './sharedLeague'
 import { getPlayerPoints, getTotalAccumulatedPoints } from './teamsData'
+import { getTransferAwareMatchdayPoints, getTransferAwarePlayerCurrentPoints, parseTransferPointEvents } from './transferPoints'
 
 await bootstrapSharedLeagueStorage()
 
@@ -513,11 +514,27 @@ export function getUserTotalPoints(username: string): number {
     const captainBonusTotal = Number.isFinite(state.captainBonusTotal as number)
       ? (state.captainBonusTotal as number)
       : 0
+    const currentMatchday = Number.isFinite(state.currentMatchday as number)
+      ? Math.max(1, Number(state.currentMatchday as number))
+      : 1
+    const transferPointEvents = parseTransferPointEvents(state.transferPointEvents)
     const selectedPlayerKeys = Array.isArray(state.selectedPlayerKeys)
       ? state.selectedPlayerKeys.filter((value): value is string => typeof value === 'string')
       : []
 
+    const getCurrentPointsByPlayerKey = (playerKey: string): number => {
+      const parts = playerKey.split('::')
+      if (parts.length < 2) {
+        return 0
+      }
+
+      const teamName = parts[0]
+      const playerName = parts.slice(1).join('::')
+      return getPlayerPoints(playerName, teamName)
+    }
+
     let playerPointsTotal = 0
+    let currentSelectedRawPoints = 0
     for (const playerKey of selectedPlayerKeys) {
       const parts = playerKey.split('::')
       if (parts.length < 2) {
@@ -527,8 +544,18 @@ export function getUserTotalPoints(username: string): number {
       const teamName = parts[0]
       const playerName = parts.slice(1).join('::')
       playerPointsTotal += getTotalAccumulatedPoints(playerName, teamName)
-      playerPointsTotal += getPlayerPoints(playerName, teamName)
+      const currentPoints = getPlayerPoints(playerName, teamName)
+      playerPointsTotal += currentPoints
+      currentSelectedRawPoints += currentPoints
     }
+
+    const transferAwareCurrentPoints = getTransferAwareMatchdayPoints(
+      selectedPlayerKeys,
+      currentMatchday,
+      transferPointEvents,
+      getCurrentPointsByPlayerKey,
+    )
+    playerPointsTotal = playerPointsTotal - currentSelectedRawPoints + transferAwareCurrentPoints
 
     let captainCurrentBonus = 0
     const captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
@@ -536,9 +563,13 @@ export function getUserTotalPoints(username: string): number {
     if (isTeamLocked && captainPlayerKey && selectedPlayerKeys.includes(captainPlayerKey)) {
       const captainParts = captainPlayerKey.split('::')
       if (captainParts.length >= 2) {
-        const captainTeamName = captainParts[0]
-        const captainPlayerName = captainParts.slice(1).join('::')
-        captainCurrentBonus = getPlayerPoints(captainPlayerName, captainTeamName)
+        captainCurrentBonus = getTransferAwarePlayerCurrentPoints(
+          captainPlayerKey,
+          selectedPlayerKeys,
+          currentMatchday,
+          transferPointEvents,
+          getCurrentPointsByPlayerKey,
+        )
       }
     }
 

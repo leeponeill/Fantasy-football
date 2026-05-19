@@ -2,17 +2,28 @@ import { renderPage } from './renderPage'
 import { getAllUsernames, getCurrentUsername, getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
 import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints, type SelectablePlayer, getCountryFlag } from './teamsData'
 import { getSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
+import {
+  getTransferAwareMatchdayPoints,
+  getTransferAwarePlayerCurrentPoints,
+  parseTransferPointEvents,
+  type TransferPointEvent,
+} from './transferPoints'
 
 type SavedTeamState = {
   selectedPlayerKeys: string[]
   isTeamLocked?: boolean
   captainPlayerKey?: string | null
   captainBonusTotal?: number
+  currentMatchday?: number
+  transferPointEvents?: TransferPointEvent[]
 }
 
 type UserTeamState = {
+  selectedPlayerKeys: string[]
   players: SelectablePlayer[]
   isTeamLocked: boolean
+  currentMatchday: number
+  transferPointEvents: TransferPointEvent[]
 }
 
 type LeaderboardRow = {
@@ -42,7 +53,7 @@ function readUserTeam(username: string): UserTeamState {
   const raw = getSharedItem(storageKey)
 
   if (!raw) {
-    return { players: [], isTeamLocked: false }
+    return { selectedPlayerKeys: [], players: [], isTeamLocked: false, currentMatchday: 1, transferPointEvents: [] }
   }
 
   try {
@@ -53,22 +64,57 @@ function readUserTeam(username: string): UserTeamState {
       .filter((player): player is SelectablePlayer => Boolean(player))
 
     return {
+      selectedPlayerKeys: keys,
       players,
       isTeamLocked: Boolean(state.isTeamLocked),
+      currentMatchday: Number.isFinite(state.currentMatchday) ? Math.max(1, Number(state.currentMatchday)) : 1,
+      transferPointEvents: parseTransferPointEvents(state.transferPointEvents),
     }
   } catch {
-    return { players: [], isTeamLocked: false }
+    return { selectedPlayerKeys: [], players: [], isTeamLocked: false, currentMatchday: 1, transferPointEvents: [] }
   }
 }
 
-function getUserPoints(players: SelectablePlayer[]): number {
-  return players.reduce(
+function getCurrentPointsByPlayerKey(playerKey: string): number {
+  const parts = playerKey.split('::')
+  if (parts.length < 2) {
+    return 0
+  }
+
+  const teamName = parts[0]
+  const playerName = parts.slice(1).join('::')
+  return getPlayerPoints(playerName, teamName)
+}
+
+function getUserPoints(
+  players: SelectablePlayer[],
+  selectedPlayerKeys: string[],
+  currentMatchday: number,
+  transferPointEvents: TransferPointEvent[],
+): number {
+  const accumulated = players.reduce(
     (sum, player) => sum + getPlayerPoints(player.name, player.team) + getTotalAccumulatedPoints(player.name, player.team),
     0,
   )
+
+  const currentMatchdayPoints = getTransferAwareMatchdayPoints(
+    selectedPlayerKeys,
+    currentMatchday,
+    transferPointEvents,
+    getCurrentPointsByPlayerKey,
+  )
+
+  const currentSelectedRawPoints = players.reduce((sum, player) => sum + getPlayerPoints(player.name, player.team), 0)
+  return accumulated - currentSelectedRawPoints + currentMatchdayPoints
 }
 
-function getCaptainCurrentBonus(players: SelectablePlayer[], captainPlayerKey: string | null): number {
+function getCaptainCurrentBonus(
+  players: SelectablePlayer[],
+  selectedPlayerKeys: string[],
+  currentMatchday: number,
+  transferPointEvents: TransferPointEvent[],
+  captainPlayerKey: string | null,
+): number {
   if (!captainPlayerKey) {
     return 0
   }
@@ -78,7 +124,13 @@ function getCaptainCurrentBonus(players: SelectablePlayer[], captainPlayerKey: s
     return 0
   }
 
-  return getPlayerPoints(captain.name, captain.team)
+  return getTransferAwarePlayerCurrentPoints(
+    captainPlayerKey,
+    selectedPlayerKeys,
+    currentMatchday,
+    transferPointEvents,
+    getCurrentPointsByPlayerKey,
+  )
 }
 
 function getTeamValue(players: SelectablePlayer[]): number {
@@ -107,8 +159,19 @@ function buildLeaderboard(): LeaderboardRow[] {
         }
       }
 
-      const captainCurrentBonus = getCaptainCurrentBonus(players, captainPlayerKey)
-      const basePoints = getUserPoints(players)
+      const captainCurrentBonus = getCaptainCurrentBonus(
+        players,
+        userTeamState.selectedPlayerKeys,
+        userTeamState.currentMatchday,
+        userTeamState.transferPointEvents,
+        captainPlayerKey,
+      )
+      const basePoints = getUserPoints(
+        players,
+        userTeamState.selectedPlayerKeys,
+        userTeamState.currentMatchday,
+        userTeamState.transferPointEvents,
+      )
       return {
         username,
         teamName: getTeamNameForUser(username) ?? username,
