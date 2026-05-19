@@ -20,6 +20,8 @@ const draftNextIndexStorageKey = 'fantasy-football-draft-next-index'
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
 const transferRequestsStorageKey = 'fantasy-football-transfer-requests'
 const transferHistoryStorageKey = 'fantasy-football-transfer-history'
+const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
+const fixtureSignatureStorageKey = 'fantasy-football-fixtures-signature'
 
 function stripWrappingQuotes(value) {
   if (
@@ -179,14 +181,14 @@ function sanitizeFixtureMatchdays(value) {
       .map((game) => ({
         match: typeof game.match === 'string' ? game.match : '',
         time: typeof game.time === 'string' ? game.time : '',
-        country: typeof game.country === 'string' && validCountries.has(game.country) ? game.country : null,
+        country: typeof game.country === 'string' && validCountries.has(game.country) ? game.country : '',
         date: typeof game.date === 'string' ? game.date : '',
       }))
-      .filter((game) => game.match && game.time && game.date && game.country)
+      .filter((game) => game.match && game.time && game.date)
       .map((game) => ({
         match: game.match,
         time: game.time,
-        country: game.country,
+        ...(game.country ? { country: game.country } : {}),
         date: game.date,
       }))
 
@@ -589,8 +591,26 @@ async function fetchJson(url, options = {}) {
 
 await loadEnvFile()
 
+// Expand abbreviated team names to the full names used by TheSportsDB
+const fixtureTeamExpansions = {
+  "Nott'm Forest": 'Nottingham Forest',
+  'Man Utd': 'Manchester United',
+  'Man City': 'Manchester City',
+  'Spurs': 'Tottenham',
+}
+
+function expandTeamNameForSearch(name) {
+  return fixtureTeamExpansions[name] ?? name
+}
+
+function expandFixtureQueryForSearch(matchString) {
+  if (!matchString.includes(' vs ')) return matchString
+  const [home, away] = matchString.split(' vs ')
+  return `${expandTeamNameForSearch(home.trim())} vs ${expandTeamNameForSearch(away.trim())}`
+}
+
 async function searchFinishedSoccerEvents(query) {
-  const encodedQuery = encodeURIComponent(query)
+  const encodedQuery = encodeURIComponent(expandFixtureQueryForSearch(query))
   const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodedQuery}`)
   const events = Array.isArray(payload?.event) ? payload.event : []
 
@@ -693,6 +713,46 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
   }
 
   return rows
+}
+
+function normalizeApiFootballScore(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value))
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isFinite(parsed)) {
+      return String(parsed)
+    }
+  }
+
+  return null
+}
+
+async function getApiFootballFixtureScore(fixtureId, apiFootballKey) {
+  const encodedFixtureId = encodeURIComponent(fixtureId)
+  const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures?id=${encodedFixtureId}`, {
+    headers: {
+      'x-apisports-key': apiFootballKey,
+    },
+  })
+
+  const fixture = Array.isArray(payload?.response) ? payload.response[0] : null
+  if (!fixture || typeof fixture !== 'object') {
+    return null
+  }
+
+  const homeScore = normalizeApiFootballScore(fixture?.goals?.home)
+  const awayScore = normalizeApiFootballScore(fixture?.goals?.away)
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  return {
+    homeScore,
+    awayScore,
+  }
 }
 
 async function handleApiRequest(request, response) {
@@ -1229,9 +1289,94 @@ async function handleApiRequest(request, response) {
   if (request.method === 'GET' && url.pathname === '/api/fixtures') {
     try {
       const matchdays = await readFixtureMatchdays()
+      const state = await readLeagueState()
+      await syncStoredFixtureResultsWithFixtureFile(state, matchdays)
       sendJson(response, 200, { matchdays })
     } catch {
       sendJson(response, 500, { error: 'Unable to read fixtures file.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/fixtures/results') {
+    try {
+      const fixtureMatchdays = await readFixtureMatchdays()
+      const state = await readLeagueState()
+      const syncedState = await syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays)
+      const results = readStoredFixtureResults(syncedState.storage)
+      sendJson(response, 200, { results })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read fixture results.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/fixtures/check-scores') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can check scores.' })
+        return true
+      }
+
+      const apiFootballKey = getApiFootballKey()
+      if (!apiFootballKey) {
+        sendJson(response, 422, {
+          error: 'Score checking requires APIFOOTBALL_API_KEY (or API_FOOTBALL_KEY/APISPORTS_KEY) on the server.',
+        })
+        return true
+      }
+
+      const fixtureMatchdays = await readFixtureMatchdays()
+      const state = await readLeagueState()
+      const syncedState = await syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays)
+      const existingResults = readStoredFixtureResults(syncedState.storage)
+      const resultByKey = new Map(existingResults.map((result) => [fixtureResultIdentityKey(result), result]))
+      const now = new Date()
+
+      let added = 0
+      let scanned = 0
+      for (const matchday of fixtureMatchdays) {
+        for (const game of matchday.games) {
+          if (!isFixtureDueForScoreCheck(game, now)) {
+            continue
+          }
+
+          const identityKey = `${matchday.matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
+          if (resultByKey.has(identityKey)) {
+            continue
+          }
+
+          scanned += 1
+          try {
+            const result = await getFixtureResult(game, matchday.matchday, now, apiFootballKey)
+            if (!result) {
+              continue
+            }
+
+            resultByKey.set(identityKey, result)
+            added += 1
+          } catch {
+            continue
+          }
+        }
+      }
+
+      const nextResults = Array.from(resultByKey.values())
+      const nextStorage = {
+        ...syncedState.storage,
+        [fixtureResultsStorageKey]: JSON.stringify(nextResults),
+      }
+      await writeLeagueState(nextStorage)
+
+      sendJson(response, 200, {
+        added,
+        scanned,
+        total: nextResults.length,
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to check fixture scores.' })
     }
     return true
   }
@@ -1671,6 +1816,154 @@ function serverSelectBestMatch(game, matches) {
     matches.find((m) => serverNormalizeTeamToken(m.homeTeam) === expectedAway && serverNormalizeTeamToken(m.awayTeam) === expectedHome) ??
     matches[0] ?? null
   )
+}
+
+const fixtureResultCache = new Map()
+const fixtureResultCacheTtlMs = 15 * 60 * 1000
+
+function getFixtureResultCacheKey(matchday, game) {
+  return `${matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
+}
+
+function readFixtureResultCache(matchday, game, nowMs) {
+  const key = getFixtureResultCacheKey(matchday, game)
+  const cached = fixtureResultCache.get(key)
+  if (!cached || typeof cached !== 'object') {
+    return null
+  }
+
+  if (typeof cached.expiresAt !== 'number' || cached.expiresAt < nowMs) {
+    fixtureResultCache.delete(key)
+    return null
+  }
+
+  return cached.value ?? null
+}
+
+function writeFixtureResultCache(matchday, game, value, nowMs) {
+  const key = getFixtureResultCacheKey(matchday, game)
+  fixtureResultCache.set(key, {
+    value,
+    expiresAt: nowMs + fixtureResultCacheTtlMs,
+  })
+}
+
+async function getFixtureResult(game, matchday, now, apiFootballKey) {
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!kickoff || kickoff.getTime() > now.getTime()) {
+    return null
+  }
+
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return null
+  }
+
+  const nowMs = now.getTime()
+  const cached = readFixtureResultCache(matchday, game, nowMs)
+  if (cached) {
+    return cached
+  }
+
+  const searchResults = await searchFinishedSoccerEvents(game.match)
+  const bestMatch = serverSelectBestMatch(game, searchResults)
+  if (!bestMatch) {
+    return null
+  }
+
+  let score = null
+  if (bestMatch.idApiFootball && apiFootballKey) {
+    try {
+      score = await getApiFootballFixtureScore(bestMatch.idApiFootball, apiFootballKey)
+    } catch {
+      score = null
+    }
+  }
+
+  const fallbackHomeScore = getAsString(bestMatch.homeScore)
+  const fallbackAwayScore = getAsString(bestMatch.awayScore)
+  const homeScore = score?.homeScore ?? (fallbackHomeScore !== '' ? fallbackHomeScore : null)
+  const awayScore = score?.awayScore ?? (fallbackAwayScore !== '' ? fallbackAwayScore : null)
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  const result = {
+    matchday,
+    match: game.match,
+    time: game.time,
+    ...(game.country ? { country: game.country } : {}),
+    date: game.date,
+    homeScore,
+    awayScore,
+  }
+  writeFixtureResultCache(matchday, game, result, nowMs)
+  return result
+}
+
+function readStoredFixtureResults(storage) {
+  const raw = storage[fixtureResultsStorageKey]
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        matchday: Number(item.matchday),
+        match: typeof item.match === 'string' ? item.match : '',
+        time: typeof item.time === 'string' ? item.time : '',
+        country: typeof item.country === 'string' ? item.country : '',
+        date: typeof item.date === 'string' ? item.date : '',
+        homeScore: typeof item.homeScore === 'string' ? item.homeScore : '',
+        awayScore: typeof item.awayScore === 'string' ? item.awayScore : '',
+      }))
+      .filter((item) => Number.isFinite(item.matchday) && item.match && item.time && item.date && item.homeScore !== '' && item.awayScore !== '')
+  } catch {
+    return []
+  }
+}
+
+function fixtureResultIdentityKey(result) {
+  return `${result.matchday}|${result.date}|${result.time}|${result.country ?? ''}|${result.match}`
+}
+
+function isFixtureDueForScoreCheck(game, now) {
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!kickoff) {
+    return false
+  }
+
+  return kickoff.getTime() + serverAutoScanDelayMs <= now.getTime()
+}
+
+function getFixtureMatchdaysSignature(matchdays) {
+  return JSON.stringify(matchdays)
+}
+
+async function syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays) {
+  const nextSignature = getFixtureMatchdaysSignature(fixtureMatchdays)
+  const currentSignature = typeof state.storage[fixtureSignatureStorageKey] === 'string'
+    ? state.storage[fixtureSignatureStorageKey]
+    : ''
+
+  if (currentSignature === nextSignature) {
+    return state
+  }
+
+  const nextStorage = {
+    ...state.storage,
+    [fixtureSignatureStorageKey]: nextSignature,
+  }
+  delete nextStorage[fixtureResultsStorageKey]
+
+  return writeLeagueState(nextStorage)
 }
 
 // ---- Auto-imported event ID helpers ----
