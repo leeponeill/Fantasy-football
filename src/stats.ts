@@ -2,7 +2,7 @@ import { renderPage } from './renderPage'
 import { getAllPlayers, updatePlayerPoints, type SelectablePlayer } from './teamsData'
 import { calculatePlayerPoints, getPointsBreakdownText, type PlayerPerformance } from './pointsCalculator'
 import { getCurrentUsername, requireAuth } from './auth'
-import { fixtureMatchdays, type FixtureGame } from './fixturesData'
+import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
 import { flushSharedLeagueStorage, getSharedItem, setSharedItem } from './sharedLeague'
 
 requireAuth()
@@ -113,6 +113,7 @@ const allPlayers = getAllPlayers()
 const autoImportedEventIdsStorageKey = 'fantasy-football-auto-imported-event-ids'
 const autoScanDelayMs = 150 * 60 * 1000
 const oneTimeScanMaxDelayMs = 2_147_000_000
+let fixtureMatchdays: FixtureMatchday[] = []
 
 const playersByTeamAndName = new Map<string, SelectablePlayer>()
 const playersByName = new Map<string, SelectablePlayer[]>()
@@ -947,6 +948,17 @@ if (awardBtn) {
   })
 }
 
-renderPlayerSearch()
-void scanDueFixturesAndImport()
-scheduleOneTimeFixtureScans(new Date())
+async function initializeStatsPage(): Promise<void> {
+  renderPlayerSearch()
+
+  try {
+    fixtureMatchdays = await getFixtureMatchdays()
+  } catch {
+    setAutoImportMessage('Unable to load fixture list for auto scan.', 'error')
+  }
+
+  void scanDueFixturesAndImport()
+  scheduleOneTimeFixtureScans(new Date())
+}
+
+void initializeStatsPage()

@@ -18,6 +18,8 @@ const usersStorageKey = 'fantasy-football-users'
 const currentUserStorageKey = 'fantasy-football-current-user'
 const userProfilesStorageKey = 'fantasy-football-user-profiles'
 const passwordResetRequestsStorageKey = 'fantasy-football-password-reset-requests'
+const globalBudgetStorageKey = 'fantasy-football-global-budget'
+const maxBudget = 100
 const maxUsers = 10
 
 function redirectIfNeeded(redirectPath: string): void {
@@ -298,6 +300,8 @@ export function clearAllUsersAndTeams(): void {
     userProfilesStorageKey,
     passwordResetRequestsStorageKey,
     'fantasy-football-global-matchday',
+    globalBudgetStorageKey,
+    'fantasy-football-transfer-history',
   ]
 
   for (const username of usernames) {
@@ -421,6 +425,62 @@ export function adjustUserPoints(username: string, adjustment: number): { ok: bo
     } catch {
       return { ok: false, error: 'Unable to update user points.' }
     }
+  }
+
+  return { ok: true }
+}
+
+function readUserTeamPlayerCounts(username: string): { selected: number; bench: number } {
+  const storageKey = userScopedStorageKey('fantasy-football-my-team-state', username)
+  const raw = getSharedItem(storageKey)
+
+  if (!raw) {
+    return { selected: 0, bench: 0 }
+  }
+
+  try {
+    const state = JSON.parse(raw) as Record<string, unknown>
+    const selected = Array.isArray(state.selectedPlayerKeys)
+      ? state.selectedPlayerKeys.filter((value) => typeof value === 'string').length
+      : 0
+    const bench = Array.isArray(state.benchPlayerKeys)
+      ? state.benchPlayerKeys.filter((value) => typeof value === 'string').length
+      : 0
+
+    return { selected, bench }
+  } catch {
+    return { selected: 0, bench: 0 }
+  }
+}
+
+export function canAdjustUserBudgets(): boolean {
+  const usernames = getAllUsernames()
+  return usernames.every((username) => {
+    const counts = readUserTeamPlayerCounts(username)
+    return counts.selected === 0 && counts.bench === 0
+  })
+}
+
+export function getGlobalBudget(): number {
+  const raw = getSharedItem(globalBudgetStorageKey)
+  const parsed = raw ? Number.parseFloat(raw) : Number.NaN
+  if (!Number.isFinite(parsed)) {
+    return maxBudget
+  }
+
+  return Math.max(1, Number(parsed.toFixed(1)))
+}
+
+export function adjustGlobalBudget(adjustment: number): { ok: boolean; error?: string } {
+  if (!canAdjustUserBudgets()) {
+    return { ok: false, error: 'Budget can only be changed when all users have empty teams.' }
+  }
+
+  const currentBudget = getGlobalBudget()
+  const nextBudget = Math.max(1, Number((currentBudget + adjustment).toFixed(1)))
+  const didSave = setSharedItem(globalBudgetStorageKey, String(nextBudget))
+  if (!didSave) {
+    return { ok: false, error: 'Unable to update global budget.' }
   }
 
   return { ok: true }

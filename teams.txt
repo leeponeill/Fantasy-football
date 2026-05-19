@@ -1,207 +1,121 @@
-FIFA World Cup 2022 – Group A squads
+Premier League 2025/26 – Squad Data
 
-Qatar (final)
-Goalkeepers: Saad Al Sheeb [8.7], Meshaal Barsham [5.7], Yousuf Hassan [11.7]
-Defenders: Pedro Miguel [8.8], Bassam Al-Rawi [10.9], Abdelkarim Hassan [3.7], Homam Al-Amin [9.7], Tarek Salman [9.9], Boualem Khoukhi [4.3], Fahad Younes [5.4], Ismaeel Mohammad [13.5]
-Midfielders: Karim Boudiaf [5.2], Abdulaziz Hatem [12.0], Salem Al Hajri [4.2], Assim Madibo [4.0], Mohammed Waad [13.6], Ahmed Alaaeldin [3.7], Ali Asad [8.3], Ahmed Fathi [12.6], Moustafa Tarek [4.0]
-Forwards: Almoez Ali [8.4], Akram Afif [5.2], Hasan Al-Haydos [6.2], Khalid Muneer Ali [6.7], Mohammed Muntari [11.9], Yusuf Abdurisag [3.8], Edmilson Junior [4.6]
+Arsenal (final)
+Goalkeepers: David Raya Martín [6.2], Kepa Arrizabalaga Revuelta [4.0], Karl Hein [4.0], Tommy Setford [3.9]
+Defenders: Gabriel dos Santos Magalhães [7.3], William Saliba [6.3], Riccardo Calafiori [5.6], Jurriën Timber [6.0], Jakub Kiwior [5.4], Myles Lewis-Skelly [5.0], Benjamin White [5.1], Brayden Clarke [3.7], Maldini Kacurri [3.9], Josh Nichols [3.7], Cristhian Mosquera [5.3], Piero Hincapié [5.1], Marli Salmon [4.0]
+Midfielders: Bukayo Saka [10.0], Martin Ødegaard [7.8], Noni Madueke [6.8], Gabriel Martinelli Silva [6.8], Leandro Trossard [6.6], Declan Rice [7.2], Mikel Merino Zazón [5.3], Fábio Ferreira Vieira [5.4], Christian Nørgaard [5.1], Ethan Nwaneri [5.0], Martín Zubimendi Ibáñez [4.9], Ismeal Kabia [4.5], Albert Sambi Lokonga [4.5], Eberechi Eze [7.3], Max Dowman [4.2], Andre Harriman-Annous [4.4]
+Forwards: Kai Havertz [7.3], Gabriel Fernando de Jesus [6.4], Viktor Gyökeres [9.1]
 
-Ecuador (final)
-Goalkeepers: Hernan Galindez [2.7], Alexander Dominguez [6.5], Moises Ramirez [4.3]
-Defenders: Piero Hincapie [11.1], Pervis Estupinan [2.4], Byron Castillo [4.6], Xavier Arreaga [7.0], Diego Palacios [2.8], Robert Arboleda [4.0], Felix Torres [4.1], Angelo Preciado [10.3]
-Midfielders: Carlos Gruezo [6.0], Moises Caicedo [10.7], Romario Ibarra [10.1], Jeremy Sarmiento [4.6], Jhegson Mendez [3.6], Angel Mena [5.8], Marlon Plata [4.0], Gonzalo Plata [12.8]
-Forwards: Enner Valencia [6.4], Jordy Caicedo [3.9], Michael Estrada [2.7], Kevin Rodriguez [10.0], Djorkaeff Reasco [3.0]
+Aston Villa (final)
+Goalkeepers: Emiliano Martínez Romero [5.1], Marco Bizot [4.2], Joe Gauci [4.0], Filip Marschall [4.0], James Wright [3.9], Sam Proctor [3.9], Ronnie Hollingshead [4.0]
+Defenders: Matty Cash [4.7], Lucas Digne [4.5], Ezri Konsa Ngoyo [4.4], Ian Maatsen [4.2], Tyrone Mings [4.3], Pau Torres [4.3], Andrés García [3.9], Álex Moreno Lopera [4.0], Lamare Bogarde [4.0], Lino da Cruz Sousa [3.8], Yasin Özcan [4.0], Triston Rowe [4.0], Travis Patterson [3.9], Victor Lindelöf [4.5], Leon Routh [4.0], TJ Carroll [4.0]
+Midfielders: Morgan Rogers [7.4], Youri Tielemans [5.9], Leon Bailey [5.5], Emiliano Buendía Stati [5.3], Samuel Iling-Junior [5.5], Donyell Malen [5.1], John McGinn [5.3], Ross Barkley [4.8], Enzo Barrenechea [5.0], Lewis Dobbin [5.0], Boubacar Kamara [4.9], Amadou Onana [4.8], Ben Broggio [4.4], Leander Dendoncker [4.5], Jamaldeen Jimoh-Aloba [4.5], Kadan Young [4.3], Harvey Elliott [5.1], Jadon Sancho [5.8], Douglas Luiz Soares de Paulo [4.9], Bradley Burrowes [4.3], George Hemmings [4.5], Alysson Edward Franco da Rocha dos Santos [5.0]
+Forwards: Ollie Watkins [8.7], Zépiqueno Redmond [4.5], Tammy Abraham [5.7]
 
-Senegal (final)
-Goalkeepers: Edouard Mendy [11.1], Alfred Gomis [7.9], Seny Dieng [9.0]
-Defenders: Kalidou Koulibaly [4.2], Abdou Diallo [7.5], Saliou Ciss [8.3], Pape Abou Cisse [7.9], Formose Mendy [4.1], Ibrahima Mbaye [11.5], Moussa Niakhate [7.7], Ismail Jakobs [13.9]
-Midfielders: Idrissa Gueye [10.3], Nampalys Mendy [11.2], Pape Matar Sarr [5.3], Cheikhou Kouyate [8.4], Krepin Diatta [11.2], Mamadou Loum [2.1], Moustapha Name [5.6], Pathe Ciss [11.9]
-Forwards: Sadio Mane [11.0], Ismaila Sarr [6.4], Boulaye Dia [10.8], Bamba Dieng [6.4], Nicolas Jackson [10.7], Famara Diedhiou [4.4]
+Bournemouth (final)
+Goalkeepers: Norberto Murara Neto [4.5], Đorđe Petrović [4.6], Will Dennis [4.0], Callan McKenna [3.9], Alex Paulsen [4.0], Fraser Forster [4.0], Christos Mandas [4.0]
+Defenders: Illia Zabarnyi [5.0], Marcos Senesi Barón [5.2], Adam Smith [4.4], Adrien Truffert [4.7], Matai Akinmboni [3.8], Owen Bevan [3.8], James Hill [4.2], Julián Araujo Zúñiga [3.8], Chris Mepham [4.0], Julio Soler Barreto [3.9], Bafodé Diakité [4.1], Álex Jiménez Sánchez [4.5], Veljko Milosavljevic [4.4]
+Midfielders: Justin Kluivert [6.9], Marcus Tavernier [5.3], Tyler Adams [4.9], David Brooks [5.0], Ryan Christie [4.9], Lewis Cook [4.9], Philip Billing [4.9], Alex Scott [4.9], Luis Sinisterra Lucumí [5.0], Romain Faivre [4.5], Hamed Traorè [4.5], Dominic Sadi [4.5], Zain Silcott-Duberry [4.4], Ben Winterburn [4.5], Ben Gannon-Doak [4.8], Remy Rees-Dottin [4.3], Amine Adli [5.4], Malcom DaCosta [4.5], Charlie Stevens [4.5], Alex Tóth [4.9], Rayan Vitor Simplício Rocha [5.4]
+Forwards: Francisco Evanilson de Lima Barbosa [6.6], Enes Ünal [5.4], Daniel Adu-Adjei [4.4], Junior Kroupi [4.6]
 
-Netherlands (final)
-Goalkeepers: Andries Noppert [11.2], Justin Bijlow [10.6], Remko Pasveer [3.2]
-Defenders: Virgil van Dijk [11.5], Matthijs de Ligt [3.1], Nathan Ake [2.4], Daley Blind [12.9], Denzel Dumfries [11.9], Tyrell Malacia [11.7], Stefan de Vrij [7.0], Jurrien Timber [2.4]
-Midfielders: Davy Klaassen [12.4], Frenkie de Jong [2.4], Marten de Roon [10.1], Teun Koopmeiners [2.8], Steven Berghuis [8.1], Georginio Wijnaldum [5.4], Kenny Tete [6.6], Steven Bergwijn [8.2]
-Forwards: Memphis Depay [7.8], Cody Gakpo [9.0], Vincent Janssen [2.7], Wout Weghorst [4.0], Xavi Simons [10.3]
+Brentford (final)
+Goalkeepers: Caoimhín Kelleher [4.8], Ellery Balcombe [3.9], Matthew Cox [3.9], Julian Eyestone [3.9], Hákon Rafn Valdimarsson [3.8]
+Defenders: Nathan Collins [4.9], Keane Lewis-Potter [4.8], Kristoffer Ajer [4.4], Rico Henry [4.3], Michael Kayode [4.6], Ethan Pinnock [4.2], Mads Roerslev Rasmussen [4.5], Sepp van den Berg [4.4], Benjamin Arthur [3.8], Benjamin Fredrick [4.0], Aaron Hickey [4.0], Kim Ji-soo [3.9], Jayden Meghoma [4.0], Ollie Shield [4.0], Joshua Stephenson [4.0], Conor McManus [4.0]
+Midfielders: Reiss Nelson [4.8], Dango Ouattara [5.6], Kevin Schade [6.8], Mikkel Damsgaard [5.6], Antoni Milambo [5.2], Fábio Freitas Gouveia Carvalho [4.6], Jordan Henderson [5.0], Vitaly Janelt [4.9], Mathias Jensen [4.9], Gustavo Nunes Fernandes Gomes [4.9], Frank Onyeka [4.8], Yehor Yarmoliuk [5.0], Romelle Donovan [4.4], Yunus Emre Konak [4.3], Paris Maghoma [4.5], Myles Peart-Harris [4.4], Ryan Trevitt [4.5], Josh Dasilva [4.9], Luka Bentt [4.5], Riley Owen [4.5]
+Forwards: Igor Thiago Nascimento Rodrigues [7.3], Iwan Morgan [4.4], Kaye Furo [4.5]
 
-FIFA World Cup 2022 – Group B squads
+Brighton (final)
+Goalkeepers: Jason Steele [4.2], Bart Verbruggen [4.6], Tom McGill [3.9], Carl Rushworth [4.0], Kjell Scherpen [4.0]
+Defenders: Olivier Boscagli [4.2], Diego Coppola [4.2], Maxim De Cuyper [4.3], Lewis Dunk [4.5], Pervis Estupiñán Tenorio [4.5], Ferdi Kadıoğlu [4.5], Igor Julio dos Santos de Paulo [4.5], Tariq Lamptey [4.4], Jan Paul van Hecke [4.7], Joël Veltman [4.3], Adam Webster [4.4], Eiran Cashin [4.0], Jacob Slater [4.0], Charlie Tasker [3.8], Freddie Simmonds [4.0]
+Midfielders: Mitoma Kaoru [6.1], Georginio Rutter [5.6], Solly March [5.8], Yankuba Minteh [5.5], Julio Enciso Espínola [5.4], Brajan Gruda [5.4], Jack Hinshelwood [5.2], Matt O'Riley [5.5], Abdallah Sima [5.4], Yasin Ayari [4.8], Carlos Baleba [4.5], Diego Gómez Amarilla [4.9], James Milner [4.9], Jeremy Sarmiento Morante [4.9], Tom Watson [4.8], Mats Wieffer [4.9], Malick Yalcouyé [5.0], Joe Knight [4.4], Adrian Mazilu [4.5], Andrew Moran [4.5], Nehemiah Oriola [4.5], Pascal Groß [5.6], Harry Howell [4.5]
+Forwards: Danny Welbeck [6.4], Evan Ferguson [5.5], Stefanos Tzimas [5.2], Charalampos Kostoulas [4.8]
 
-England (final)
-Goalkeepers: Jordan Pickford [6.3], Nick Pope [2.6], Aaron Ramsdale [10.1]
-Defenders: Trent Alexander-Arnold [9.4], Reece James [12.8], Kieran Trippier [9.1], Luke Shaw [10.8], Ben White [14.0], Eric Dier [12.6], John Stones [7.8], Harry Maguire [12.8], Conor Coady [2.1], Kyle Walker [4.4], Fikayo Tomori [11.7], Marc Guehi [6.6]
-Midfielders: Jordan Henderson [5.4], Declan Rice [10.4], Jude Bellingham [10.2], Mason Mount [4.4], Kalvin Phillips [11.6], Conor Gallagher [4.6], James Maddison [10.7]
-Forwards: Harry Kane [4.7], Raheem Sterling [10.4], Bukayo Saka [10.1], Phil Foden [4.6], Jack Grealish [11.2], Marcus Rashford [11.4], Callum Wilson [8.5], Jarrod Bowen [5.2]
+Burnley (final)
+Goalkeepers: Max Weiß [4.2], Etienne Green [4.0], Václav Hladký [3.9], Martin Dúbravka [4.0]
+Defenders: Connor Roberts [4.3], Kyle Walker [4.4], Hannes Delcroix [3.8], Owen Dodgson [4.0], Hjalmar Ekdal [3.8], Maxime Estève [3.8], Quilindschy Hartman [4.0], Bashir Humphreys [3.9], Jordan Beyer [3.9], Lucas Pires Silva [3.8], Shurandy Sambo [4.0], Oliver Sonne [3.8], Axel Tuanzebe [3.9], Joe Worrall [3.8]
+Midfielders: Jaidon Anthony [5.0], Manuel Benson Hedilazio [5.4], Jacob Bruun Larsen [5.2], Enock Agyei [4.7], Darko Churlinov [4.9], Josh Cullen [4.9], Marcus Edwards [4.7], Hannibal Mejbri [4.7], Luca Koleosho [5.0], Josh Laurent [4.8], Loum Tchaouna [4.8], Aaron Ramsey [4.4], Oluwaseun Adewumi [4.5], Jaydon Banel [4.5], Mike Trésor Ndayishimiye [4.3], James Ward-Prowse [5.6], Lesley Ugochukwu [5.0], Florentino Ibrain Morris Luís [5.0], Oliver Pimlott [4.5], George Brierley [4.5], Kian McMahon-Brown [4.5]
+Forwards: Zian Flemming [5.3], Zeki Amdouni [4.8], Lyle Foster [4.9], Ashley Barnes [4.2], Michael Obafemi [4.4], Armando Broja [5.2]
 
-Iran (final)
-Goalkeepers: Alireza Beiranvand [11.1], Hossein Hosseini [9.1], Payam Niazmand [6.4]
-Defenders: Ehsan Hajsafi [6.2], Sadegh Moharrami [12.2], Milad Mohammadi [7.6], Majid Hosseini [3.7], Shoja Khalilzadeh [6.7], Mohammad Hosseini [7.7], Morteza Pouraliganji [12.8], Ramin Rezaeian [7.6]
-Midfielders: Vahid Amiri [10.3], Saeid Ezatolahi [6.8], Ali Karimi [13.8], Ahmad Nourollahi [7.5], Mehdi Torabi [2.5], Ali Gholizadeh [6.6], Saman Ghoddos [3.3], Roozbeh Cheshmi [13.4]
-Forwards: Mehdi Taremi [13.6], Sardar Azmoun [5.3], Karim Ansarifard [12.2], Allahyar Sayyadmanesh [9.6], Alireza Jahanbakhsh [3.4]
+Chelsea (final)
+Goalkeepers: Robert Lynch Sánchez [4.8], Filip Jörgensen [4.3], Mike Penders [4.0], Gabriel Słonina [3.9], Max Merrick [4.0], Teddy Sharman-Lowe [4.0]
+Defenders: Marc Cucurella Saseta [6.1], Reece James [5.6], Trevoh Chalobah [5.4], Levi Samuels Colwill [4.7], Malo Gusto [4.8], Benoît Badiashile Mukinayi [4.4], Wesley Fofana [4.4], Mamadou Sarr [4.5], Tosin Adarabioyo [4.0], Josh Acheampong [3.7], Aarón Anselmino [4.0], Jorrel Hato [4.6]
+Midfielders: Cole Palmer [10.3], Pedro Lomba Neto [7.0], Enzo Fernández [6.4], Estêvão Almeida de Oliveira Gonçalves [6.4], Jamie Bynoe-Gittens [6.0], Christopher Nkunku [5.9], Moisés Caicedo Corozo [5.7], Roméo Lavia [4.9], Mykhailo Mudryk [4.9], Andrey Nascimento dos Santos [4.4], Dário Luís Essugo [4.3], Kendry Páez Andrade [4.5], Alejandro Garnacho Ferreyra [6.4], Landon Emenalo [4.5], Jesse Derry [4.5], Mathis Eboué [4.5], Ryan Kavuma-McQueen [4.5]
+Forwards: João Pedro Junqueira de Jesus [7.4], Liam Delap [6.2], Nicolas Jackson [6.5], Marc Guiu Paz [4.0]
 
-United States (final)
-Goalkeepers: Matt Turner [9.9], Zack Steffen [11.0], Sean Johnson [3.4]
-Defenders: Sergino Dest [8.0], DeAndre Yedlin [14.0], Antonee Robinson [10.5], Walker Zimmerman [10.4], Aaron Long [3.5], Cameron Carter-Vickers [11.6], Tim Ream [11.2], Joe Scally [5.8], Shaq Moore [7.1]
-Midfielders: Tyler Adams [13.0], Yunus Musah [13.0], Luca de la Torre [3.8], Kellyn Acosta [2.4], Weston McKennie [8.6], Cristian Roldan [4.0], Brenden Aaronson [10.4], Gio Reyna [5.5]
-Forwards: Christian Pulisic [2.5], Tim Weah [11.1], Jordan Morris [9.6], Jesus Ferreira [10.4], Josh Sargent [13.7], Haji Wright [8.8]
+Crystal Palace (final)
+Goalkeepers: Dean Henderson [5.1], Walter Benítez [3.9], Remi Matthews [3.9]
+Defenders: Daniel Muñoz Mejía [5.9], Maxence Lacroix [5.2], Tyrick Mitchell [5.0], Borna Sosa [4.8], Chris Richards [4.4], Chadi Riad Dnanou [4.0], Nathaniel Clyne [3.8], Rob Holding [4.0], Caleb Kporha [4.0], Jaydee Canvot [4.5], Dean Benamar [4.0], George King [4.0], Danny Imray [4.0]
+Midfielders: Ismaïla Sarr [6.4], Cheick Doucouré [4.9], Romain Esse [4.7], Will Hughes [4.7], Daichi Kamada [5.0], Jefferson Lerma Solís [4.9], Adam Wharton [5.0], Asher Agbinone [4.3], Naouirou Ahamada [4.3], Justin Devenny [4.3], Malcolm Ebiowei [4.5], Jesurun Rak-Sakyi [4.4], Matheus França de Oliveira [4.5], David Ozoh [4.5], Kaden Rodney [4.4], Franco Umeh-Chibueze [4.5], Brennan Johnson [6.5], Evann Guessand [6.2], Rio Cardines [4.4], Yéremy Pino Santos [5.8], Joél Drakes-Thomas [4.5]
+Forwards: Jean-Philippe Mateta [7.6], Eddie Nketiah [5.4], Odsonne Édouard [5.0], Zach Marsh [4.4], Jørgen Strand Larsen [5.9], Christantus Uche [5.5], Ben Casey [4.5]
 
-Wales (final)
-Goalkeepers: Wayne Hennessey [13.7], Danny Ward [4.4], Adam Davies [11.3]
-Defenders: Neco Williams [11.7], Joe Rodon [12.5], Ben Davies [3.7], Chris Gunter [2.3], Ethan Ampadu [11.7], Connor Roberts [6.4], Tom Lockyer [2.0], Rhys Norrington-Davies [3.3]
-Midfielders: Aaron Ramsey [6.4], Joe Allen [6.1], Jonny Williams [3.1], Matthew Smith [12.1], Dylan Levitt [8.8], Harry Wilson [3.2], Rubin Colwill [3.5], Sorba Thomas [11.5]
-Forwards: Gareth Bale [2.0], Daniel James [7.8], Brennan Johnson [7.1], Mark Harris [7.0], Kieffer Moore [3.4], Tyler Roberts [13.1]
+Everton (final)
+Goalkeepers: Jordan Pickford [5.6], Mark Travers [4.2], Harry Tyrer [3.9], Tom King [3.9]
+Defenders: Jarrad Branthwaite [5.3], James Tarkowski [5.8], Vitalii Mykolenko [4.9], Jake O'Brien [4.9], Séamus Coleman [4.2], Michael Keane [4.5], Nathan Patterson [4.4], Roman Dixon [3.8], Reece Welch [3.8], Adam Aznou [4.2], Elijah Campbell [3.9]
+Midfielders: Kiernan Dewsbury-Hall [5.3], Tyrique George [4.8], Iliman Ndiaye [6.3], Dwight McNeil [5.5], Carlos Alcaraz Durán [5.2], Idrissa Gana Gueye [5.4], James Garner [5.2], Tim Iroegbunam [4.8], Harrison Armstrong [4.5], Callum Bates [4.3], Coby Ebere [4.4], Isaac Heath [4.5], Jenson Metcalfe [4.5], Jack Grealish [6.3], Tyler Onyango [4.5], Tyler Dibling [5.3], Merlin Röhl [5.0]
+Forwards: Thierno Barry [5.7], Norberto Bercique Gomes Betuncal [5.1], Youssef Ramalho Chermiti [4.9], Martin Sherif [4.4], Braiden Graham [4.5]
 
-FIFA World Cup 2022 – Group C squads
+Fulham (final)
+Goalkeepers: Bernd Leno [5.0], Steven Benda [4.0], Benjamin Lecomte [3.9], Alfie McNally [4.0]
+Defenders: Antonee Robinson [4.9], Joachim Andersen [4.4], Calvin Bassey [4.4], Timothy Castagne [4.3], Issa Diop [4.3], Jorge Cuenca Barreno [4.3], Kenny Tete [4.5], Samuel Amissah [3.8]
+Midfielders: Alex Iwobi [6.1], Emile Smith Rowe [5.6], Andreas Hoelgebaum Pereira [5.3], Ryan Sessegnon [5.4], Harry Wilson [5.9], Sander Berge [4.9], Tom Cairney [4.8], Saša Lukić [4.9], Martial Godo [4.5], Luke Harris [4.5], Josh King [4.4], Harrison Reed [4.3], Oscar Bobb [5.1], Samuel Chukwueze [5.3], Kevin Santos Lopes de Macedo [5.7], Seth Ridgeon [4.5]
+Forwards: Raúl Jiménez Rodríguez [6.0], Rodrigo Muniz Carvalho [5.3], Jonah Kusi-Asare [4.5]
 
-Argentina (final)
-Goalkeepers: Emiliano Martinez [10.5], Geronimo Rulli [11.7], Franco Armani [9.6]
-Defenders: Gonzalo Montiel [13.4], Nahuel Molina [3.4], Nicolas Tagliafico [9.9], Marcos Acuna [11.8], Cristian Romero [4.6], German Pezzella [10.8], Nicolas Otamendi [12.0], Lisandro Martinez [7.4], Facundo Medina [8.2], Juan Foyth [3.0]
-Midfielders: Rodrigo De Paul [8.0], Leandro Paredes [4.6], Enzo Fernandez [11.4], Alejandro Gomez [10.7], Alexis Mac Allister [2.2], Giovani Lo Celso [11.6], Guido Rodriguez [3.8], Exequiel Palacios [5.1]
-Forwards: Lionel Messi [8.8], Lautaro Martinez [5.5], Angel Di Maria [11.0], Julian Alvarez [9.0], Nicolas Gonzalez [8.2], Paulo Dybala [8.2], Joaquin Correa [6.9]
+Leeds (final)
+Goalkeepers: Illan Meslier [4.1], Alex Cairns [3.9], Karl Darlow [4.0], Lucas Estella Perri [4.4]
+Defenders: Jayden Bogle [4.4], Pascal Struijk [4.2], Jaka Bijol [3.9], Sebastiaan Bornauw [3.8], Sam Byram [3.7], Gabriel Gudmundsson [3.8], Joe Rodon [3.9], Isaac Schmidt [4.0], James Justin [4.0], Jayden Lienou [4.0]
+Midfielders: Facundo Buonanotte [4.6], Brenden Aaronson [5.4], Wilfried Gnonto [5.1], Jack Harrison [5.1], Daniel James [5.2], Ethan Ampadu [4.9], Sam Greenwood [4.9], Ilia Gruev [4.7], Largie Ramazani [4.9], Tanaka Ao [4.8], Charlie Crew [4.5], Joe Gelhardt [4.5], Darko Gyabi [4.5], Sean Longstaff [4.8], Anton Stach [4.8], Noah Okafor [5.5], Sam Chambers [4.4], Rhys Chadwick [4.5], Alfie Cresswell [4.5]
+Forwards: Joël Piroe [4.9], Patrick Bamford [4.9], Mateo Joseph Fernández-Regatillo [5.0], Lukas Nmecha [5.0], Dominic Calvert-Lewin [5.8], Harry Gray [4.5]
 
-Saudi Arabia (final)
-Goalkeepers: Mohammed Al-Owais [8.0], Mohammed Al-Rubaie [2.0], Nawaf Al-Aqidi [10.3]
-Defenders: Saud Abdulhamid [4.9], Ali Al-Bulaihi [11.4], Abdulelah Al-Amri [11.5], Hassan Tambakti [4.7], Yasser Al-Shahrani [7.9], Mohammed Al-Burayek [6.3], Sultan Al-Ghannam [6.0], Ahmed Al-Ghamdi [12.4]
-Midfielders: Salman Al-Faraj [12.5], Mohamed Kanno [4.3], Riyadh Sharahili [11.4], Ali Al-Hassan [12.4], Sami Al-Najei [9.4], Abdulrahman Al-Aboud [6.5], Ali Al-Asmari [6.7], Hatan Bahebri [12.5]
-Forwards: Salem Al-Dawsari [7.9], Firas Al-Buraikan [3.8], Saleh Al-Shehri [7.6], Fahad Al-Muwallad [12.5], Ali Al-Nemer [11.4], Abdullah Madu [3.2]
+Liverpool (final)
+Goalkeepers: Alisson Becker [5.4], Giorgi Mamardashvili [4.1], Ármin Pécsi [3.8], Freddie Woodman [3.9]
+Defenders: Jeremie Frimpong [5.7], Milos Kerkez [5.6], Andrew Robertson [5.7], Virgil van Dijk [6.0], Ibrahima Konaté [5.4], Conor Bradley [4.9], Joe Gomez [4.9], Konstantinos Tsimikas [4.8], Amara Nallo [3.7], Rhys Williams [3.7], Calvin Ramsay [3.7], Giovanni Leoni [4.9], Wellity Lucky [4.0], Talla Ndiaye [4.0]
+Midfielders: Mohamed Salah [14.0], Florian Wirtz [8.3], Luis Díaz Marulanda [8.0], Cody Gakpo [7.3], Federico Chiesa [6.3], Alexis Mac Allister [6.1], Dominik Szoboszlai [7.0], Curtis Jones [5.4], Ryan Gravenberch [5.4], Endo Wataru [4.9], Stefan Bajčetić Maquieira [4.2], James McConnell [4.4], Tyler Morton [4.5], Trey Nyoni [4.3], Rio Ngumoha [4.3], Kieran Morrison [4.5]
+Forwards: Darwin Núñez Ribeiro [6.5], Jayden Danns [4.3], Alexander Isak [10.3], Hugo Ekitiké [9.0], Will Wright [4.5]
 
-Mexico (final)
-Goalkeepers: Guillermo Ochoa [8.5], Alfredo Talavera [3.1], Rodolfo Cota [6.3]
-Defenders: Jorge Sanchez [10.6], Cesar Montes [10.2], Johan Vasquez [11.5], Jesus Gallardo [7.7], Gerardo Arteaga [6.2], Nestor Araujo [3.7], Hector Moreno [12.9], Kevin Alvarez [6.7]
-Midfielders: Edson Alvarez [10.7], Andres Guardado [3.5], Hector Herrera [9.7], Luis Romo [7.7], Carlos Rodriguez [3.4], Uriel Antuna [3.0], Alexis Vega [9.3], Roberto Alvarado [10.7], Orbelin Pineda [3.4]
-Forwards: Hirving Lozano [2.3], Raul Jimenez [4.8], Rogelio Funes Mori [9.1], Santiago Gimenez [7.7], Henry Martin [6.2], Charly Rodriguez [6.7]
+Man City (final)
+Goalkeepers: James Trafford [4.5], Ederson Santana de Moraes [5.3], Marcus Bettinelli [3.8], Gianluigi Donnarumma [5.6]
+Defenders: Marc Guéhi [5.1], Rayan Aït-Nouri [5.7], Joško Gvardiol [5.8], Manuel Akanji [5.4], Nathan Aké [5.2], Abdukodir Khusanov [5.4], Matheus Nunes [5.3], Rúben dos Santos Gato Alves Dias [5.5], John Stones [5.4], Rico Lewis [4.6], Nico O'Reilly [5.3], Vitor de Oliveira Nunes dos Reis [5.0], Stephen Mfuni [3.9], Max Alleyne [3.9]
+Midfielders: Antoine Semenyo [8.1], Omar Marmoush [8.3], Phil Foden [8.0], Sávio Moreira de Oliveira [6.9], Bernardo Mota Veiga de Carvalho e Silva [6.2], Rayan Cherki [6.6], Jérémy Doku [6.5], İlkay Gündoğan [6.3], Rodrigo 'Rodri' Hernandez Cascante [6.3], Mateo Kovačić [5.8], Nico González Iglesias [5.9], Claudio Echeverri [5.4], Tijjani Reijnders [5.0], Sverre Nypan [5.0], Kalvin Phillips [4.7], Divine Mukasa [4.4], Ryan McAidoo [4.5], Charlie Gray [4.5], Reigan Heskey [4.5]
+Forwards: Erling Haaland [14.7]
 
-Poland (final)
-Goalkeepers: Wojciech Szczesny [2.4], Bartlomiej Dragowski [3.5], Lukasz Skorupski [6.4]
-Defenders: Matty Cash [7.9], Bartosz Bereszynski [8.4], Arkadiusz Reca [11.1], Michal Helik [4.4], Kamil Glik [5.4], Jan Bednarek [8.0], Jakub Kiwior [11.7], Robert Gumny [7.2]
-Midfielders: Kamil Grosicki [5.4], Piotr Zielinski [9.3], Grzegorz Krychowiak [5.5], Krystian Bielik [13.8], Michal Skoras [5.1], Damian Szymanski [4.3], Karol Linetty [6.6], Sebastian Szymanski [6.8], Jakub Kaminski [12.0]
-Forwards: Robert Lewandowski [8.0], Arkadiusz Milik [8.7], Adam Buksa [10.4], Krzysztof Piatek [10.5], Przemyslaw Placheta [11.2]
+Man Utd (final)
+Goalkeepers: Altay Bayındır [4.7], André Onana [4.9], Elyh Harrison [4.0], Tom Heaton [3.8], Dermot Mee [3.9], Senne Lammens [5.1]
+Defenders: Matthijs de Ligt [4.9], Lisandro Martínez [4.8], Noussair Mazraoui [4.9], Diego León Blanco [4.1], Diogo Dalot Teixeira [4.5], Patrick Dorgu [4.1], Harry Maguire [4.4], Luke Shaw [4.5], Leny Yoro [4.1], Harry Amass [4.0], Tyler Fredricson [3.7], Ayden Heaven [3.7], Tyrell Malacia [3.7], Godwill Kukonki [4.0]
+Midfielders: Bryan Mbeumo [8.3], Bruno Borges Fernandes [10.4], Matheus Santos Carneiro da Cunha [8.1], Marcus Rashford [7.0], Amad Diallo [6.2], Antony dos Santos [5.9], Mason Mount [5.9], Carlos Henrique Casimiro [5.9], Kobbie Mainoo [4.7], Manuel Ugarte Ribeiro [4.7], Toby Collyer [4.5], Jayce Fitzgerald [4.3], Jack Fletcher [4.3], Sékou Koné [4.3], Jack Moorhouse [4.5], Shea Lacey [4.5], Bendito Mantato [4.5], Tyler Fletcher [4.4], Jim Thwaites [4.5]
+Forwards: Rasmus Højlund [6.3], Joshua Zirkzee [5.8], Chido Obi [4.2], Ethan Wheatley [4.5], Benjamin Sesko [7.2]
 
-FIFA World Cup 2022 – Group D squads
+Newcastle (final)
+Goalkeepers: Nick Pope [5.0], Mark Gillespie [3.9], Odysseas Vlachodimos [4.0], Aaron Ramsdale [4.8], John Ruddy [4.0]
+Defenders: Lewis Hall [5.3], Fabian Schär [5.2], Sven Botman [4.9], Dan Burn [5.0], Tino Livramento [4.9], Kieran Trippier [4.9], Emil Krafth [4.3], Jamaal Lascelles [4.3], Alex Murphy [3.8], Harrison Ashby [3.9], Miodrag Pivaš [3.8], Matt Targett [4.0], Malick Thiaw [4.9], Leo Shahar [4.0]
+Midfielders: Jacob Ramsey [5.3], Anthony Gordon [7.3], Anthony Elanga [6.5], Harvey Barnes [6.1], Bruno Guimarães Rodriguez Moura [6.9], Jacob Murphy [5.9], Joelinton Cássio Apolinário de Lira [5.9], Sandro Tonali [5.3], Antoñito Cordero Campillo [4.9], Joe Willock [5.0], Isaac Hayden [4.5], Garang Kuol [4.4], Lewis Miley [4.4], Joe White [4.5], Seung-Soo Park [4.3], Sam Alabi [4.5]
+Forwards: Yoane Wissa [7.3], William Osula [5.5], Sean Neave [4.3], Nick Woltemade [6.7]
 
-France (final)
-Goalkeepers: Hugo Lloris [7.1], Alphonse Areola [3.6], Steve Mandanda [8.7]
-Defenders: Raphael Varane [5.3], Lucas Hernandez [7.5], Theo Hernandez [13.4], Presnel Kimpembe [6.9], Ibrahima Konate [11.6], Jules Kounde [8.6], William Saliba [9.2], Ferland Mendy [5.1], Axel Disasi [13.6], Benjamin Pavard [2.4]
-Midfielders: Aurelien Tchouameni [4.1], Adrien Rabiot [6.0], Youssouf Fofana [8.6], Eduardo Camavinga [6.4], Jordan Veretout [7.7], Matteo Guendouzi [6.2], Antoine Griezmann [6.5]
-Forwards: Kylian Mbappe [13.0], Ousmane Dembele [11.2], Olivier Giroud [11.9], Kingsley Coman [3.3], Marcus Thuram [6.4], Randal Kolo Muani [2.9], Moussa Diaby [8.4]
+Nott'm Forest (final)
+Goalkeepers: Stefan Ortega Moreno [4.7], Matz Sels [4.6], Carlos Miguel dos Santos Pereira [4.0], Matt Turner [4.0], Angus Gunn [4.0], John Victor Maciel Furtado [4.0]
+Defenders: Oleksandr Zinchenko [4.9], Nikola Milenković [5.1], Murillo Costa dos Santos [5.2], Ola Aina [4.7], Neco Williams [4.8], David Mota Veiga Teixeira do Carmo [4.5], Jair Paula da Cunha Filho [4.2], Felipe Rodrigues da Silva [4.3], Omar Richards [4.5], Zach Abbott [3.8], Willy Boly [3.8], Nicolò Savona [4.5], Luis Eduardo Soares da Silva [4.5], Luca Netz [4.5]
+Midfielders: James McAtee [5.0], Morgan Gibbs-White [7.5], Callum Hudson-Odoi [5.7], Elliot Anderson [5.6], João Pedro Ferreira da Silva [5.4], Nicolás Domínguez [5.0], Lewis O'Brien [5.0], Ibrahim Sangaré [4.9], Ryan Yates [4.7], Eric da Silva Moreira [4.5], Marko Stamenić [4.5], Dan Ndoye [5.5], Omari Hutchinson [5.4], Dilane Bakwa [5.9], Archie Whitehall [4.5], Jimmy Sinclair [4.5]
+Forwards: Chris Wood [7.1], Igor Jesus Maciel da Cruz [5.9], Taiwo Awoniyi [5.2], Arnaud Kalimuendo [6.0], Lorenzo Lucca [5.3]
 
-Australia (final)
-Goalkeepers: Mathew Ryan [11.7], Danny Vukovic [9.6], Andrew Redmayne [9.9]
-Defenders: Harry Souttar [4.1], Aziz Behich [6.7], Nathan Atkinson [8.7], Milos Degenek [2.5], Joel King [11.7], Jason Geria [6.3], Fran Karacic [11.6], Thomas Deng [11.5]
-Midfielders: Riley McGree [8.8], Ajdin Hrustic [8.8], Jackson Irvine [8.8], Keanu Baccus [7.6], Connor Metcalfe [9.7], Aaron Mooy [2.0], Denis Genreau [7.3], Jordan Bos [8.9]
-Forwards: Mathew Leckie [5.3], Craig Goodwin [10.5], Awer Mabil [12.1], Martin Boyle [5.9], Marco Tilio [5.5], Mitchell Duke [8.2], Jamie Maclaren [2.0]
+Spurs (final)
+Goalkeepers: Guglielmo Vicario [4.7], Brandon Austin [3.9], Antonín Kinský [3.9]
+Defenders: Pedro Porro Sauceda [5.2], Cristian Romero [5.0], Kevin Danso [4.2], Ben Davies [4.3], Radu Drăgușin [4.5], Djed Spence [4.1], Destiny Udogie [4.3], Micky van de Ven [4.4], Ashley Phillips [4.0], Takai Kōta [4.0], Luka Vušković [3.9], Jun'ai Byfield [4.0], James Rowswell [4.0], João Victor de Souza Menezes [4.0]
+Midfielders: Son Heung-min [8.5], James Maddison [6.8], Mohammed Kudus [6.4], Dejan Kulusevski [6.4], Mathys Tel [6.2], Rodrigo Bentancur [5.2], Lucas Bergvall [5.2], Yves Bissouma [5.2], Wilson Odobert [5.3], Manor Solomon [5.4], Bryan Gil Salvatierra [4.9], Archie Gray [4.8], Mikey Moore [5.0], Pape Matar Sarr [4.5], Yang Min-hyeok [4.5], Callum Olusesi [4.3], João Maria Lobo Alves Palhares Costa Palhinha Gonçalves [5.5], Xavi Simons [6.4], Yusuf Akhamrich [4.5], Lucá Williams-Barnett [4.5], Conor Gallagher [5.0], Rio Kyerematen [4.5]
+Forwards: Dominic Solanke-Mitchell [7.1], Richarlison de Andrade [6.4], Will Lankshear [4.5], Dane Scarlett [4.3], Randal Kolo Muani [6.9], James Wilson [4.5]
 
-Denmark (final)
-Goalkeepers: Kasper Schmeichel [9.6], Frederik Ronnow [9.8], Oliver Christensen [13.9]
-Defenders: Simon Kjaer [8.7], Joakim Maehle [2.6], Jens Stryger Larsen [9.6], Alexander Bah [11.5], Joachim Andersen [6.6], Daniel Wass [3.9], Andreas Christensen [5.2], Victor Nelsson [11.4]
-Midfielders: Christian Eriksen [8.1], Pierre-Emile Hojbjerg [9.9], Thomas Delaney [10.1], Mathias Jensen [2.5], Christian Norgaard [12.2], Mikkel Damsgaard [6.8], Jesper Lindstrom [10.3]
-Forwards: Kasper Dolberg [3.8], Andreas Skov Olsen [4.1], Martin Braithwaite [5.5], Jonas Wind [3.9], Robert Skov [2.8], Yussuf Poulsen [8.4]
+Sunderland (final)
+Goalkeepers: Anthony Patterson [4.2], Simon Moore [3.9], Blondy Nna Noukeu [3.9], Robin Roefs [4.8], Melker Ellborg [4.0]
+Defenders: Daniel Ballard [4.6], Trai Hume [4.5], Aji Alese [4.0], Joe Anderson [3.8], Dennis Cirkin [4.0], Leo Fuhr Hjelde [4.0], Niall Huggins [4.0], Zak Johnson [3.8], Luke O'Nien [4.0], Timothée Pembélé [3.9], Reinildo Mandava [3.8], Jenson Seelt [4.0], Arthur Masuaku [3.9], Omar Alderete [4.1], Nordi Mukiele [4.6], Lutsharel Geertruida [4.5], Jenson Jones [4.0]
+Midfielders: Simon Adingra [4.9], Habib Diarra [5.3], Patrick Roberts [5.4], Milan Aleksić [4.9], Enzo Le Fée [4.8], Romaine Mundle [4.9], Dan Neil [4.8], Ian Poveda-Ocampo [4.7], Chris Rigg [4.7], Noah Sadiki [4.9], Chemsdine Talbi [4.9], Abdoullah Ba [4.3], Alan Browne [4.5], Pierre Ekwah Elimby [4.5], Harrison Jones [4.3], Jay Matete [4.3], Nectarios Triantis [4.4], Granit Xhaka [5.1], Bertrand Traoré [5.5], Tymur Tutierov [4.5], Djiamgone Jocelin Ta Bi [4.9], Nilson Angulo [5.0], Jack Whittaker [4.5], Jaydon Jones [4.5]
+Forwards: Wilson Isidor [5.0], Eliezer Mayenda Dossou [5.1], Ahmed Abdullahi [4.2], Luís Hemir Silva Semedo [4.4], Nazarii Rusyn [4.4], Brian Brobbey [5.3]
 
-Tunisia (final)
-Goalkeepers: Aymen Dahmen [13.0], Bechir Ben Said [3.1], Farouk Ben Mustapha [6.6]
-Defenders: Dylan Bronn [4.9], Montassar Talbi [6.9], Ali Abdi [5.4], Nader Ghandri [6.7], Yassine Meriah [7.6], Mohamed Drager [2.6], Ali Maaloul [13.1], Wajdi Kechrida [11.4]
-Midfielders: Ellyes Skhiri [7.0], Aissa Laidouni [9.3], Hannibal Mejbri [5.4], Ghaylen Chaalali [12.9], Naim Sliti [9.2], Ferjani Sassi [6.3], Mohamed Ali Ben Romdhane [10.3]
-Forwards: Youssef Msakni [2.7], Seifeddine Jaziri [12.2], Issam Jebali [2.7], Wahbi Khazri [10.7], Saif-Eddine Khaoui [2.6], Taha Yassine Khenissi [3.7]
+West Ham (final)
+Goalkeepers: Alphonse Areola [4.2], Wes Foderingham [4.0], Krisztián Hegyi [3.9], Mads Hermansen [4.2], Lukasz Fabianski [4.5], Finlay Herrick [4.0]
+Defenders: El Hadji Malick Diouf [4.1], Emerson Palmieri dos Santos [4.4], Maximilian Kilman [4.1], Konstantinos Mavropanos [4.5], Nayef Aguerd [4.4], Ollie Scarles [4.3], Jean-Clair Todibo [4.3], Aaron Wan-Bissaka [4.1], Kaelan Casey [4.0], Kyle Walker-Peters [4.2], Ezra Mayers [4.0], Airidas Golambeckis [4.0], Axel Disasi [4.5]
+Midfielders: Adama Traoré Diarra [5.1], Lucas Tolentino Coelho de Lima [5.9], Tomáš Souček [5.7], Crysencio Summerville [5.4], Edson Álvarez Velázquez [4.9], Maxwel Cornet [4.9], Guido Rodríguez [4.8], Luis Guilherme Lira dos Santos [4.9], George Earthy [4.5], Andy Irving [4.3], Lewis Orford [4.4], Freddie Potts [4.3], Mateus Gonçalo Espanha Fernandes [5.5], Soungoutou Magassa [5.0], Mohamadou Kanté [4.5], Keiber Lamadrid [5.0]
+Forwards: Jarrod Bowen [7.7], Niclas Füllkrug [5.6], Callum Marshall [4.3], Callum Wilson [5.8], Pablo Felipe Pereira de Jesus [5.4], Valentín Castellanos [5.5]
 
-FIFA World Cup 2022 – Group E squads
-
-Spain (final)
-Goalkeepers: Unai Simon [12.5], Robert Sanchez [13.5], David Raya [2.0]
-Defenders: Cesar Azpilicueta [8.2], Dani Carvajal [3.7], Jordi Alba [2.3], Jose Gaya [11.5], Pau Torres [10.2], Hugo Guillamon [3.8], Eric Garcia [13.1], Aymeric Laporte [6.4]
-Midfielders: Sergio Busquets [10.1], Gavi [6.6], Pedri [8.0], Koke [8.6], Marcos Llorente [7.4], Carlos Soler [6.6], Dani Olmo [8.6], Marco Asensio [8.8]
-Forwards: Pablo Sarabia [11.3], Ferran Torres [3.0], Alvaro Morata [7.8], Nico Williams [6.9], Ansu Fati [11.5], Yerlan Ceballos [3.3]
-
-Costa Rica (final)
-Goalkeepers: Keylor Navas [9.1], Esteban Alvarado [9.3], Patrick Sequeira [5.1]
-Defenders: Keysher Fuller [2.1], Bryan Oviedo [8.2], Juan Pablo Vargas [13.6], Francisco Calvo [13.8], Oscar Duarte [5.0], Kendall Waston [4.8], Ronald Matarrita [5.9], Carlos Martinez [8.8]
-Midfielders: Celso Borges [9.3], Yeltsin Tejeda [11.9], Douglas Sequeira [3.4], Alvaro Zamora [13.1], Brandon Aguilera [12.3], Jewison Bennette [11.0], Jefferson Brenes [8.9]
-Forwards: Bryan Ruiz [12.4], Joel Campbell [4.4], Anthony Contreras [8.9], Johan Venegas [8.7], Manfred Ugalde [6.9], Marco Urena [11.8]
-
-Germany (final)
-Goalkeepers: Manuel Neuer [5.0], Marc-Andre ter Stegen [7.7], Kevin Trapp [10.1]
-Defenders: Antonio Rudiger [10.8], David Raum [10.1], Matthias Ginter [5.9], Lukas Klostermann [13.4], Niklas Sule [10.7], Thilo Kehrer [8.2], Nico Schlotterbeck [10.2], Armel Bella-Kotchap [2.0]
-Midfielders: Joshua Kimmich [5.6], Ilkay Gundogan [11.2], Leon Goretzka [5.6], Thomas Muller [10.1], Serge Gnabry [13.9], Leroy Sane [3.4], Jamal Musiala [11.8], Julian Brandt [10.3], Jonas Hofmann [7.0]
-Forwards: Kai Havertz [13.0], Timo Werner [7.9], Niclas Fullkrug [4.9], Lukas Nmecha [9.4]
-
-Japan (final)
-Goalkeepers: Shuichi Gonda [10.9], Eiji Kawashima [13.7], Daniel Schmidt [5.1]
-Defenders: Maya Yoshida [13.2], Takehiro Tomiyasu [5.6], Hiroki Ito [4.2], Yuto Nagatomo [9.8], Ko Itakura [6.3], Miki Yamane [12.7], Shogo Taniguchi [5.3], Ryuho Kikuchi [3.2]
-Midfielders: Wataru Endo [2.8], Hidemasa Morita [11.2], Ao Tanaka [3.2], Junya Ito [6.1], Daichi Kamada [10.4], Ritsu Doan [8.7], Kaoru Mitoma [5.1], Takefusa Kubo [13.1], Takumi Minamino [2.0]
-Forwards: Ayase Ueda [12.6], Daizen Maeda [9.6], Yuya Osako [6.5], Shuto Machino [5.6]
-
-FIFA World Cup 2022 – Group F squads
-
-Belgium (final)
-Goalkeepers: Thibaut Courtois [8.0], Simon Mignolet [6.4], Koen Casteels [12.0]
-Defenders: Toby Alderweireld [12.5], Jan Vertonghen [12.0], Arthur Theate [2.0], Zinho Vanheusden [10.7], Timothy Castagne [12.4], Thomas Meunier [8.1], Wout Faes [13.5], Brandon Mechele [11.9]
-Midfielders: Axel Witsel [12.6], Kevin De Bruyne [10.4], Leander Dendoncker [2.4], Youri Tielemans [13.9], Hans Vanaken [9.0], Charles De Ketelaere [4.6], Thorgan Hazard [3.0], Dries Mertens [3.5]
-Forwards: Romelu Lukaku [9.5], Eden Hazard [9.7], Michy Batshuayi [6.0], Lois Openda [11.0], Yannick Carrasco [6.5], Jeremy Doku [13.1]
-
-Canada (final)
-Goalkeepers: Milan Borjan [11.8], Dayne St. Clair [4.4], Maxime Crepeau [6.0]
-Defenders: Alistair Johnston [2.2], Richie Laryea [2.8], Steven Vitoria [10.9], Kamal Miller [2.1], Sam Adekugbe [12.9], Doneil Henry [14.0], Joel Waterman [11.3], Derek Cornelius [3.0]
-Midfielders: Atiba Hutchinson [3.8], Stephen Eustaquio [7.5], Mark-Anthony Kaye [11.2], Samuel Piette [5.5], Jonathan Osorio [13.6], Tajon Buchanan [6.4], Liam Millar [13.4], Ismael Kone [3.1]
-Forwards: Alphonso Davies [11.2], Jonathan David [2.0], Cyle Larin [13.5], Lucas Cavallini [3.3], Junior Hoilett [11.2], Theo Bair [11.1]
-
-Morocco (final)
-Goalkeepers: Yassine Bounou [2.9], Munir El Kajoui [9.7], Ahmed Reda Tagnaouti [3.0]
-Defenders: Achraf Hakimi [2.5], Noussair Mazraoui [11.2], Romain Saiss [11.8], Nayef Aguerd [5.2], Badr Benoun [10.6], Yahia Attiyat Allah [3.2], Jawad El Yamiq [12.9], Samy Mmaee [5.8]
-Midfielders: Sofyan Amrabat [7.9], Azzedine Ounahi [8.9], Selim Amallah [8.4], Abdelhamid Sabiri [4.7], Yahia Jabrane [5.5], Ilias Chair [5.1], Bilal El Khannouss [12.6]
-Forwards: Hakim Ziyech [6.3], Youssef En-Nesyri [12.8], Sofiane Boufal [4.5], Abde Ezzalzouli [10.3], Zakaria Aboukhlal [11.6], Walid Cheddira [7.9]
-
-Croatia (final)
-Goalkeepers: Dominik Livakovic [11.4], Ivo Grbic [9.4], Ivica Ivusic [12.3]
-Defenders: Sime Vrsaljko [10.5], Josip Juranovic [13.0], Borna Sosa [11.9], Josko Gvardiol [4.2], Duje Caleta-Car [4.5], Dejan Lovren [13.4], Domagoj Vida [13.5], Borna Barisic [5.6], Josip Sutalo [3.6]
-Midfielders: Luka Modric [5.4], Marcelo Brozovic [6.9], Mateo Kovacic [8.9], Mario Pasalic [8.8], Nikola Vlasic [6.2], Lovro Majer [13.3], Kristijan Jakic [9.3], Luka Ivanusec [7.6]
-Forwards: Ivan Perisic [12.6], Ante Rebic [3.7], Andrej Kramaric [5.2], Bruno Petkovic [11.5], Marko Livaja [4.4], Mislav Orsic [8.9]
-
-FIFA World Cup 2022 – Group G squads
-
-Brazil (final)
-Goalkeepers: Alisson [4.1], Ederson [9.0], Weverton [13.6]
-Defenders: Danilo [10.4], Eder Militao [8.4], Marquinhos [4.5], Thiago Silva [10.3], Alex Sandro [8.6], Alex Telles [8.6], Bremer [9.4], Nino [3.5]
-Midfielders: Casemiro [7.3], Lucas Paqueta [5.9], Fred [8.7], Bruno Guimaraes [13.9], Fabinho [2.3], Everton Ribeiro [5.5]
-Forwards: Neymar [3.2], Vinicius Junior [7.5], Richarlison [3.1], Raphinha [5.0], Gabriel Jesus [6.1], Rodrygo [8.8], Antony [11.5], Gabriel Martinelli [13.7], Pedro [12.9], Rodrigo [7.9]
-
-Serbia (final)
-Goalkeepers: Vanja Milinkovic-Savic [8.8], Predrag Rajkovic [4.8], Marko Dmitrovic [10.7]
-Defenders: Strahinja Pavlovic [12.6], Stefan Mitrovic [2.7], Nikola Milenkovic [13.4], Filip Mladenovic [8.8], Nemanja Gudelj [4.7], Srdjan Babic [14.0], Strahinja Erakovic [13.6], Mihailo Ristic [7.2]
-Midfielders: Nemanja Matic [11.3], Sergej Milinkovic-Savic [3.7], Sasa Lukic [4.4], Andrija Zivkovic [14.0], Filip Djuricic [8.8], Ivan Ilic [5.2], Filip Kostic [5.3], Darko Lazovic [9.4], Marko Grujic [3.5]
-Forwards: Dusan Vlahovic [14.0], Aleksandar Mitrovic [11.6], Luka Jovic [12.3], Nemanja Radonjic [4.0], Dejan Joveljic [13.1]
-
-Switzerland (final)
-Goalkeepers: Yann Sommer [4.0], Gregor Kobel [6.3], Jonas Omlin [5.4]
-Defenders: Nico Elvedi [3.4], Manuel Akanji [6.7], Fabian Schar [12.0], Kevin Mbabu [10.3], Silvan Widmer [13.3], Ricardo Rodriguez [8.3], Becir Omeragic [11.3], Edimilson Fernandes [10.6]
-Midfielders: Granit Xhaka [3.7], Denis Zakaria [11.0], Remo Freuler [8.9], Djibril Sow [13.8], Xherdan Shaqiri [12.3], Christian Fassnacht [3.1], Fabian Rieder [7.0], Renato Steffen [12.0]
-Forwards: Breel Embolo [12.4], Haris Seferovic [3.2], Noah Okafor [6.7], Zeki Amdouni [13.6], Ruben Vargas [10.6]
-
-Cameroon (final)
-Goalkeepers: Andre Onana [10.8], Simon Ngapandouetnbu [3.3], Devis Epassy [10.3]
-Defenders: Collins Fai [3.9], Nouhou Tolo [3.0], Enzo Ebosse [4.1], Harold Moukoudi [11.5], Nicolas Nkoulou [13.6], Michael Ngadeu-Ngadjui [11.7], Jean-Charles Castelletto [8.5], Olivier Mbaizo [9.3], Ambroise Oyongo [2.7]
-Midfielders: Andre-Frank Zambo Anguissa [10.4], Olivier Ntcham [8.0], Martin Hongla [13.9], Gael Ondua [10.1], Bryan Mbeumo [12.7], Ngom Mbekeli [13.6], Jean-Pierre Nsame [11.0]
-Forwards: Karl Toko Ekambi [12.7], Eric Maxim Choupo-Moting [12.9], Vincent Aboubakar [4.3], Steve Mounie [4.0], Christian Bassogog [10.0], Moumi Ngamaleu [8.1]
-
-FIFA World Cup 2022 – Group H squads
-
-Portugal (final)
-Goalkeepers: Rui Patricio [14.0], Jose Sa [4.1], Diogo Costa [13.8]
-Defenders: Joao Cancelo [7.0], Nuno Mendes [4.6], Pepe [8.6], Ruben Dias [6.3], Danilo Pereira [9.5], Mario Rui [4.0], Goncalo Inacio [6.6], Antonio Silva [9.1]
-Midfielders: William Carvalho [8.4], Ruben Neves [5.0], Joao Palhinha [13.0], Matheus Nunes [5.3], Vitinha [13.6], Bruno Fernandes [3.4], Bernardo Silva [7.3], Otavio [4.1]
-Forwards: Cristiano Ronaldo [3.8], Diogo Jota [9.4], Andre Silva [3.4], Joao Felix [12.6], Rafael Leao [13.6], Ricardo Horta [6.0]
-
-Ghana (final)
-Goalkeepers: Lawrence Ati Zigi [7.5], Abdul Manaf Nurudeen [6.8], Ibrahim Danlad [9.8]
-Defenders: Tariq Lamptey [9.6], Daniel Amartey [9.3], Gideon Mensah [4.5], Denis Odoi [11.0], Alexander Djiku [2.1], Abdul Rahman Baba [3.0], Ibrahim Salisu [13.8], Joseph Aidoo [8.0]
-Midfielders: Thomas Partey [8.4], Iddrisu Baba [5.1], Andre Ayew [11.9], Mohammed Kudus [7.2], Daniel Kofi Kyereh [10.1], Elisha Owusu [2.6], Salis Abdul Samed [4.9]
-Forwards: Jordan Ayew [3.0], Inaki Williams [4.4], Osman Bukari [10.8], Antoine Semenyo [3.8], Richmond Boakye [11.6], Felix Afena-Gyan [13.8], Kamaldeen Sulemana [4.3]
-
-Uruguay (final)
-Goalkeepers: Fernando Muslera [12.1], Sebastian Sosa [6.3], Sergio Rochet [11.8]
-Defenders: Diego Godin [6.1], Jose Maria Gimenez [9.3], Sebastian Coates [12.8], Mathias Olivera [11.1], Jose Luis Rodriguez [11.4], Guillermo Varela [4.3], Matias Vina [3.8], Martin Caceres [11.1]
-Midfielders: Rodrigo Bentancur [5.6], Federico Valverde [3.7], Giorgian de Arrascaeta [6.1], Matias Vecino [4.4], Lucas Torreira [11.1], Manuel Ugarte [4.7], Facundo Pellistri [13.1]
-Forwards: Luis Suarez [6.4], Edinson Cavani [6.1], Darwin Nunez [10.8], Maxi Gomez [12.0], Gaston Pereiro [5.4], Facundo Torres [2.1], Agustin Canobbio [2.9]
-
-South Korea (final)
-Goalkeepers: Jo Hyeon-woo [3.0], Kim Seung-gyu [4.7], Song Bum-keun [6.7]
-Defenders: Kim Min-jae [10.7], Kwon Kyung-won [11.1], Kim Young-gwon [4.8], Choi Ju-ho [4.1], Kim Moon-hwan [7.9], Kim Tae-hwan [4.2], Lee Young-jae [8.3], Kim Jin-su [3.5]
-Midfielders: Jung Woo-young [7.8], Lee Jae-sung [5.7], Hwang In-beom [3.9], Paik Seung-ho [11.5], Son Jun-ho [4.5], Na Sang-ho [12.6], Lee Gang-in [2.2], Song Min-kyu [3.6]
-Forwards: Son Heung-min [5.0], Hwang Hee-chan [12.3], Hwang Ui-jo [6.1], Cho Gue-sung [13.9], Oh Hyeon-gyu [8.7], Kwon Chang-hoon [11.5]
+Wolves (final)
+Goalkeepers: Sam Johnstone [4.4], José Malheiro de Sá [4.2], Daniel Bentley [3.9], Alfie Brooks [4.0], Josh Gracey [4.0]
+Defenders: Emmanuel Agbadou [4.2], Matt Doherty [4.4], Hugo Bueno López [4.3], Yerson Mosquera Valdelamar [4.3], Rodrigo Martins Gomes [4.4], Santiago Ignacio Bueno [4.4], Toti Gomes [4.2], Ki-Jana Hoever [3.8], Bastien Meupiyou Menadjou [4.0], Pedro Cardoso de Lima [4.0], Alfie Pond [3.9], David Møller Wolfe [4.2], Jackson Tchatchoua [4.4], Ladislav Krejcí [4.5], Saheed Olagunju [4.0]
+Midfielders: Hwang Hee-chan [5.6], André Trindade da Costa Neto [5.2], Jean-Ricner Bellegarde [5.1], Fer López González [5.1], João Victor Gomes da Silva [5.3], Gonçalo Manuel Ganchinho Guedes [5.5], Marshall Munetsi [5.3], Boubacar Traoré [5.0], Tawanda Chirewa [4.3], Tom Edozie [4.3], Enso González Medina [4.3], Joe Hodge [4.5], Jhon Arias [4.9], Luke Rawlings [4.5], Temple Ojinnaka [4.5], Ethan Sutherland [4.5], Jerome Abbey [4.5], Angel Gomes [4.6]
+Forwards: Fábio Soares Silva [4.9], Saša Kalajdžić [4.9], Leon Chiwome [4.4], Nathan Fraser [4.2], Tolu Arokodare [5.1], Mateus Mané [4.2], Adam Armstrong [5.1]

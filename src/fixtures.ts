@@ -1,5 +1,5 @@
 import { renderPage } from './renderPage'
-import { fixtureMatchdays, type FixtureGame } from './fixturesData'
+import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
 import { requireAuth } from './auth'
 
 requireAuth()
@@ -156,6 +156,8 @@ function renderMatchdaysMarkup(searchText: string, selectedCountry: string): str
 		.join('')
 }
 
+let fixtureMatchdays: FixtureMatchday[] = []
+
 const initialMarkup = `
 	<section class="fixture-controls">
 		<input
@@ -191,5 +193,13 @@ function updateResults(): void {
 if (results && searchInput && countrySelect) {
 	searchInput.addEventListener('input', updateResults)
 	countrySelect.addEventListener('change', updateResults)
-	updateResults()
+	results.innerHTML = '<p class="empty-state">Loading fixtures...</p>'
+	void getFixtureMatchdays()
+		.then((loadedMatchdays) => {
+			fixtureMatchdays = loadedMatchdays
+			updateResults()
+		})
+		.catch(() => {
+			results.innerHTML = '<p class="empty-state">Unable to load fixtures right now.</p>'
+		})
 }
