@@ -13,9 +13,16 @@ import {
   requireAuth,
   resetUserPassword,
   setTeamNameForUser,
+  userScopedStorageKey,
 } from './auth'
-import { clearAllPoints } from './teamsData'
-import { flushSharedLeagueStorage, sharedLeagueUpdatedEvent } from './sharedLeague'
+import { addMatchdayPointsToTotal, clearAllPoints, getPlayerPoints } from './teamsData'
+import {
+  flushSharedLeagueStorage,
+  getSharedItem,
+  removeSharedItem,
+  setSharedItem,
+  sharedLeagueUpdatedEvent,
+} from './sharedLeague'
 
 requireAuth()
 
@@ -61,8 +68,20 @@ const adminMarkup = `
       <p id="fixture-score-check-message" class="admin-message" aria-live="polite"></p>
       <div class="draft-mode-section">
         <button id="admin-check-scores-btn" type="button" class="draft-mode-btn">Check for Scores</button>
+        <button id="admin-clear-api-data-btn" type="button" class="reset-all-btn">Clear Results And Points</button>
       </div>
       <p class="danger-copy">Checks only fixtures that kicked off at least 2.5 hours ago.</p>
+    </section>
+
+    <section class="admin-card">
+      <h2>Gameweek Controls</h2>
+      <p id="gameweek-status" class="admin-message" aria-live="polite">Current gameweek: 1</p>
+      <p id="gameweek-message" class="admin-message" aria-live="polite"></p>
+      <div class="draft-mode-section">
+        <button id="admin-end-gameweek-btn" type="button" class="draft-mode-btn">End Gameweek</button>
+        <button id="admin-prev-gameweek-btn" type="button" class="lock-team-btn">Go Back One Gameweek</button>
+      </div>
+      <p class="danger-copy">Going back a gameweek only changes matchday state. It does not roll back awarded points.</p>
     </section>
 
     <section class="admin-card">
@@ -118,6 +137,15 @@ const benchModeMessageEl = document.querySelector<HTMLParagraphElement>('#bench-
 const adminBenchModeBtn = document.querySelector<HTMLButtonElement>('#admin-bench-mode-btn')
 const fixtureScoreCheckMessageEl = document.querySelector<HTMLParagraphElement>('#fixture-score-check-message')
 const adminCheckScoresBtn = document.querySelector<HTMLButtonElement>('#admin-check-scores-btn')
+const adminClearApiDataBtn = document.querySelector<HTMLButtonElement>('#admin-clear-api-data-btn')
+const gameweekStatusEl = document.querySelector<HTMLParagraphElement>('#gameweek-status')
+const gameweekMessageEl = document.querySelector<HTMLParagraphElement>('#gameweek-message')
+const adminEndGameweekBtn = document.querySelector<HTMLButtonElement>('#admin-end-gameweek-btn')
+const adminPrevGameweekBtn = document.querySelector<HTMLButtonElement>('#admin-prev-gameweek-btn')
+
+const autoImportedEventIdsStorageKey = 'fantasy-football-auto-imported-event-ids'
+const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
+const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
 
 let draftModeEnabled = false
 let draftModeCanEnable = false
@@ -126,6 +154,21 @@ let draftComplete = false
 let draftCurrentTurn: string | null = null
 let benchModeEnabled = true
 let benchModeCanToggle = false
+
+function getGlobalMatchday(): number {
+  const raw = getSharedItem(globalMatchdayStorageKey)
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  if (Number.isFinite(parsed) && parsed >= 1) {
+    return parsed
+  }
+
+  return 1
+}
+
+function setGlobalMatchday(matchday: number): void {
+  const safe = Math.max(1, Math.floor(matchday))
+  setSharedItem(globalMatchdayStorageKey, String(safe))
+}
 
 function setMessage(text: string, type: 'ok' | 'error'): void {
   if (!messageEl) {
@@ -195,6 +238,83 @@ function setFixtureScoreCheckMessage(text: string, type: 'ok' | 'error'): void {
   fixtureScoreCheckMessageEl.textContent = text
   fixtureScoreCheckMessageEl.classList.remove('ok', 'error')
   fixtureScoreCheckMessageEl.classList.add(type)
+}
+
+function setGameweekMessage(text: string, type: 'ok' | 'error'): void {
+  if (!gameweekMessageEl) {
+    return
+  }
+
+  gameweekMessageEl.textContent = text
+  gameweekMessageEl.classList.remove('ok', 'error')
+  gameweekMessageEl.classList.add(type)
+}
+
+function renderGameweekControls(): void {
+  const currentMatchday = getGlobalMatchday()
+
+  if (gameweekStatusEl) {
+    gameweekStatusEl.textContent = `Current gameweek: ${currentMatchday}`
+  }
+
+  if (adminPrevGameweekBtn) {
+    adminPrevGameweekBtn.disabled = currentMatchday <= 1
+    adminPrevGameweekBtn.title = currentMatchday <= 1 ? 'Gameweek cannot go below 1.' : ''
+  }
+}
+
+type SavedTeamState = {
+  selectedPlayerKeys?: string[]
+  isTeamLocked?: boolean
+  transfersUsedThisMatchday?: number
+  currentMatchday?: number
+  captainPlayerKey?: string | null
+  captainChangesThisMatchday?: number
+  captainBonusTotal?: number
+}
+
+function updateAllUserMatchdayStates(nextMatchday: number, includeCaptainBonus: boolean): void {
+  const usernames = getAllUsernames()
+
+  for (const username of usernames) {
+    const storageKey = userScopedStorageKey('fantasy-football-my-team-state', username)
+    const raw = getSharedItem(storageKey)
+    if (!raw) {
+      continue
+    }
+
+    try {
+      const state = JSON.parse(raw) as SavedTeamState
+      const selectedKeys = Array.isArray(state.selectedPlayerKeys) ? state.selectedPlayerKeys : []
+      const locked = state.isTeamLocked === true
+      const savedCaptainKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
+      const existingCaptainBonus = Number.isFinite(state.captainBonusTotal)
+        ? Math.max(0, state.captainBonusTotal ?? 0)
+        : 0
+
+      let captainBonusThisMatchday = 0
+      if (includeCaptainBonus && locked && savedCaptainKey && selectedKeys.includes(savedCaptainKey)) {
+        const captainKeyParts = savedCaptainKey.split('::')
+        if (captainKeyParts.length >= 2) {
+          const captainTeam = captainKeyParts[0]
+          const captainName = captainKeyParts.slice(1).join('::')
+          captainBonusThisMatchday = getPlayerPoints(captainName, captainTeam)
+        }
+      }
+
+      const nextState: SavedTeamState = {
+        ...state,
+        currentMatchday: nextMatchday,
+        transfersUsedThisMatchday: 0,
+        captainChangesThisMatchday: 0,
+        captainBonusTotal: existingCaptainBonus + captainBonusThisMatchday,
+      }
+
+      setSharedItem(storageKey, JSON.stringify(nextState))
+    } catch {
+      continue
+    }
+  }
 }
 
 function renderDraftModeControls(): void {
@@ -696,11 +816,89 @@ if (adminCheckScoresBtn) {
   })
 }
 
+if (adminClearApiDataBtn) {
+  adminClearApiDataBtn.addEventListener('click', async () => {
+    const confirmed = window.confirm(
+      'Clear all Football API imported fixture results and player points? This cannot be undone.',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    adminClearApiDataBtn.disabled = true
+
+    try {
+      clearAllPoints()
+      removeSharedItem(fixtureResultsStorageKey)
+      removeSharedItem(autoImportedEventIdsStorageKey)
+      await flushSharedLeagueStorage()
+
+      setFixtureScoreCheckMessage('Cleared imported fixture results and all player points.', 'ok')
+      renderPointAdjustor()
+    } catch {
+      setFixtureScoreCheckMessage('Unable to clear imported results and points right now.', 'error')
+    } finally {
+      adminClearApiDataBtn.disabled = false
+    }
+  })
+}
+
+if (adminEndGameweekBtn) {
+  adminEndGameweekBtn.addEventListener('click', async () => {
+    adminEndGameweekBtn.disabled = true
+
+    try {
+      const nextMatchday = getGlobalMatchday() + 1
+      updateAllUserMatchdayStates(nextMatchday, true)
+      addMatchdayPointsToTotal()
+      setGlobalMatchday(nextMatchday)
+      await flushSharedLeagueStorage()
+      renderGameweekControls()
+      setGameweekMessage(`Gameweek ended. Moved to gameweek ${nextMatchday}.`, 'ok')
+    } catch {
+      setGameweekMessage('Unable to end gameweek right now.', 'error')
+    } finally {
+      adminEndGameweekBtn.disabled = false
+    }
+  })
+}
+
+if (adminPrevGameweekBtn) {
+  adminPrevGameweekBtn.addEventListener('click', async () => {
+    const currentMatchday = getGlobalMatchday()
+    if (currentMatchday <= 1) {
+      setGameweekMessage('Already at gameweek 1.', 'error')
+      renderGameweekControls()
+      return
+    }
+
+    adminPrevGameweekBtn.disabled = true
+
+    try {
+      const previousMatchday = currentMatchday - 1
+      updateAllUserMatchdayStates(previousMatchday, false)
+      setGlobalMatchday(previousMatchday)
+      await flushSharedLeagueStorage()
+      renderGameweekControls()
+      setGameweekMessage(
+        `Moved back to gameweek ${previousMatchday}. Points were not rolled back.`,
+        'ok',
+      )
+    } catch {
+      setGameweekMessage('Unable to move back a gameweek right now.', 'error')
+    } finally {
+      adminPrevGameweekBtn.disabled = false
+    }
+  })
+}
+
 window.addEventListener(sharedLeagueUpdatedEvent, () => {
   renderTeamNameEditor()
   renderPointAdjustor()
   renderBudgetAdjustor()
   renderPasswordResetList()
+  renderGameweekControls()
   void refreshDraftMode()
   void refreshBenchMode()
 })
@@ -709,5 +907,6 @@ renderTeamNameEditor()
 renderPointAdjustor()
 renderBudgetAdjustor()
 renderPasswordResetList()
+renderGameweekControls()
 void refreshDraftMode()
 void refreshBenchMode()

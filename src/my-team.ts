@@ -1,7 +1,7 @@
 import { renderPage } from './renderPage'
-import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints as getPlayerTotalPoints, addMatchdayPointsToTotal, type SelectablePlayer, getCountryFlag } from './teamsData'
-import { getAllUsernames, getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
-import { commitSharedStorageChanges, getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
+import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints as getPlayerTotalPoints, type SelectablePlayer, getCountryFlag } from './teamsData'
+import { getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
+import { getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
 
 function escapeHtml(value: string): string {
 	return value
@@ -21,7 +21,6 @@ const maxBenchSize = 4
 const defaultBudget = 100
 const maxTransfersPerMatchday = 3
 const currentUsername = requireAuth()
-const isCurrentUserLee = currentUsername.toLowerCase() === 'lee'
 const currentTeamName = getTeamNameForUser(currentUsername) ?? 'Unnamed Team'
 const teamStateStorageKey = userScopedStorageKey('fantasy-football-my-team-state', currentUsername)
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
@@ -332,7 +331,6 @@ const myTeamMarkup = `
 					<p class="players-help">Matchday Points: <span id="matchday-points" style="font-weight: 700; color: #059669;">0</span></p>
 					<p class="players-help">Total Points: <span id="total-points" style="font-weight: 700; color: #0f172a;">0</span></p>
 				</div>
-				<button id="end-matchday-btn" type="button" class="end-matchday-btn" title="End matchday and accumulate points">End Matchday</button>
 			</div>
 			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 			<div class="football-pitch" id="selected-team"></div>
@@ -355,7 +353,6 @@ const searchCount = document.querySelector<HTMLParagraphElement>('#search-count'
 const budgetCount = document.querySelector<HTMLParagraphElement>('#budget-count')
 const matchdayPointsDisplay = document.querySelector<HTMLSpanElement>('#matchday-points')
 const totalPointsDisplay = document.querySelector<HTMLSpanElement>('#total-points')
-const endMatchdayBtn = document.querySelector<HTMLButtonElement>('#end-matchday-btn')
 const lockTeamBtn = document.querySelector<HTMLButtonElement>('#lock-team-btn')
 const selectCaptainBtn = document.querySelector<HTMLButtonElement>('#select-captain-btn')
 const teamLockStatus = document.querySelector<HTMLParagraphElement>('#team-lock-status')
@@ -560,7 +557,9 @@ function getMatchdayPoints(players: SelectablePlayer[]): number {
 }
 
 function getTotalPoints(players: SelectablePlayer[]): number {
-	return players.reduce((sum, player) => sum + getPlayerTotalPoints(player.name, player.team), 0) + captainBonusTotal + manualPointsAdjustment
+	const accumulated = players.reduce((sum, player) => sum + getPlayerTotalPoints(player.name, player.team), 0)
+	const currentMatchday = getMatchdayPoints(players)
+	return accumulated + currentMatchday + captainBonusTotal + manualPointsAdjustment
 }
 
 function canAddPlayer(player: SelectablePlayer): boolean {
@@ -723,49 +722,6 @@ function setCaptain(targetKey: string): void {
 	renderSearchResults()
 }
 
-function applyCaptainBonusesForAllUsers(): void {
-	const usernames = getAllUsernames()
-	const nextStates: Record<string, string> = {}
-
-	for (const username of usernames) {
-		const storageKey = userScopedStorageKey('fantasy-football-my-team-state', username)
-		const raw = getSharedItem(storageKey)
-		if (!raw) {
-			continue
-		}
-
-		try {
-			const state = JSON.parse(raw) as SavedTeamState
-			const selectedKeys = Array.isArray(state.selectedPlayerKeys) ? state.selectedPlayerKeys : []
-			const locked = Boolean(state.isTeamLocked)
-			const savedCaptainKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
-			const existingCaptainBonus = Number.isFinite(state.captainBonusTotal)
-				? Math.max(0, state.captainBonusTotal ?? 0)
-				: 0
-
-			let captainBonusThisMatchday = 0
-			if (locked && savedCaptainKey && selectedKeys.includes(savedCaptainKey)) {
-				const captain = findPlayerByKey(savedCaptainKey)
-				if (captain) {
-					captainBonusThisMatchday = getPlayerPoints(captain.name, captain.team)
-				}
-			}
-
-			const nextState: SavedTeamState = {
-				...state,
-				captainBonusTotal: existingCaptainBonus + captainBonusThisMatchday,
-				captainChangesThisMatchday: 0,
-			}
-
-			nextStates[storageKey] = JSON.stringify(nextState)
-		} catch {
-			continue
-		}
-	}
-
-	commitSharedStorageChanges({ set: nextStates })
-}
-
 function renderSelectedTeam(): void {
 	if (!selectedTeamList || !teamCount) {
 		return
@@ -822,13 +778,6 @@ function renderSelectedTeam(): void {
 	}
 	if (transferRemainingBadge) {
 		transferRemainingBadge.textContent = `Transfers Remaining: ${getTransfersRemaining()}`
-	}
-	if (endMatchdayBtn) {
-		if (!isCurrentUserLee) {
-			endMatchdayBtn.textContent = 'Only lee can end matchday'
-			endMatchdayBtn.title = 'Only user lee can end the matchday for everyone'
-		}
-		endMatchdayBtn.disabled = !isTeamLocked || !isCurrentUserLee || isDraftPhaseActive()
 	}
 
 	if (selectedPlayers.length === 0) {
@@ -1348,30 +1297,6 @@ if (searchInput && searchResults && selectedTeamList) {
 				renderBench()
 				return
 			}
-		})
-	}
-
-	if (endMatchdayBtn) {
-		endMatchdayBtn.addEventListener('click', () => {
-			if (!isTeamLocked || !isCurrentUserLee) {
-				return
-			}
-			if (captainPlayerKey) {
-				const captain = selectedPlayers.find((player) => playerKey(player) === captainPlayerKey)
-				if (captain) {
-					captainBonusTotal += getPlayerPoints(captain.name, captain.team)
-				}
-			}
-			applyCaptainBonusesForAllUsers()
-			addMatchdayPointsToTotal()
-			const nextMatchday = getGlobalMatchday() + 1
-			setGlobalMatchday(nextMatchday)
-			currentMatchday = nextMatchday
-			transfersUsedThisMatchday = 0
-			captainChangesThisMatchday = 0
-			saveTeamState()
-			renderSelectedTeam()
-			renderSearchResults()
 		})
 	}
 

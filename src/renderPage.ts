@@ -34,7 +34,7 @@ export function renderPage(title: string, activeTab: Tab, content = ''): void {
         <a class="tab ${activeTab === 'players' ? 'active' : ''}" href="/players.html">Players</a>
         <a class="tab ${activeTab === 'my-team' ? 'active' : ''}" href="/my-team.html">My Team</a>
         ${isDraftModeEnabled ? `<a class="tab ${activeTab === 'transfer-history' ? 'active' : ''}" href="/transfer-history.html">Transfer History</a>` : ''}
-        ${canAwardPoints ? `<a class="tab ${activeTab === 'stats' ? 'active' : ''}" href="/stats.html">Award Points</a>` : ''}
+        ${canAwardPoints ? `<a class="tab ${activeTab === 'stats' ? 'active' : ''}" href="/stats.html">Stats</a>` : ''}
         ${canAwardPoints ? `<a class="tab ${activeTab === 'admin' ? 'active' : ''}" href="/admin.html">Admin</a>` : ''}
         <a class="tab ${activeTab === 'table' ? 'active' : ''}" href="/table.html">Table</a>
       </div>
