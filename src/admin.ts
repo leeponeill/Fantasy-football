@@ -57,6 +57,15 @@ const adminMarkup = `
     </section>
 
     <section class="admin-card">
+      <h2>Fixture Scores</h2>
+      <p id="fixture-score-check-message" class="admin-message" aria-live="polite"></p>
+      <div class="draft-mode-section">
+        <button id="admin-check-scores-btn" type="button" class="draft-mode-btn">Check for Scores</button>
+      </div>
+      <p class="danger-copy">Checks only fixtures that kicked off at least 2.5 hours ago.</p>
+    </section>
+
+    <section class="admin-card">
       <h2>Edit User Team Names</h2>
       <p id="admin-message" class="admin-message" aria-live="polite"></p>
       <div id="team-name-editor" class="admin-list"></div>
@@ -107,6 +116,8 @@ const adminSaveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#admin
 const benchModeStatusEl = document.querySelector<HTMLParagraphElement>('#bench-mode-status')
 const benchModeMessageEl = document.querySelector<HTMLParagraphElement>('#bench-mode-message')
 const adminBenchModeBtn = document.querySelector<HTMLButtonElement>('#admin-bench-mode-btn')
+const fixtureScoreCheckMessageEl = document.querySelector<HTMLParagraphElement>('#fixture-score-check-message')
+const adminCheckScoresBtn = document.querySelector<HTMLButtonElement>('#admin-check-scores-btn')
 
 let draftModeEnabled = false
 let draftModeCanEnable = false
@@ -174,6 +185,16 @@ function setBenchModeMessage(text: string, type: 'ok' | 'error'): void {
   benchModeMessageEl.textContent = text
   benchModeMessageEl.classList.remove('ok', 'error')
   benchModeMessageEl.classList.add(type)
+}
+
+function setFixtureScoreCheckMessage(text: string, type: 'ok' | 'error'): void {
+  if (!fixtureScoreCheckMessageEl) {
+    return
+  }
+
+  fixtureScoreCheckMessageEl.textContent = text
+  fixtureScoreCheckMessageEl.classList.remove('ok', 'error')
+  fixtureScoreCheckMessageEl.classList.add(type)
 }
 
 function renderDraftModeControls(): void {
@@ -635,6 +656,42 @@ if (adminBenchModeBtn) {
       await refreshBenchMode()
     } catch {
       setBenchModeMessage('Unable to update bench mode.', 'error')
+    }
+  })
+}
+
+if (adminCheckScoresBtn) {
+  adminCheckScoresBtn.addEventListener('click', async () => {
+    adminCheckScoresBtn.disabled = true
+    setFixtureScoreCheckMessage('Checking due fixtures for finished scores...', 'ok')
+
+    try {
+      const response = await fetch('/api/admin/fixtures/check-scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentUsername }),
+      })
+
+      const payload = (await response.json()) as {
+        error?: string
+        added?: number
+        scanned?: number
+        total?: number
+      }
+
+      if (!response.ok) {
+        setFixtureScoreCheckMessage(payload.error ?? 'Unable to check fixture scores.', 'error')
+        return
+      }
+
+      setFixtureScoreCheckMessage(
+        `Score check complete. Added ${payload.added ?? 0} result(s) from ${payload.scanned ?? 0} due fixture(s). Stored results: ${payload.total ?? 0}.`,
+        'ok',
+      )
+    } catch {
+      setFixtureScoreCheckMessage('Unable to check fixture scores right now.', 'error')
+    } finally {
+      adminCheckScoresBtn.disabled = false
     }
   })
 }

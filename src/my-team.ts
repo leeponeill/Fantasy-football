@@ -1036,10 +1036,11 @@ function renderSearchResults(): void {
 			const benchDisabled = canAddToBench && benchIsFull
 			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : (canAddToBench ? benchDisabled : isDisabled)
 
+			const totalPts = getPlayerTotalPoints(player.name, player.team)
 			return `
 				<li class="search-item${takenByOther ? ' player-taken' : ''}">
 					<div>
-						<strong>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span></strong>
+						<strong>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span> <span class="player-total-pts">${totalPts} pts</span></strong>
 						<div class="selected-meta">${escapeHtml(player.team)} (${escapeHtml(player.position)})</div>
 					</div>
 					<button class="${buttonClass}" type="button" ${buttonDataAttrs} ${finalDisabled ? 'disabled' : ''}>${buttonLabel}</button>

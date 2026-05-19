@@ -261,6 +261,39 @@ body {
   font-size: 2rem;
 }
 
+.fixture-controls {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 0.75rem;
+}
+
+.fixture-controls input,
+.fixture-controls select {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+}
+
+
+.fixtures-results-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+.fixture-section {
+  margin-top: 0;
+}
+
+.fixture-section > h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
 .fixture-matchday {
   margin-top: 1.5rem;
   border: 1px solid #dce3ef;
@@ -313,6 +346,17 @@ body {
 .fixture-country {
   color: #334155;
   white-space: nowrap;
+}
+
+.fixture-score {
+  color: #0f172a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.empty-state {
+  margin-top: 0.8rem;
+  color: #64748b;
 }
 
 .players-help {
@@ -420,6 +464,12 @@ body {
   color: #1d4ed8;
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.player-total-pts {
+  color: #059669;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .player-list .player-points {
@@ -1555,6 +1605,10 @@ body {
   .fixture-item {
     grid-template-columns: 1fr;
     gap: 0.25rem;
+  }
+
+  .fixture-controls {
+    grid-template-columns: 1fr;
   }
 
   .fixture-country {
