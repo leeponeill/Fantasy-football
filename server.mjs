@@ -608,7 +608,15 @@ async function fetchJson(url, options = {}) {
   })
 
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`)
+    let bodyText = ''
+    try {
+      bodyText = await response.text()
+    } catch (e) {
+      bodyText = '[unable to read response body]'
+    }
+    const errorMsg = `API request failed with status ${response.status} from ${url}. Response: ${bodyText.slice(0, 500)}`
+    console.error(`[auto-scan] ${errorMsg}`)
+    throw new Error(errorMsg)
   }
 
   return response.json()
@@ -783,20 +791,28 @@ async function getSportApiFixturesByDate(date, token) {
   }
 
   const hasToken = !!token
-  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
-    headers: sportApiAuthHeaders(token),
-  })
+  console.log(`[auto-scan] Fetching SportAPI fixtures for ${date} (token available: ${hasToken})`)
+  
+  try {
+    const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
+      headers: sportApiAuthHeaders(token),
+    })
 
-  const fixtures = Array.isArray(payload?.fixtures)
-    ? payload.fixtures
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : []
-  sportApiFixtureDateCache.set(date, {
-    fixtures,
-    expiresAt: nowMs + 5 * 60 * 1000,
-  })
-  return fixtures
+    const fixtures = Array.isArray(payload?.fixtures)
+      ? payload.fixtures
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    console.log(`[auto-scan] Successfully fetched ${fixtures.length} fixtures for ${date}`)
+    sportApiFixtureDateCache.set(date, {
+      fixtures,
+      expiresAt: nowMs + 5 * 60 * 1000,
+    })
+    return fixtures
+  } catch (err) {
+    console.error(`[auto-scan] getSportApiFixturesByDate(${date}) error:`, err.message)
+    throw err
+  }
 }
 
 async function searchFinishedSoccerEvents(query) {
