@@ -649,6 +649,7 @@ const serverTeamAliases = {
   afcbournemouth: 'bournemouth',
   leedsunited: 'leeds',
   brightonhovealbion: 'brighton',
+  brightonandhovealbion: 'brighton',
   westhamunited: 'westham',
   newcastleunited: 'newcastle',
   wolverhamptonwanderers: 'wolves',
@@ -960,7 +961,6 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
     fixture?.players,
     fixture?.home_players,
     fixture?.away_players,
-    fixture?.events,
     fixture?.lineups?.home?.players,
     fixture?.lineups?.away?.players,
     fixtureResponse?.players,
@@ -1100,22 +1100,42 @@ async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
 }
 
 async function resolveApiSportsFixtureId(homeTeam, awayTeam, date) {
-  const query = encodeURIComponent(`${homeTeam} vs ${awayTeam}`)
-  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${query}`)
-  const events = Array.isArray(payload?.event) ? payload.event : []
   const expectedHome = toTeamToken(homeTeam)
   const expectedAway = toTeamToken(awayTeam)
 
-  const matched = events.find((event) => {
-    const eventDate = getAsString(event?.dateEvent)
-    const home = toTeamToken(event?.strHomeTeam)
-    const away = toTeamToken(event?.strAwayTeam)
-    const strict = home === expectedHome && away === expectedAway
-    const swapped = home === expectedAway && away === expectedHome
-    return eventDate === date && (strict || swapped)
-  })
+  function findInEvents(events) {
+    return events.find((event) => {
+      const eventDate = getAsString(event?.dateEvent)
+      const home = toTeamToken(event?.strHomeTeam)
+      const away = toTeamToken(event?.strAwayTeam)
+      const strict = home === expectedHome && away === expectedAway
+      const swapped = home === expectedAway && away === expectedHome
+      return eventDate === date && (strict || swapped)
+    })
+  }
 
-  return getAsString(matched?.idAPIfootball)
+  // Try name-based search first (strips AFC prefix for better matching)
+  const cleanHome = homeTeam.replace(/^AFC\s+/i, '')
+  const cleanAway = awayTeam.replace(/^AFC\s+/i, '')
+  const query = encodeURIComponent(`${cleanHome} vs ${cleanAway}`)
+  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${query}`)
+  const searchEvents = Array.isArray(payload?.event) ? payload.event : []
+  const matchedByName = findInEvents(searchEvents)
+  if (matchedByName) {
+    return getAsString(matchedByName.idAPIfootball)
+  }
+
+  // Fallback: search by date using the PL league ID (4328)
+  if (date) {
+    const datePayload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${encodeURIComponent(date)}&l=4328`)
+    const dateEvents = Array.isArray(datePayload?.events) ? datePayload.events : []
+    const matchedByDate = findInEvents(dateEvents)
+    if (matchedByDate) {
+      return getAsString(matchedByDate.idAPIfootball)
+    }
+  }
+
+  return ''
 }
 
 async function getApiSportsPlayerStats(fixtureId, apiSportsKey) {
@@ -1462,6 +1482,12 @@ async function handleApiRequest(request, response) {
   if (request.method === 'GET' && url.pathname === '/api/transfer-history') {
     try {
       const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 200, { sales: [] })
+        return true
+      }
+
       const sales = readTransferHistory(state.storage)
         .slice()
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -1834,6 +1860,31 @@ async function handleApiRequest(request, response) {
     return true
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/admin/rescan-fixtures') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can trigger a rescan.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const nextStorage = { ...state.storage }
+      delete nextStorage[serverAutoImportedIdsKey]
+      delete nextStorage[serverPlayerPointsKey]
+      await writeLeagueState(nextStorage)
+
+      // Trigger an immediate rescan in the background
+      void serverScanDueFixturesAndImport()
+
+      sendJson(response, 200, { ok: true, message: 'Auto-scan history cleared. Rescan started.' })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to trigger rescan.' })
+    }
+    return true
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/league-state') {
     const state = await readLeagueState()
     sendJson(response, 200, state)
@@ -2022,6 +2073,10 @@ async function createProductionServer() {
 const teamsFilePath = path.join(__dirname, 'teams.txt')
 const serverAutoImportedIdsKey = 'fantasy-football-auto-imported-event-ids'
 const serverPlayerPointsKey = 'fantasy-football-player-points'
+const serverMatchingVersionKey = 'fantasy-football-matching-version'
+// Bump this string whenever the player/team matching logic changes so the server
+// automatically clears the import cache and re-processes all fixtures on next start.
+const serverMatchingVersion = '5'
 const serverAutoScanDelayMs = 150 * 60 * 1000 // 2.5 hours
 const serverSchedulerMaxDelayMs = 2_147_000_000
 
@@ -2128,6 +2183,28 @@ const serverAutoScanTeamAliases = {
   republicofkorea: 'southkorea',
   czechrepublic: 'czechia',
   coteivoire: 'ivorycoast',
+  // Premier League — map full API names to the abbreviated tokens used in teams.txt
+  manchestercity: 'mancity',
+  manchesterunited: 'manutd',
+  manchesterutd: 'manutd',
+  tottenham: 'spurs',
+  tottenhamhotspur: 'spurs',
+  nottinghamforest: 'nottmforest',
+  afcbournemouth: 'bournemouth',
+  westhamunited: 'westham',
+  newcastleunited: 'newcastle',
+  wolverhamptonwanderers: 'wolves',
+  brightonhovealbion: 'brighton',
+  leedsunited: 'leeds',
+  arsenalfc: 'arsenal',
+  burnleyfc: 'burnley',
+  crystalpalacefc: 'crystalpalace',
+  liverpoolfc: 'liverpool',
+  evertonfc: 'everton',
+  sunderlandafc: 'sunderland',
+  brentfordfc: 'brentford',
+  fulhamfc: 'fulham',
+  astonvilla: 'astonvilla',
 }
 
 function serverNormalizeTeamToken(teamName) {
@@ -2135,18 +2212,66 @@ function serverNormalizeTeamToken(teamName) {
   return serverAutoScanTeamAliases[token] ?? token
 }
 
+function serverPlayerLastWordToken(name) {
+  const words = name.trim().split(/\s+/)
+  return serverToToken(words[words.length - 1])
+}
+
 function serverFindPlayer(players, row) {
   const teamToken = serverNormalizeTeamToken(row.teamName)
   const nameToken = serverToToken(row.playerName)
 
+  // 1. Strict: exact team + exact name
   const strict = players.find(
     (p) => serverNormalizeTeamToken(p.team) === teamToken && serverToToken(p.name) === nameToken,
   )
   if (strict) return strict
 
+  // 2. Exact name, unique globally
   const byName = players.filter((p) => serverToToken(p.name) === nameToken)
   if (byName.length === 1) return byName[0]
-  return byName.find((p) => serverNormalizeTeamToken(p.team) === teamToken) ?? null
+
+  // 3. Exact name on same team
+  const byNameAndTeam = byName.find((p) => serverNormalizeTeamToken(p.team) === teamToken)
+  if (byNameAndTeam) return byNameAndTeam
+
+  const byTeam = players.filter((p) => serverNormalizeTeamToken(p.team) === teamToken)
+
+  // 4. Last-word match on same team — handles "Haaland" matching "Erling Haaland",
+  //    "De Bruyne" matching "Kevin De Bruyne", etc.
+  const lastWord = serverPlayerLastWordToken(row.playerName)
+  if (lastWord.length >= 4) {
+    const byLastWord = byTeam.filter((p) => serverPlayerLastWordToken(p.name) === lastWord)
+    if (byLastWord.length === 1) return byLastWord[0]
+  }
+
+  // 5. Suffix/prefix token match on same team — handles API returning a single-word short name
+  //    like "Ederson" that is a prefix of "Ederson Santana de Moraes", or a long name that
+  //    ends with a short teams.txt name like "haaland" being a suffix of "erlinghaaland".
+  if (nameToken.length >= 5) {
+    const partialTeam = byTeam.filter((p) => {
+      const pt = serverToToken(p.name)
+      return pt !== nameToken && (pt.endsWith(nameToken) || nameToken.endsWith(pt) || pt.startsWith(nameToken) || nameToken.startsWith(pt))
+    })
+    if (partialTeam.length === 1) return partialTeam[0]
+  }
+
+  // 6. Last-word match globally if unique
+  if (lastWord.length >= 4) {
+    const byLastWordAll = players.filter((p) => serverPlayerLastWordToken(p.name) === lastWord)
+    if (byLastWordAll.length === 1) return byLastWordAll[0]
+  }
+
+  // 7. Suffix/prefix match globally if unique
+  if (nameToken.length >= 5) {
+    const partialAll = players.filter((p) => {
+      const pt = serverToToken(p.name)
+      return pt !== nameToken && (pt.endsWith(nameToken) || nameToken.endsWith(pt) || pt.startsWith(nameToken) || nameToken.startsWith(pt))
+    })
+    if (partialAll.length === 1) return partialAll[0]
+  }
+
+  return null
 }
 
 // ---- Points calculation (mirrors pointsCalculator.ts) ----
@@ -2195,25 +2320,37 @@ function serverGetPositionType(player) {
   return 'Midfielder'
 }
 
-function serverCalculateImportedRows(players, importedRows) {
+function serverCalculateImportedRows(players, importedRows, fixture = {}) {
   const calculated = []
   let skipped = 0
+  // Determine team's goals conceded from fixture result
+  const getTeamGoalsConceded = (teamName) => {
+    if (!fixture.homeTeam || !fixture.awayTeam) return 0
+    const homeTeamToken = toTeamToken(fixture.homeTeam)
+    const awayTeamToken = toTeamToken(fixture.awayTeam)
+    const playerTeamToken = toTeamToken(teamName)
+    const homeScore = Math.max(0, Math.floor(fixture.homeScore || 0))
+    const awayScore = Math.max(0, Math.floor(fixture.awayScore || 0))
+    if (playerTeamToken === homeTeamToken) return awayScore
+    if (playerTeamToken === awayTeamToken) return homeScore
+    return 0
+  }
   for (const row of importedRows) {
     const matched = serverFindPlayer(players, row)
-    if (!matched) { skipped++; continue }
+    if (!matched) { skipped++; console.log(`[auto-scan] Skipped unmatched player: "${row.playerName}" (${row.teamName})`); continue }
     const minutesPlayed = Math.max(0, Math.floor(row.minutesPlayed))
-    const goalsConceded = Math.max(0, Math.floor(row.goalsConceded))
+    const teamGoalsConceded = getTeamGoalsConceded(row.teamName)
     const perf = {
       position: serverGetPositionType(matched),
       minutesPlayed,
       goalsScored: Math.max(0, Math.floor(row.goalsScored)),
       assists: Math.max(0, Math.floor(row.assists)),
-      cleanSheet: goalsConceded === 0 && minutesPlayed >= 60,
+      cleanSheet: teamGoalsConceded === 0 && minutesPlayed >= 60,
       shotSaves: Math.max(0, Math.floor(row.shotSaves)),
       defensiveContributions: Math.max(0, Math.floor(row.defensiveContributions)),
       penaltySaves: Math.max(0, Math.floor(row.penaltySaves)),
       penaltyMisses: Math.max(0, Math.floor(row.penaltyMisses)),
-      goalsConceded,
+      goalsConceded: teamGoalsConceded,
       yellowCards: Math.max(0, Math.floor(row.yellowCards)),
       redCards: Math.max(0, Math.floor(row.redCards)),
     }
@@ -2492,8 +2629,13 @@ async function serverScanDueFixturesAndImport() {
             continue
           }
 
+          if (importedCount > 0) {
+            // Avoid hitting api-sports rate limits (10 req/min on free plan)
+            await new Promise(resolve => setTimeout(resolve, 7000))
+          }
+
           const importedRows = await getApiFootballPlayerStats(bestMatch.idApiFootball, apiKey)
-          const { calculated, skipped } = serverCalculateImportedRows(players, importedRows)
+          const { calculated, skipped } = serverCalculateImportedRows(players, importedRows, bestMatch)
 
           for (const row of calculated) {
             const key = `${row.player.team}::${row.player.name}`
@@ -2544,6 +2686,22 @@ async function scheduleServerFixtureScans() {
   }
 
   await getServerPlayers()
+
+  // If the matching logic version has changed, wipe the import cache so all
+  // fixtures are re-processed with the updated matching on this scan pass.
+  try {
+    const state = await readLeagueState()
+    if (state.storage[serverMatchingVersionKey] !== serverMatchingVersion) {
+      console.log(`[auto-scan] Matching version changed to ${serverMatchingVersion} — clearing import cache for full rescan.`)
+      const nextStorage = { ...state.storage, [serverMatchingVersionKey]: serverMatchingVersion }
+      delete nextStorage[serverAutoImportedIdsKey]
+      delete nextStorage[serverPlayerPointsKey]
+      await writeLeagueState(nextStorage)
+    }
+  } catch (err) {
+    console.error('[auto-scan] Unable to check matching version:', err.message)
+  }
+
   const now = new Date()
   let shouldRunNow = false
 

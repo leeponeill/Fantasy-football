@@ -1,5 +1,5 @@
 import { renderPage } from './renderPage'
-import { getAllPlayers, getPlayerPoints, updatePlayerPoints, type SelectablePlayer } from './teamsData'
+import { addMatchdayPointsToTotal, getAllPlayers, getPlayerPoints, updatePlayerPoints, type SelectablePlayer } from './teamsData'
 import { calculatePlayerPoints, getPointsBreakdownText, type PlayerPerformance } from './pointsCalculator'
 import { getCurrentUsername, requireAuth } from './auth'
 import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
@@ -68,6 +68,18 @@ type FixtureDueMatch = {
   kickoff: Date
 }
 
+type ScanImportSummary = {
+  importedMatchCount: number
+  appliedPlayerCount: number
+  skippedPlayersTotal: number
+  zeroPointPlayersTotal: number
+  alreadyImportedCount: number
+  unresolvedCount: number
+  errorCount: number
+  playerImportFailureCount: number
+  replacedValuesCount: number
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -122,7 +134,13 @@ const fixtureTeamSearchExpansions: Record<string, string> = {
 
 function normalizeTeamToken(teamName: string): string {
   const token = toToken(teamName)
-  return teamAliases[token] ?? token
+  const trimmedToken = token.startsWith('afc') && token.length > 3
+    ? token.slice(3)
+    : token.endsWith('fc') && token.length > 2
+      ? token.slice(0, -2)
+      : token
+
+  return teamAliases[token] ?? teamAliases[trimmedToken] ?? trimmedToken
 }
 
 function getNameParts(value: string): string[] {
@@ -1081,9 +1099,21 @@ async function scanFixtureGamesAndImport(
   games: FixtureGame[],
   scanLabel: string,
   options?: { skipAlreadyImported?: boolean; includeZeroPoints?: boolean; replaceExistingValues?: boolean },
-): Promise<void> {
+): Promise<ScanImportSummary> {
+  const emptySummary: ScanImportSummary = {
+    importedMatchCount: 0,
+    appliedPlayerCount: 0,
+    skippedPlayersTotal: 0,
+    zeroPointPlayersTotal: 0,
+    alreadyImportedCount: 0,
+    unresolvedCount: 0,
+    errorCount: 0,
+    playerImportFailureCount: 0,
+    replacedValuesCount: 0,
+  }
+
   if (isAutoScanRunning) {
-    return
+    return emptySummary
   }
 
   const skipAlreadyImported = options?.skipAlreadyImported !== false
@@ -1230,6 +1260,18 @@ async function scanFixtureGamesAndImport(
       `${scanLabel} complete: imported matches ${importedMatchCount}, players applied ${appliedPlayerCount}, zero-point ${zeroPointPlayersTotal}, already imported ${alreadyImportedCount}, unresolved ${unresolvedCount}, errors ${errorCount}.${detailSuffix}`,
       importedMatchCount > 0 ? 'ok' : 'info',
     )
+
+    return {
+      importedMatchCount,
+      appliedPlayerCount,
+      skippedPlayersTotal,
+      zeroPointPlayersTotal,
+      alreadyImportedCount,
+      unresolvedCount,
+      errorCount,
+      playerImportFailureCount,
+      replacedValuesCount,
+    }
   } finally {
     isAutoScanRunning = false
     setAutoScanButtonsDisabled(false)
@@ -1310,7 +1352,7 @@ async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
     return
   }
 
-  await scanFixtureGamesAndImport(
+  const summary = await scanFixtureGamesAndImport(
     matchday.games,
     `Gameweek ${matchdayNumber} scan (auto +3h after final kickoff)`,
     {
@@ -1319,6 +1361,18 @@ async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
       replaceExistingValues: true,
     },
   )
+
+  const hasPendingFixtures =
+    summary.unresolvedCount > 0 ||
+    summary.errorCount > 0 ||
+    summary.playerImportFailureCount > 0
+
+  if (hasPendingFixtures) {
+    window.setTimeout(() => {
+      void triggerAutoGameweekScan(matchdayNumber)
+    }, 30 * 60 * 1000)
+    return
+  }
 
   importedGameweeks.add(matchdayNumber)
   saveAutoImportedGameweeks(importedGameweeks)
@@ -1333,6 +1387,8 @@ async function triggerAutoGameweekAdvance(matchdayNumber: number): Promise<void>
 
   const current = getGlobalMatchday()
   if (current <= matchdayNumber) {
+    // Keep auto-advance behavior aligned with manual End Gameweek: roll points and clear current map.
+    addMatchdayPointsToTotal()
     setGlobalMatchday(matchdayNumber + 1)
   }
 
