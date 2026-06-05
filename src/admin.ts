@@ -4,12 +4,14 @@ import {
   adjustUserPoints,
   canAdjustUserBudgets,
   clearAllUsersAndTeams,
+  deleteUser,
   getAllUsernames,
   getCurrentUsername,
   getGlobalBudget,
   getPasswordResetRequests,
   getTeamNameForUser,
   getUserTotalPoints,
+  renameUser,
   requireAuth,
   resetUserPassword,
   setTeamNameForUser,
@@ -23,6 +25,15 @@ import {
   setSharedItem,
   sharedLeagueUpdatedEvent,
 } from './sharedLeague'
+import {
+  clearAllLeagues,
+  createLeague,
+  deleteLeague,
+  getAllLeagues,
+  removeUserFromLeague,
+  renameLeague,
+  renameUserInLeagues,
+} from './leagues'
 
 requireAuth()
 
@@ -84,23 +95,52 @@ const adminMarkup = `
       <p class="danger-copy">Going back a gameweek only changes matchday state. It does not roll back awarded points.</p>
     </section>
 
-    <section class="admin-card">
-      <h2>Edit User Team Names</h2>
-      <p id="admin-message" class="admin-message" aria-live="polite"></p>
-      <div id="team-name-editor" class="admin-list"></div>
-    </section>
+    <details class="admin-card admin-collapsible-card" open>
+      <summary>Edit User Team Names</summary>
+      <div class="admin-collapsible-content">
+        <p id="admin-message" class="admin-message" aria-live="polite"></p>
+        <div id="team-name-editor" class="admin-list"></div>
+      </div>
+    </details>
 
-    <section class="admin-card">
-      <h2>Adjust User Points</h2>
-      <p id="adjust-message" class="admin-message" aria-live="polite"></p>
-      <div id="point-adjustor" class="admin-list"></div>
-    </section>
+    <details class="admin-card admin-collapsible-card" open>
+      <summary>Adjust User Points</summary>
+      <div class="admin-collapsible-content">
+        <p id="adjust-message" class="admin-message" aria-live="polite"></p>
+        <div id="point-adjustor" class="admin-list"></div>
+      </div>
+    </details>
 
     <section class="admin-card">
       <h2>League Budget</h2>
       <p id="budget-message" class="admin-message" aria-live="polite"></p>
       <div id="budget-adjustor" class="admin-list"></div>
     </section>
+
+    <details class="admin-card admin-collapsible-card" open>
+      <summary>League Manager</summary>
+      <div class="admin-collapsible-content">
+        <p class="danger-copy">Create league IDs here. Users join them from the Table page.</p>
+        <p id="league-message" class="admin-message" aria-live="polite"></p>
+        <form id="league-create-form" class="admin-user-row admin-league-form">
+          <div class="admin-user-meta">
+            <strong>Create League</strong>
+            <span>Each league gets a shareable ID. Users can join multiple leagues.</span>
+          </div>
+          <input
+            class="admin-team-name-input"
+            name="leagueName"
+            type="text"
+            placeholder="League name"
+            minlength="2"
+            maxlength="60"
+            required
+          />
+          <button type="submit" class="lock-team-btn">Create League</button>
+        </form>
+        <div id="league-list" class="admin-list"></div>
+      </div>
+    </details>
 
     <section class="admin-card">
       <h2>Password Reset Requests</h2>
@@ -121,10 +161,13 @@ renderPage('Admin', 'admin', adminMarkup)
 const messageEl = document.querySelector<HTMLParagraphElement>('#admin-message')
 const adjustMessageEl = document.querySelector<HTMLParagraphElement>('#adjust-message')
 const budgetMessageEl = document.querySelector<HTMLParagraphElement>('#budget-message')
+const leagueMessageEl = document.querySelector<HTMLParagraphElement>('#league-message')
 const passwordResetMessageEl = document.querySelector<HTMLParagraphElement>('#password-reset-message')
 const teamNameEditor = document.querySelector<HTMLDivElement>('#team-name-editor')
 const pointAdjustor = document.querySelector<HTMLDivElement>('#point-adjustor')
 const budgetAdjustor = document.querySelector<HTMLDivElement>('#budget-adjustor')
+const leagueList = document.querySelector<HTMLDivElement>('#league-list')
+const leagueCreateForm = document.querySelector<HTMLFormElement>('#league-create-form')
 const passwordResetList = document.querySelector<HTMLDivElement>('#password-reset-list')
 const resetAllBtn = document.querySelector<HTMLButtonElement>('#reset-all-btn')
 const draftModeStatusEl = document.querySelector<HTMLParagraphElement>('#draft-mode-status')
@@ -158,7 +201,7 @@ let benchModeCanToggle = false
 function getGlobalMatchday(): number {
   const raw = getSharedItem(globalMatchdayStorageKey)
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  if (Number.isFinite(parsed) && parsed >= 1) {
+  if (Number.isFinite(parsed) && parsed >= 0) {
     return parsed
   }
 
@@ -166,7 +209,7 @@ function getGlobalMatchday(): number {
 }
 
 function setGlobalMatchday(matchday: number): void {
-  const safe = Math.max(1, Math.floor(matchday))
+  const safe = Math.max(0, Math.floor(matchday))
   setSharedItem(globalMatchdayStorageKey, String(safe))
 }
 
@@ -198,6 +241,16 @@ function setBudgetMessage(text: string, type: 'ok' | 'error'): void {
   budgetMessageEl.textContent = text
   budgetMessageEl.classList.remove('ok', 'error')
   budgetMessageEl.classList.add(type)
+}
+
+function setLeagueMessage(text: string, type: 'ok' | 'error'): void {
+  if (!leagueMessageEl) {
+    return
+  }
+
+  leagueMessageEl.textContent = text
+  leagueMessageEl.classList.remove('ok', 'error')
+  leagueMessageEl.classList.add(type)
 }
 
 function setPasswordResetMessage(text: string, type: 'ok' | 'error'): void {
@@ -258,8 +311,8 @@ function renderGameweekControls(): void {
   }
 
   if (adminPrevGameweekBtn) {
-    adminPrevGameweekBtn.disabled = currentMatchday <= 1
-    adminPrevGameweekBtn.title = currentMatchday <= 1 ? 'Gameweek cannot go below 1.' : ''
+    adminPrevGameweekBtn.disabled = currentMatchday <= 0
+    adminPrevGameweekBtn.title = currentMatchday <= 0 ? 'Gameweek cannot go below 0.' : ''
   }
 }
 
@@ -421,22 +474,53 @@ function renderTeamNameEditor(): void {
   teamNameEditor.innerHTML = editableUsers
     .map((username) => {
       const currentTeamName = getTeamNameForUser(username) ?? ''
+      const isCurrentAdmin = currentUsername?.toLowerCase() === username.toLowerCase()
       return `
         <form class="admin-user-row" data-username="${escapeHtml(username)}">
           <div class="admin-user-meta">
             <strong>${escapeHtml(username)}</strong>
             <span>Current: ${escapeHtml(currentTeamName || 'No team name set')}</span>
           </div>
-          <input
-            class="admin-team-name-input"
-            name="teamName"
-            type="text"
-            value="${escapeHtml(currentTeamName)}"
-            placeholder="Enter team name"
-            minlength="2"
-            required
-          />
-          <button type="submit" class="lock-team-btn">Save</button>
+          <div class="admin-point-inputs">
+            <input
+              class="admin-team-name-input"
+              name="username"
+              type="text"
+              value="${escapeHtml(username)}"
+              placeholder="Edit username"
+              minlength="3"
+              required
+            />
+            <input
+              class="admin-team-name-input"
+              name="teamName"
+              type="text"
+              value="${escapeHtml(currentTeamName)}"
+              placeholder="Enter team name"
+              minlength="2"
+              required
+            />
+          </div>
+          <div class="admin-user-actions">
+            <button type="submit" class="lock-team-btn" data-submit-action="team-name">Save Team Name</button>
+            <button
+              type="submit"
+              class="lock-team-btn"
+              data-submit-action="username"
+              ${isCurrentAdmin ? 'disabled title="You cannot rename your own admin account."' : ''}
+            >
+              Save Username
+            </button>
+            <button
+              type="button"
+              class="reset-all-btn admin-user-delete-btn"
+              data-action="delete-user"
+              data-username="${escapeHtml(username)}"
+              ${isCurrentAdmin ? 'disabled title="You cannot delete your own admin account."' : ''}
+            >
+              Delete User
+            </button>
+          </div>
         </form>
       `
     })
@@ -551,6 +635,75 @@ function renderPasswordResetList(): void {
     .join('')
 }
 
+function renderLeagueList(): void {
+  if (!leagueList) {
+    return
+  }
+
+  const leagues = getAllLeagues()
+  if (leagues.length === 0) {
+    leagueList.innerHTML = '<p class="empty-state">No leagues created yet.</p>'
+    return
+  }
+
+  leagueList.innerHTML = leagues
+    .map((league) => {
+      const memberMarkup = league.members.length > 0
+        ? league.members
+            .map(
+              (member) => `
+                <button
+                  type="button"
+                  class="league-member-chip"
+                  data-action="remove-member"
+                  data-league-id="${escapeHtml(league.id)}"
+                  data-username="${escapeHtml(member)}"
+                  title="Remove ${escapeHtml(member)} from ${escapeHtml(league.name)}"
+                >
+                  ${escapeHtml(member)}
+                  <span aria-hidden="true">x</span>
+                </button>
+              `,
+            )
+            .join('')
+        : '<span class="league-members-empty">No members yet</span>'
+
+      return `
+        <article class="admin-league-row">
+          <div class="admin-user-meta">
+            <form class="admin-league-rename-form" data-action="rename-league" data-league-id="${escapeHtml(league.id)}">
+              <input
+                class="admin-team-name-input admin-league-name-input"
+                name="leagueName"
+                type="text"
+                value="${escapeHtml(league.name)}"
+                minlength="2"
+                maxlength="60"
+                aria-label="Rename ${escapeHtml(league.name)}"
+                required
+              />
+              <button type="submit" class="lock-team-btn">Rename</button>
+            </form>
+            <span>Created by ${escapeHtml(league.createdBy || 'Unknown')}</span>
+            <div class="league-members">${memberMarkup}</div>
+          </div>
+          <div class="admin-league-actions">
+            <span class="league-id-chip">${escapeHtml(league.id)}</span>
+            <button
+              type="button"
+              class="reset-all-btn admin-league-delete-btn"
+              data-action="delete-league"
+              data-league-id="${escapeHtml(league.id)}"
+            >
+              Delete League
+            </button>
+          </div>
+        </article>
+      `
+    })
+    .join('')
+}
+
 if (teamNameEditor) {
   teamNameEditor.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -561,8 +714,44 @@ if (teamNameEditor) {
     }
 
     const username = form.dataset.username
+    const usernameInput = form.querySelector<HTMLInputElement>('input[name="username"]')
     const teamNameInput = form.querySelector<HTMLInputElement>('input[name="teamName"]')
-    if (!username || !teamNameInput) {
+    if (!username || !teamNameInput || !usernameInput) {
+      return
+    }
+
+    const submitEvent = event as SubmitEvent
+    const submitter = submitEvent.submitter as HTMLButtonElement | null
+    const submitAction = submitter?.dataset.submitAction ?? 'team-name'
+
+    if (submitAction === 'username') {
+      if (currentUsername && currentUsername.toLowerCase() === username.toLowerCase()) {
+        setMessage('You cannot rename your own admin account.', 'error')
+        return
+      }
+
+      const renamedUser = renameUser(username, usernameInput.value)
+      if (!renamedUser.ok || !renamedUser.username) {
+        setMessage(renamedUser.error ?? 'Unable to update username.', 'error')
+        return
+      }
+
+      const leagueRenameResult = renameUserInLeagues(username, renamedUser.username)
+      if (!leagueRenameResult.ok) {
+        setMessage(leagueRenameResult.error ?? 'Unable to update username in leagues.', 'error')
+        return
+      }
+
+      await flushSharedLeagueStorage()
+
+      setMessage(`Updated username ${username} to ${renamedUser.username}.`, 'ok')
+      renderTeamNameEditor()
+      renderPointAdjustor()
+      renderBudgetAdjustor()
+      renderLeagueList()
+      renderPasswordResetList()
+      void refreshDraftMode()
+      void refreshBenchMode()
       return
     }
 
@@ -576,6 +765,55 @@ if (teamNameEditor) {
 
     setMessage(`Updated team name for ${username}.`, 'ok')
     renderTeamNameEditor()
+  })
+
+  teamNameEditor.addEventListener('click', async (event) => {
+    const target = event.target as HTMLElement
+    const deleteButton = target.closest<HTMLButtonElement>('button.admin-user-delete-btn')
+    if (!deleteButton) {
+      return
+    }
+
+    const username = deleteButton.dataset.username
+    if (!username) {
+      return
+    }
+
+    if (currentUsername && currentUsername.toLowerCase() === username.toLowerCase()) {
+      setMessage('You cannot delete your own admin account.', 'error')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Delete user ${username}? This removes their login, team name, saved squad, and pending password reset requests.`,
+    )
+    if (!confirmed) {
+      return
+    }
+
+    const deletion = deleteUser(username)
+    if (!deletion.ok) {
+      setMessage(deletion.error ?? 'Unable to delete user.', 'error')
+      return
+    }
+
+    for (const league of getAllLeagues()) {
+      if (league.members.some((member) => member.toLowerCase() === username.toLowerCase())) {
+        removeUserFromLeague(league.id, username)
+      }
+    }
+
+    await flushSharedLeagueStorage()
+
+    const deletedLabel = deletion.deletedUsername ?? username
+    setMessage(`Deleted user ${deletedLabel}.`, 'ok')
+    renderTeamNameEditor()
+    renderPointAdjustor()
+    renderBudgetAdjustor()
+    renderLeagueList()
+    renderPasswordResetList()
+    void refreshDraftMode()
+    void refreshBenchMode()
   })
 }
 
@@ -678,6 +916,102 @@ if (passwordResetList) {
   })
 }
 
+if (leagueCreateForm) {
+  leagueCreateForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const formData = new FormData(leagueCreateForm)
+    const leagueName = String(formData.get('leagueName') ?? '')
+    const result = createLeague(leagueName, currentUsername ?? '')
+    if (!result.ok || !result.league) {
+      setLeagueMessage(result.error ?? 'Unable to create league.', 'error')
+      return
+    }
+
+    await flushSharedLeagueStorage()
+
+    leagueCreateForm.reset()
+    setLeagueMessage(`League created. Share ID ${result.league.id} for ${result.league.name}.`, 'ok')
+    renderLeagueList()
+  })
+}
+
+if (leagueList) {
+  leagueList.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const form = event.target as HTMLFormElement
+    if (!form.classList.contains('admin-league-rename-form')) {
+      return
+    }
+
+    const leagueId = form.dataset.leagueId
+    const leagueNameInput = form.querySelector<HTMLInputElement>('input[name="leagueName"]')
+    if (!leagueId || !leagueNameInput) {
+      return
+    }
+
+    const result = renameLeague(leagueId, leagueNameInput.value)
+    if (!result.ok || !result.league) {
+      setLeagueMessage(result.error ?? 'Unable to rename league.', 'error')
+      return
+    }
+
+    await flushSharedLeagueStorage()
+    setLeagueMessage(`League ${leagueId} renamed to ${result.league.name}.`, 'ok')
+    renderLeagueList()
+  })
+
+  leagueList.addEventListener('click', async (event) => {
+    const target = event.target as HTMLElement
+    const actionButton = target.closest<HTMLElement>('[data-action]')
+    if (!actionButton) {
+      return
+    }
+
+    const action = actionButton.dataset.action
+    const leagueId = actionButton.dataset.leagueId
+    if (!action || !leagueId) {
+      return
+    }
+
+    if (action === 'delete-league') {
+      const confirmed = window.confirm('Delete this league? Users will stop seeing its table immediately.')
+      if (!confirmed) {
+        return
+      }
+
+      const result = deleteLeague(leagueId)
+      if (!result.ok) {
+        setLeagueMessage(result.error ?? 'Unable to delete league.', 'error')
+        return
+      }
+
+      await flushSharedLeagueStorage()
+      setLeagueMessage(`League ${leagueId} deleted.`, 'ok')
+      renderLeagueList()
+      return
+    }
+
+    if (action === 'remove-member') {
+      const username = actionButton.dataset.username
+      if (!username) {
+        return
+      }
+
+      const result = removeUserFromLeague(leagueId, username)
+      if (!result.ok) {
+        setLeagueMessage(result.error ?? 'Unable to remove member.', 'error')
+        return
+      }
+
+      await flushSharedLeagueStorage()
+      setLeagueMessage(`${username} removed from league ${leagueId}.`, 'ok')
+      renderLeagueList()
+    }
+  })
+}
+
 if (resetAllBtn) {
   resetAllBtn.addEventListener('click', async () => {
     const confirmed = window.confirm(
@@ -690,6 +1024,7 @@ if (resetAllBtn) {
 
     clearAllPoints()
     clearAllUsersAndTeams()
+    clearAllLeagues()
     await flushSharedLeagueStorage()
     window.location.href = '/index.html'
   })
@@ -867,8 +1202,8 @@ if (adminEndGameweekBtn) {
 if (adminPrevGameweekBtn) {
   adminPrevGameweekBtn.addEventListener('click', async () => {
     const currentMatchday = getGlobalMatchday()
-    if (currentMatchday <= 1) {
-      setGameweekMessage('Already at gameweek 1.', 'error')
+    if (currentMatchday <= 0) {
+      setGameweekMessage('Already at gameweek 0.', 'error')
       renderGameweekControls()
       return
     }
@@ -897,6 +1232,7 @@ window.addEventListener(sharedLeagueUpdatedEvent, () => {
   renderTeamNameEditor()
   renderPointAdjustor()
   renderBudgetAdjustor()
+  renderLeagueList()
   renderPasswordResetList()
   renderGameweekControls()
   void refreshDraftMode()
@@ -906,6 +1242,7 @@ window.addEventListener(sharedLeagueUpdatedEvent, () => {
 renderTeamNameEditor()
 renderPointAdjustor()
 renderBudgetAdjustor()
+renderLeagueList()
 renderPasswordResetList()
 renderGameweekControls()
 void refreshDraftMode()

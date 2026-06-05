@@ -33,69 +33,231 @@ export const positionOrder: Record<string, number> = {
 }
 
 const countryFlagMap: Record<string, string> = {
-  England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  Scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  Wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
-  'Northern Ireland': '🇬🇧',
-  France: '🇫🇷',
-  Spain: '🇪🇸',
-  Germany: '🇩🇪',
-  Italy: '🇮🇹',
-  Netherlands: '🇳🇱',
-  Portugal: '🇵🇹',
-  Belgium: '🇧🇪',
-  Brazil: '🇧🇷',
+  Algeria: '🇩🇿',
   Argentina: '🇦🇷',
-  Uruguay: '🇺🇾',
-  Mexico: '🇲🇽',
-  Canada: '🇨🇦',
-  USA: '🇺🇸',
-  'United States': '🇺🇸',
-  Australia: '🇦🇺',
-  Japan: '🇯🇵',
-  Korea: '🇰🇷',
-  'South Korea': '🇰🇷',
-  China: '🇨🇳',
-  India: '🇮🇳',
-  Egypt: '🇪🇬',
-  Ghana: '🇬🇭',
-  Nigeria: '🇳🇬',
-  'South Africa': '🇿🇦',
-  Senegal: '🇸🇳',
-  Croatia: '🇭🇷',
-  Serbia: '🇷🇸',
-  Greece: '🇬🇷',
-  Poland: '🇵🇱',
-  Sweden: '🇸🇪',
-  Norway: '🇳🇴',
-  Denmark: '🇩🇰',
-  Finland: '🇫🇮',
-  Czechia: '🇨🇿',
-  'Czech Republic': '🇨🇿',
-  Hungary: '🇭🇺',
-  Romania: '🇷🇴',
   Austria: '🇦🇹',
-  Switzerland: '🇨🇭',
-  Turkey: '🇹🇷',
-  Russia: '🇷🇺',
-  Ukraine: '🇺🇦',
+  Australia: '🇦🇺',
+  Belgium: '🇧🇪',
+  'Bosnia and Herzegovina': '🇧🇦',
+  Brazil: '🇧🇷',
+  'Cabo Verde': '🇨🇻',
+  'Cape Verde': '🇨🇻',
+  Canada: '🇨🇦',
+  Chile: '🇨🇱',
+  China: '🇨🇳',
+  Colombia: '🇨🇴',
+  'Congo DR': '🇨🇩',
+  'DR Congo': '🇨🇩',
+  'Côte d\'Ivoire': '🇨🇮',
+  Croatia: '🇭🇷',
+  Curaçao: '🇨🇼',
+  'Czech Republic': '🇨🇿',
+  Czechia: '🇨🇿',
+  Denmark: '🇩🇰',
+  Ecuador: '🇪🇨',
+  Egypt: '🇪🇬',
+  England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  Finland: '🇫🇮',
+  France: '🇫🇷',
+  Germany: '🇩🇪',
+  Ghana: '🇬🇭',
+  Greece: '🇬🇷',
+  Haiti: '🇭🇹',
+  Hungary: '🇭🇺',
   Iceland: '🇮🇸',
+  India: '🇮🇳',
+  Iran: '🇮🇷',
+  'IR Iran': '🇮🇷',
+  Iraq: '🇮🇶',
   Ireland: '🇮🇪',
   Israel: '🇮🇱',
-  'Saudi Arabia': '🇸🇦',
-  Iran: '🇮🇷',
-  Thailand: '🇹🇭',
-  Vietnam: '🇻🇳',
+  Italy: '🇮🇹',
+  'Ivory Coast': '🇨🇮',
+  Japan: '🇯🇵',
+  Jordan: '🇯🇴',
+  Korea: '🇰🇷',
+  'Korea Republic': '🇰🇷',
+  'South Korea': '🇰🇷',
+  Mexico: '🇲🇽',
+  Morocco: '🇲🇦',
+  Netherlands: '🇳🇱',
   'New Zealand': '🇳🇿',
+  Nigeria: '🇳🇬',
+  'Northern Ireland': '🇬🇧',
+  Norway: '🇳🇴',
+  Panama: '🇵🇦',
+  Paraguay: '🇵🇾',
   Peru: '🇵🇪',
-  Chile: '🇨🇱',
-  Colombia: '🇨🇴',
-  Ecuador: '🇪🇨',
+  Poland: '🇵🇱',
+  Portugal: '🇵🇹',
+  Qatar: '🇶🇦',
+  Romania: '🇷🇴',
+  Russia: '🇷🇺',
+  'Saudi Arabia': '🇸🇦',
+  Scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  Senegal: '🇸🇳',
+  Serbia: '🇷🇸',
+  Spain: '🇪🇸',
+  'South Africa': '🇿🇦',
+  Sweden: '🇸🇪',
+  Switzerland: '🇨🇭',
+  Thailand: '🇹🇭',
+  Tunisia: '🇹🇳',
+  Turkey: '🇹🇷',
+  Türkiye: '🇹🇷',
+  Ukraine: '🇺🇦',
+  'United States': '🇺🇸',
+  Uruguay: '🇺🇾',
+  USA: '🇺🇸',
+  Uzbekistan: '🇺🇿',
+  Vietnam: '🇻🇳',
+  Wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
 }
 
 export function getCountryFlag(teamName: string): string {
   const normalized = teamName.trim()
   return countryFlagMap[normalized] ?? '🏳️'
+}
+
+type TeamKitColors = {
+  backgroundColor: string
+  textColor: string
+  borderColor: string
+}
+
+const teamKitColorMap: Record<string, string> = {
+  Algeria: '#ffffff',
+  Argentina: '#7cc3f0',
+  Austria: '#ffffff',
+  Australia: '#f4c430',
+  Belgium: '#b3121f',
+  'Bosnia and Herzegovina': '#1d5fbf',
+  Brazil: '#f4c430',
+  'Cabo Verde': '#1d5fbf',
+  'Cape Verde': '#1d5fbf',
+  Canada: '#d71920',
+  Chile: '#d71920',
+  China: '#d71920',
+  Colombia: '#f4c430',
+  'Congo DR': '#1d5fbf',
+  'DR Congo': '#1d5fbf',
+  "Côte d'Ivoire": '#f58220',
+  Croatia: '#ffffff',
+  Curaçao: '#1d5fbf',
+  'Czech Republic': '#d71920',
+  Czechia: '#d71920',
+  Denmark: '#d71920',
+  Ecuador: '#f4c430',
+  Egypt: '#d71920',
+  England: '#ffffff',
+  Finland: '#ffffff',
+  France: '#1d5fbf',
+  Germany: '#ffffff',
+  Ghana: '#ffffff',
+  Greece: '#ffffff',
+  Haiti: '#1d5fbf',
+  Hungary: '#d71920',
+  Iceland: '#1d5fbf',
+  India: '#1d5fbf',
+  Iran: '#ffffff',
+  'IR Iran': '#ffffff',
+  Iraq: '#ffffff',
+  Ireland: '#009a49',
+  Israel: '#1d5fbf',
+  Italy: '#1d5fbf',
+  'Ivory Coast': '#f58220',
+  Japan: '#1d5fbf',
+  Jordan: '#ffffff',
+  Korea: '#d71920',
+  'Korea Republic': '#d71920',
+  'South Korea': '#d71920',
+  Mexico: '#009a49',
+  Morocco: '#d71920',
+  Netherlands: '#f58220',
+  'New Zealand': '#ffffff',
+  Nigeria: '#009a49',
+  'Northern Ireland': '#009a49',
+  Norway: '#d71920',
+  Panama: '#d71920',
+  Paraguay: '#d71920',
+  Peru: '#ffffff',
+  Poland: '#ffffff',
+  Portugal: '#d71920',
+  Qatar: '#7b133e',
+  Romania: '#f4c430',
+  Russia: '#d71920',
+  'Saudi Arabia': '#009a49',
+  Scotland: '#1d5fbf',
+  Senegal: '#ffffff',
+  Serbia: '#d71920',
+  Spain: '#d71920',
+  'South Africa': '#f4c430',
+  Sweden: '#f4c430',
+  Switzerland: '#d71920',
+  Thailand: '#1d5fbf',
+  Tunisia: '#ffffff',
+  Turkey: '#d71920',
+  Türkiye: '#d71920',
+  Ukraine: '#f4c430',
+  'United States': '#ffffff',
+  Uruguay: '#7cc3f0',
+  USA: '#ffffff',
+  Uzbekistan: '#ffffff',
+  Vietnam: '#d71920',
+  Wales: '#d71920',
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)))
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const normalized = hex.replace('#', '')
+  const fullHex = normalized.length === 3
+    ? normalized
+        .split('')
+        .map((value) => `${value}${value}`)
+        .join('')
+    : normalized
+
+  const parsed = Number.parseInt(fullHex, 16)
+  if (!Number.isFinite(parsed)) {
+    return { r: 255, g: 255, b: 255 }
+  }
+
+  return {
+    r: clampByte((parsed >> 16) & 0xff),
+    g: clampByte((parsed >> 8) & 0xff),
+    b: clampByte(parsed & 0xff),
+  }
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const value = (clampByte(r) << 16) | (clampByte(g) << 8) | clampByte(b)
+  return `#${value.toString(16).padStart(6, '0')}`
+}
+
+function getPerceivedBrightness(hex: string): number {
+  const { r, g, b } = hexToRgb(hex)
+  return (r * 299 + g * 587 + b * 114) / 1000
+}
+
+function shadeHex(hex: string, amount: number): string {
+  const { r, g, b } = hexToRgb(hex)
+  return rgbToHex(r + amount, g + amount, b + amount)
+}
+
+export function getTeamKitColors(teamName: string): TeamKitColors {
+  const base = teamKitColorMap[teamName.trim()] ?? '#2563eb'
+  const brightness = getPerceivedBrightness(base)
+  const textColor = brightness > 155 ? '#0f172a' : '#ffffff'
+  const borderColor = brightness > 155 ? shadeHex(base, -55) : shadeHex(base, 45)
+
+  return {
+    backgroundColor: base,
+    textColor,
+    borderColor,
+  }
 }
 
 const squadLineRegex =

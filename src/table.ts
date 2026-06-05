@@ -1,7 +1,15 @@
 import { renderPage } from './renderPage'
-import { getAllUsernames, getCurrentUsername, getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
-import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints, type SelectablePlayer, getCountryFlag } from './teamsData'
-import { getSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
+import { getAllUsernames, getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
+import { getLeaguesForUser, joinLeague, type LeagueRecord } from './leagues'
+import {
+  getAllPlayers,
+  getPlayerPoints,
+  getTotalAccumulatedPoints,
+  type SelectablePlayer,
+  getCountryFlag,
+  getTeamKitColors,
+} from './teamsData'
+import { flushSharedLeagueStorage, getSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
 import {
   getTransferAwareMatchdayPoints,
   getTransferAwarePlayerCurrentPoints,
@@ -43,7 +51,17 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
+function renderPitchPlayerName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 2) {
+    return `${escapeHtml(parts[0])}<br />${escapeHtml(parts[1])}`
+  }
+
+  return escapeHtml(name)
+}
+
 requireAuth()
+const currentUsername = requireAuth()
 
 const allPlayers = getAllPlayers()
 const playerByKey = new Map(allPlayers.map((player) => [`${player.team}::${player.name}`, player]))
@@ -67,7 +85,7 @@ function readUserTeam(username: string): UserTeamState {
       selectedPlayerKeys: keys,
       players,
       isTeamLocked: Boolean(state.isTeamLocked),
-      currentMatchday: Number.isFinite(state.currentMatchday) ? Math.max(1, Number(state.currentMatchday)) : 1,
+      currentMatchday: Number.isFinite(state.currentMatchday) ? Math.max(0, Number(state.currentMatchday)) : 1,
       transferPointEvents: parseTransferPointEvents(state.transferPointEvents),
     }
   } catch {
@@ -137,8 +155,7 @@ function getTeamValue(players: SelectablePlayer[]): number {
   return Number(players.reduce((sum, player) => sum + player.price, 0).toFixed(1))
 }
 
-function buildLeaderboard(): LeaderboardRow[] {
-  const usernames = getAllUsernames()
+function buildLeaderboard(usernames: string[]): LeaderboardRow[] {
   return usernames
     .map((username) => {
       const userTeamState = readUserTeam(username)
@@ -197,64 +214,67 @@ function getUserRank(username: string, rows: LeaderboardRow[]): number | null {
 }
 
 const tableMarkup = `
-  <section class="leaderboard-grid">
-    <div class="leaderboard-panel">
-      <h2>Users Table</h2>
-      <p class="players-help">Users are ordered by total points, then team value.</p>
-      <p class="rank-badge" id="my-rank-badge">Your Rank: -</p>
-      <ol id="leaderboard-list" class="leaderboard-list"></ol>
-    </div>
+  <div id="league-tables" class="league-tables"></div>
 
-    <div class="leaderboard-panel">
-      <h2 id="selected-user-title">User Team</h2>
-      <p class="players-help">Read-only view. Team cannot be edited from this tab.</p>
-      <div id="selected-user-team" class="readonly-team-wrap"></div>
+  <section class="league-join-card">
+    <div class="league-join-copy">
+      <h2>Your Leagues</h2>
+      <p class="players-help">Enter a league ID from admin to join a table. You can belong to multiple leagues.</p>
     </div>
+    <form id="league-join-form" class="league-join-form">
+      <input
+        id="league-join-id"
+        class="admin-team-name-input"
+        name="leagueId"
+        type="text"
+        placeholder="Enter league ID"
+        autocomplete="off"
+        required
+      />
+      <button type="submit" class="lock-team-btn">Join League</button>
+    </form>
+    <p id="league-join-message" class="admin-message" aria-live="polite"></p>
   </section>
 `
 
 renderPage('Table', 'table', tableMarkup)
 
-const leaderboardList = document.querySelector<HTMLOListElement>('#leaderboard-list')
-const selectedUserTitle = document.querySelector<HTMLHeadingElement>('#selected-user-title')
-const selectedUserTeam = document.querySelector<HTMLDivElement>('#selected-user-team')
-const myRankBadge = document.querySelector<HTMLParagraphElement>('#my-rank-badge')
+const leagueTables = document.querySelector<HTMLDivElement>('#league-tables')
+const leagueJoinForm = document.querySelector<HTMLFormElement>('#league-join-form')
+const leagueJoinMessage = document.querySelector<HTMLParagraphElement>('#league-join-message')
+const selectedUsernamesByLeague = new Map<string, string | null>()
+const expandedLeagues = new Map<string, boolean>()
 
-const currentUsername = getCurrentUsername()
+function setLeagueJoinMessage(text: string, type: 'ok' | 'error'): void {
+  if (!leagueJoinMessage) {
+    return
+  }
 
-function getLeaderboard(): LeaderboardRow[] {
-  return buildLeaderboard()
+  leagueJoinMessage.textContent = text
+  leagueJoinMessage.classList.remove('ok', 'error')
+  leagueJoinMessage.classList.add(type)
 }
 
-let selectedUsername = getLeaderboard()[0]?.username ?? null
+function getLeagueLeaderboards(): Array<{ league: LeagueRecord; rows: LeaderboardRow[] }> {
+  const registeredUsernames = new Set(getAllUsernames().map((username) => username.toLowerCase()))
+  return getLeaguesForUser(currentUsername)
+    .map((league) => ({
+      league,
+      rows: buildLeaderboard(
+        league.members.filter((member) => registeredUsernames.has(member.toLowerCase())),
+      ),
+    }))
+}
 
-function renderSelectedUserTeam(): void {
-  if (!selectedUserTeam || !selectedUserTitle) {
-    return
-  }
-
-  if (!selectedUsername) {
-    selectedUserTitle.textContent = 'User Team'
-    selectedUserTeam.innerHTML = '<p class="empty-state">No users found yet.</p>'
-    return
-  }
-
-  const leaderboard = getLeaderboard()
-  const selected = leaderboard.find((row) => row.username === selectedUsername)
+function renderSelectedTeamMarkup(selected: LeaderboardRow | undefined): string {
   if (!selected) {
-    selectedUserTitle.textContent = 'User Team'
-    selectedUserTeam.innerHTML = '<p class="empty-state">No team found.</p>'
-    return
+    return '<p class="empty-state">No team found.</p>'
   }
-
-  selectedUserTitle.textContent = `${selected.teamName}`
 
   if (selected.players.length === 0) {
-    selectedUserTeam.innerHTML = '<p class="empty-state">No players selected.</p>'
-    return
+    return '<p class="empty-state">No players selected.</p>'
   }
 
-  // Helper function to categorize positions
   const positionBucket = (position: string): 'Goalkeeper' | 'Defender' | 'Midfielder' | 'Forward' => {
     if (position === 'Goalkeeper') return 'Goalkeeper'
     if (position === 'Defender') return 'Defender'
@@ -262,19 +282,19 @@ function renderSelectedUserTeam(): void {
     return 'Midfielder'
   }
 
-  const goalkeepers = selected.players.filter((p) => positionBucket(p.position) === 'Goalkeeper')
-  const defenders = selected.players.filter((p) => positionBucket(p.position) === 'Defender')
-  const midfielders = selected.players.filter((p) => positionBucket(p.position) === 'Midfielder')
-  const forwards = selected.players.filter((p) => positionBucket(p.position) === 'Forward')
+  const renderRow = (players: SelectablePlayer[]): string => {
+    if (players.length === 0) {
+      return ''
+    }
 
-  const renderRow = (label: string, players: SelectablePlayer[]): string => {
-    if (players.length === 0) return ''
     const playerCards = players
       .map(
-        (player) => `
+        (player) => {
+          const kitColors = getTeamKitColors(player.team)
+          return `
           <div class="pitch-player">
-            <div class="player-card">
-              <div class="player-name">${escapeHtml(player.name)}</div>
+            <div class="player-card" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+              <div class="player-name">${renderPitchPlayerName(player.name)}</div>
               <div class="player-details">
                 <div class="player-price">£${player.price.toFixed(1)}</div>
                 <div class="player-flag">${getCountryFlag(player.team)}</div>
@@ -282,103 +302,184 @@ function renderSelectedUserTeam(): void {
               </div>
             </div>
           </div>
-        `,
+        `
+        },
       )
       .join('')
 
     return `
       <div class="pitch-row">
-        <div class="pitch-label">${label}</div>
         <div class="pitch-row-players">${playerCards}</div>
       </div>
     `
   }
 
-  selectedUserTeam.innerHTML = `
+  const goalkeepers = selected.players.filter((player) => positionBucket(player.position) === 'Goalkeeper')
+  const defenders = selected.players.filter((player) => positionBucket(player.position) === 'Defender')
+  const midfielders = selected.players.filter((player) => positionBucket(player.position) === 'Midfielder')
+  const forwards = selected.players.filter((player) => positionBucket(player.position) === 'Forward')
+
+  return `
+    <h3 class="selected-team-heading">${escapeHtml(selected.teamName)}</h3>
     <div class="football-pitch">
       <div class="pitch">
-        ${renderRow('GK', goalkeepers)}
-        ${renderRow('DEF', defenders)}
-        ${renderRow('MID', midfielders)}
-        ${renderRow('FWD', forwards)}
+        ${renderRow(goalkeepers)}
+        ${renderRow(defenders)}
+        ${renderRow(midfielders)}
+        ${renderRow(forwards)}
       </div>
     </div>
     <p class="readonly-team-summary">Total Points: ${selected.points} | Team Value: £${selected.teamValue.toFixed(1)}</p>
   `
 }
 
-function renderLeaderboard(): void {
-  if (!leaderboardList) {
+function renderLeagueTables(): void {
+  if (!leagueTables) {
     return
   }
 
-  const leaderboard = getLeaderboard()
-
-  if (leaderboard.length === 0) {
-    leaderboardList.innerHTML = '<li class="empty-state">No users registered yet.</li>'
-    return
-  }
-
-  if (myRankBadge && currentUsername) {
-    const rank = getUserRank(currentUsername, leaderboard)
-    if (rank === null) {
-      myRankBadge.textContent = 'Your Rank: -'
-    } else {
-      const currentRow = leaderboard[rank - 1]
-      myRankBadge.textContent = `Your Rank: #${rank} (${currentRow.teamName})`
+  const existingSections = leagueTables.querySelectorAll<HTMLDetailsElement>('details.league-table-section')
+  for (const section of existingSections) {
+    const leagueId = section.dataset.leagueId
+    if (leagueId) {
+      expandedLeagues.set(leagueId, section.open)
     }
   }
 
-  leaderboardList.innerHTML = leaderboard
-    .map((row, index) => {
-      const isActive = selectedUsername === row.username
-      return `
-        <li>
-          <button type="button" class="leaderboard-row ${isActive ? 'active' : ''}" data-username="${escapeHtml(row.username)}">
-            <span class="leaderboard-rank">#${index + 1}</span>
-            <span class="leaderboard-name">${escapeHtml(row.teamName)}</span>
-            <span class="leaderboard-value">£${row.teamValue.toFixed(1)}</span>
-            <span class="leaderboard-points">${row.points} pts</span>
-          </button>
-        </li>
+  const leagueLeaderboards = getLeagueLeaderboards()
+  const leagueIds = new Set(leagueLeaderboards.map(({ league }) => league.id))
+  for (const knownLeagueId of Array.from(expandedLeagues.keys())) {
+    if (!leagueIds.has(knownLeagueId)) {
+      expandedLeagues.delete(knownLeagueId)
+    }
+  }
+
+  if (leagueLeaderboards.length === 0) {
+    leagueTables.innerHTML = '<section class="leaderboard-panel"><p class="empty-state">You are not in any leagues yet. Join one with a league ID.</p></section>'
+    return
+  }
+
+  leagueTables.innerHTML = leagueLeaderboards
+    .map(({ league, rows }) => {
+        const isExpanded = expandedLeagues.get(league.id) ?? true
+      const selectedUsername = selectedUsernamesByLeague.get(league.id)
+      const activeUsername = selectedUsername && rows.some((row) => row.username === selectedUsername)
+        ? selectedUsername
+        : rows[0]?.username ?? null
+      selectedUsernamesByLeague.set(league.id, activeUsername)
+
+      const activeRow = rows.find((row) => row.username === activeUsername)
+      const currentRank = getUserRank(currentUsername, rows)
+      const rankCopy = currentRank === null
+        ? 'Your Rank: -'
+        : `Your Rank: #${currentRank} (${rows[currentRank - 1]?.teamName ?? currentUsername})`
+
+      const leaderboardMarkup = rows.length === 0
+        ? '<li class="empty-state">No users in this league yet.</li>'
+        : rows
+            .map((row, index) => {
+              const isActive = row.username === activeUsername
+              return `
+                <li>
+                  <button
+                    type="button"
+                    class="leaderboard-row ${isActive ? 'active' : ''}"
+                    data-league-id="${escapeHtml(league.id)}"
+                    data-username="${escapeHtml(row.username)}"
+                  >
+                    <span class="leaderboard-rank">#${index + 1}</span>
+                    <span class="leaderboard-name">
+                      <span class="leaderboard-team-name">${escapeHtml(row.teamName)}</span>
+                      <span class="leaderboard-username">${escapeHtml(row.username)}</span>
+                    </span>
+                    <span class="leaderboard-value">£${row.teamValue.toFixed(1)}</span>
+                    <span class="leaderboard-points">${row.points} pts</span>
+                  </button>
+                </li>
+              `
+            })
+            .join('')
+
+        return `
+          <details class="league-table-section" data-league-id="${escapeHtml(league.id)}"${isExpanded ? ' open' : ''}>
+          <summary class="league-table-summary">
+            <div class="league-summary-copy">
+              <h2>${escapeHtml(league.name)}</h2>
+              <div class="league-summary-meta">
+                <span class="league-id-chip">${escapeHtml(league.id)}</span>
+                <span class="league-summary-count">${league.members.length} member${league.members.length === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+          </summary>
+
+          <div class="league-table-content">
+            <section class="leaderboard-grid">
+              <div class="leaderboard-panel">
+                <h3>League Table</h3>
+                <p class="players-help">Users are ordered by total points, then team value.</p>
+                <p class="rank-badge">${rankCopy}</p>
+                <ol class="leaderboard-list">${leaderboardMarkup}</ol>
+              </div>
+
+              <div class="leaderboard-panel">
+                <h3>Selected Team</h3>
+                <p class="players-help">Read-only view. Team cannot be edited from this tab.</p>
+                <div class="readonly-team-wrap">${renderSelectedTeamMarkup(activeRow)}</div>
+              </div>
+            </section>
+          </div>
+        </details>
       `
     })
     .join('')
 }
 
 function refreshTableView(): void {
-  const leaderboard = getLeaderboard()
-  if (!selectedUsername && leaderboard.length > 0) {
-    selectedUsername = leaderboard[0].username
-  }
-  if (selectedUsername && !leaderboard.some((row) => row.username === selectedUsername)) {
-    selectedUsername = leaderboard[0]?.username ?? null
-  }
-  renderLeaderboard()
-  renderSelectedUserTeam()
+  renderLeagueTables()
 }
 
-if (leaderboardList) {
-  leaderboardList.addEventListener('click', (event) => {
+if (leagueJoinForm) {
+  leagueJoinForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const formData = new FormData(leagueJoinForm)
+    const leagueId = String(formData.get('leagueId') ?? '')
+    const result = joinLeague(leagueId, currentUsername)
+    if (!result.ok || !result.league) {
+      setLeagueJoinMessage(result.error ?? 'Unable to join league.', 'error')
+      return
+    }
+
+    await flushSharedLeagueStorage()
+
+    leagueJoinForm.reset()
+    setLeagueJoinMessage(`Joined ${result.league.name}.`, 'ok')
+    refreshTableView()
+  })
+}
+
+if (leagueTables) {
+  leagueTables.addEventListener('click', (event) => {
     const target = event.target as HTMLElement
     const button = target.closest<HTMLButtonElement>('button.leaderboard-row')
     if (!button) {
       return
     }
 
+    const leagueId = button.dataset.leagueId
     const username = button.dataset.username
-    if (!username) {
+    if (!leagueId || !username) {
       return
     }
 
-    selectedUsername = username
+    selectedUsernamesByLeague.set(leagueId, username)
     refreshTableView()
   })
 }
 
 window.addEventListener('focus', refreshTableView)
 window.addEventListener('storage', (event) => {
-  if (event.key === 'fantasy-football-player-points' || event.key === 'fantasy-football-total-points') {
+  if (!event.key || event.key.startsWith('fantasy-football-')) {
     refreshTableView()
   }
 })

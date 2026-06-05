@@ -8,6 +8,8 @@ export default defineConfig({
         index: fileURLToPath(new URL('./index.html', import.meta.url)),
         fixtures: fileURLToPath(new URL('./fixtures.html', import.meta.url)),
         players: fileURLToPath(new URL('./players.html', import.meta.url)),
+        rules: fileURLToPath(new URL('./rules.html', import.meta.url)),
+        settings: fileURLToPath(new URL('./settings.html', import.meta.url)),
         myTeam: fileURLToPath(new URL('./my-team.html', import.meta.url)),
         transferHistory: fileURLToPath(new URL('./transfer-history.html', import.meta.url)),
         stats: fileURLToPath(new URL('./stats.html', import.meta.url)),

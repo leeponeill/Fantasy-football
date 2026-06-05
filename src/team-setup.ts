@@ -5,7 +5,7 @@ import { flushSharedLeagueStorage } from './sharedLeague'
 const username = requireAuth()
 const existingTeamName = getTeamNameForUser(username)
 if (existingTeamName) {
-  window.location.href = '/fixtures.html'
+  window.location.href = '/my-team.html'
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -18,7 +18,7 @@ if (app) {
           <img src="/crest-logo.png" alt="League crest" class="auth-logo" />
         </div>
         <h1>Choose Your Team Name</h1>
-        <p class="auth-help">Welcome ${username}. Pick your team name now. It cannot be changed later.</p>
+        <p class="auth-help">Welcome ${username}. Pick your team name now.</p>
         <form id="team-name-form" class="auth-form" autocomplete="off">
           <label for="team-name">Team Name</label>
           <input id="team-name" name="teamName" type="text" required minlength="2" maxlength="40" />
@@ -60,7 +60,7 @@ if (app) {
 
       await flushSharedLeagueStorage()
 
-      window.location.href = '/fixtures.html'
+      window.location.href = '/my-team.html'
     })
   }
 

@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename)
 const dataDirectory = path.join(__dirname, 'data')
 const leagueStatePath = path.join(dataDirectory, 'league-state.json')
 const fixturesPath = path.join(dataDirectory, 'fixtures.json')
+const wcFixturesPath = path.join(dataDirectory, 'WCfixtures.json')
 const distDirectory = path.join(__dirname, 'dist')
 const envFilePath = path.join(__dirname, '.env')
 const teamStatePrefix = 'fantasy-football-my-team-state::'
@@ -222,6 +223,40 @@ async function readFixtureMatchdays() {
   const raw = await readFile(fixturesPath, 'utf8')
   const parsed = JSON.parse(raw)
   return sanitizeFixtureMatchdays(parsed)
+}
+
+function sanitizeWCFixtureMatchdays(value) {
+  if (!Array.isArray(value)) return []
+  const sanitized = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const { matchday: matchdayRaw, games: gamesRaw, round } = item
+    if (!Number.isFinite(matchdayRaw) || !Array.isArray(gamesRaw)) continue
+    const games = gamesRaw
+      .filter((g) => g && typeof g === 'object')
+      .map((g) => ({
+        match: typeof g.match === 'string' ? g.match : '',
+        time: typeof g.time === 'string' ? g.time : '',
+        date: typeof g.date === 'string' ? g.date : '',
+        stadium: typeof g.stadium === 'string' ? g.stadium : '',
+        group: typeof g.group === 'string' ? g.group : '',
+        round: typeof g.round === 'string' ? g.round : '',
+      }))
+      .filter((g) => g.match && g.time && g.date)
+    if (games.length === 0) continue
+    sanitized.push({
+      matchday: Number(matchdayRaw),
+      round: typeof round === 'string' ? round : '',
+      games,
+    })
+  }
+  return sanitized
+}
+
+async function readWCFixtureMatchdays() {
+  const raw = await readFile(wcFixturesPath, 'utf8')
+  const parsed = JSON.parse(raw)
+  return sanitizeWCFixtureMatchdays(parsed)
 }
 
 async function readLeagueState() {
@@ -1777,6 +1812,16 @@ async function handleApiRequest(request, response) {
     return true
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/wc-fixtures') {
+    try {
+      const matchdays = await readWCFixtureMatchdays()
+      sendJson(response, 200, { matchdays })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read WC fixtures file.' })
+    }
+    return true
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/fixtures/results') {
     try {
       const fixtureMatchdays = await readFixtureMatchdays()
@@ -2596,7 +2641,7 @@ async function serverScanDueFixturesAndImport() {
   console.log(`[auto-scan] Scanning due fixtures at ${new Date().toISOString()}`)
 
   try {
-    const fixtureMatchdays = await readFixtureMatchdays()
+    const fixtureMatchdays = await readWCFixtureMatchdays()
     const { players } = await getServerPlayers()
     const now = new Date()
     const state = await readLeagueState()
@@ -2679,9 +2724,9 @@ const serverScheduledKeys = new Set()
 async function scheduleServerFixtureScans() {
   let fixtureMatchdays = []
   try {
-    fixtureMatchdays = await readFixtureMatchdays()
+    fixtureMatchdays = await readWCFixtureMatchdays()
   } catch (err) {
-    console.error('[auto-scan] Unable to read fixtures file:', err.message)
+    console.error('[auto-scan] Unable to read WC fixtures file:', err.message)
     return
   }
 
@@ -2731,6 +2776,176 @@ async function scheduleServerFixtureScans() {
 
 // ========== END SERVER-SIDE FIXTURE AUTO-SCANNER ==========
 
+// ========== WC 2026 KNOCKOUT FIXTURE UPDATER ==========
+
+const WC_TEAM_NAMES = {
+  MEX: 'Mexico', RSA: 'South Africa', KOR: 'Korea Republic', CZE: 'Czechia',
+  CAN: 'Canada', BIH: 'Bosnia and Herzegovina', USA: 'USA', PAR: 'Paraguay',
+  QAT: 'Qatar', SUI: 'Switzerland', BRA: 'Brazil', MAR: 'Morocco',
+  HAI: 'Haiti', SCO: 'Scotland', AUS: 'Australia', TUR: 'Türkiye',
+  GER: 'Germany', CUW: 'Curaçao', NED: 'Netherlands', JPN: 'Japan',
+  CIV: "Côte d'Ivoire", ECU: 'Ecuador', SWE: 'Sweden', TUN: 'Tunisia',
+  ESP: 'Spain', CPV: 'Cabo Verde', BEL: 'Belgium', EGY: 'Egypt',
+  KSA: 'Saudi Arabia', URU: 'Uruguay', IRN: 'Iran', NZL: 'New Zealand',
+  FRA: 'France', SEN: 'Senegal', IRQ: 'Iraq', NOR: 'Norway',
+  ARG: 'Argentina', ALG: 'Algeria', AUT: 'Austria', JOR: 'Jordan',
+  POR: 'Portugal', COD: 'Congo DR', ENG: 'England', CRO: 'Croatia',
+  GHA: 'Ghana', PAN: 'Panama', UZB: 'Uzbekistan', COL: 'Colombia',
+}
+
+// First day to start checking (group stage ends 28 June) and last day of tournament.
+const WC_UPDATE_FROM = new Date('2026-06-28T05:00:00+01:00') // 5am BST
+const WC_UPDATE_UNTIL = new Date('2026-07-20T00:00:00+01:00')
+// Hour (local server time, 0-23) at which the daily update fires.
+const WC_UPDATE_HOUR = 5
+
+const wcScheduledDays = new Set()
+
+function wcFormatTime(time24) {
+  const [h, m] = time24.split(':').map(Number)
+  const suffix = h < 12 ? 'am' : 'pm'
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return m === 0 ? `${hour}${suffix}` : `${hour}.${String(m).padStart(2, '0')}${suffix}`
+}
+
+function wcFormatDate(dayString) {
+  // "Thursday 11 June 2026" → "Thursday, June 11"
+  const parts = dayString.trim().split(/\s+/)
+  if (parts.length === 4) return `${parts[0]}, ${parts[2]} ${parseInt(parts[1], 10)}`
+  return dayString
+}
+
+function wcIsPlaceholder(teamName) {
+  // Placeholder codes look like "1A", "2B", "3EFGIJ", "W73", "RU101" etc.
+  return /^(\d[A-Z]|[0-9]+[A-Z]+|W\d+|RU\d+)/.test(teamName)
+}
+
+async function runWCKnockoutUpdate() {
+  const FIFA_URL = 'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures?country=GB&wtw-filter=ALL'
+  console.log('[wc-update] Fetching WC fixtures from FIFA website...')
+  let html
+  try {
+    const res = await fetch(FIFA_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fixture-updater/1.0)', Accept: 'text/html' },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    html = await res.text()
+  } catch (err) {
+    console.error('[wc-update] Failed to fetch FIFA page:', err.message)
+    return
+  }
+
+  // Parse date headers and match-centre links from HTML
+  const events = []
+  const dateRe = /(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+\d+\s+(June|July|August)\s+2026/g
+  const linkRe = /<a[^>]+href="[^"]*match-centre[^"]*"[^>]*>([\s\S]*?)<\/a>/g
+  let m
+  while ((m = dateRe.exec(html)) !== null) events.push({ pos: m.index, type: 'date', text: m[0] })
+  while ((m = linkRe.exec(html)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').trim()
+    events.push({ pos: m.index, type: 'match', text })
+  }
+  events.sort((a, b) => a.pos - b.pos)
+
+  // Build lookup: "Thursday, June 11" → [{ homeCode, time, awayCode, stadium }, ...]
+  const liveByDate = {}
+  let currentDate = null
+  for (const ev of events) {
+    if (ev.type === 'date') {
+      currentDate = wcFormatDate(ev.text)
+      if (!liveByDate[currentDate]) liveByDate[currentDate] = []
+    } else if (ev.type === 'match' && currentDate) {
+      const lines = ev.text.split('\n').map(l => l.trim()).filter(Boolean)
+      if (lines.length >= 3) {
+        liveByDate[currentDate].push({
+          homeCode: lines[0], time: wcFormatTime(lines[1]), awayCode: lines[2],
+          stadium: lines[6] || '',
+        })
+      }
+    }
+  }
+
+  let existing
+  try {
+    existing = JSON.parse(await readFile(wcFixturesPath, 'utf8'))
+  } catch (err) {
+    console.error('[wc-update] Could not read WCfixtures.json:', err.message)
+    return
+  }
+
+  let updatedCount = 0
+  for (const matchday of existing) {
+    for (const game of matchday.games) {
+      const gameRound = (game.round || matchday.round || '').toLowerCase()
+      const isKnockout = ['round of 32', 'round of 16', 'quarter', 'semi', 'final', 'third']
+        .some(r => gameRound.includes(r))
+      if (!isKnockout) continue
+
+      // Skip if both teams are already real names
+      const [home, away] = game.match.split(' vs ')
+      if (!wcIsPlaceholder(home) && !wcIsPlaceholder(away)) continue
+
+      const liveCandidates = liveByDate[game.date] || []
+      const live = liveCandidates.find(lm => lm.stadium === game.stadium && lm.time === game.time)
+      if (!live) continue
+
+      const liveHome = WC_TEAM_NAMES[live.homeCode] || live.homeCode
+      const liveAway = WC_TEAM_NAMES[live.awayCode] || live.awayCode
+      if (wcIsPlaceholder(liveHome) || wcIsPlaceholder(liveAway)) continue
+
+      const newMatch = `${liveHome} vs ${liveAway}`
+      if (game.match !== newMatch) {
+        console.log(`[wc-update] ${game.date} ${game.time}: ${game.match} → ${newMatch}`)
+        game.match = newMatch
+        updatedCount++
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    await writeFile(wcFixturesPath, JSON.stringify(existing, null, 2) + '\n', 'utf8')
+    console.log(`[wc-update] Saved ${updatedCount} updated knockout match(es) to WCfixtures.json`)
+  } else {
+    console.log('[wc-update] No new knockout teams confirmed yet — nothing to update')
+  }
+}
+
+function scheduleWCKnockoutUpdates() {
+  const now = new Date()
+  if (now < WC_UPDATE_FROM || now > WC_UPDATE_UNTIL) return
+
+  // If we're already past today's update hour, run immediately (once per calendar day)
+  const todayKey = now.toISOString().slice(0, 10)
+  const todayUpdateTime = new Date(now)
+  todayUpdateTime.setHours(WC_UPDATE_HOUR, 0, 0, 0)
+
+  if (now >= todayUpdateTime && !wcScheduledDays.has(todayKey)) {
+    wcScheduledDays.add(todayKey)
+    console.log(`[wc-update] Running immediate knockout fixture update for ${todayKey}`)
+    void runWCKnockoutUpdate()
+  }
+
+  // Schedule next upcoming 5am run (tomorrow or later in the window)
+  const nextRunDate = new Date(now)
+  nextRunDate.setDate(nextRunDate.getDate() + (now >= todayUpdateTime ? 1 : 0))
+  nextRunDate.setHours(WC_UPDATE_HOUR, 0, 0, 0)
+
+  const nextKey = nextRunDate.toISOString().slice(0, 10)
+  if (nextRunDate <= WC_UPDATE_UNTIL && !wcScheduledDays.has(nextKey)) {
+    const delayMs = nextRunDate.getTime() - now.getTime()
+    if (delayMs <= serverSchedulerMaxDelayMs) {
+      wcScheduledDays.add(nextKey)
+      setTimeout(() => {
+        console.log(`[wc-update] Scheduled knockout fixture update running for ${nextKey}`)
+        void runWCKnockoutUpdate()
+      }, delayMs)
+      console.log(`[wc-update] Scheduled next knockout update in ${Math.round(delayMs / 60000)} min (${nextKey} ${WC_UPDATE_HOUR}:00)`)
+    }
+  }
+}
+
+// ========== END WC 2026 KNOCKOUT FIXTURE UPDATER ==========
+
 const args = parseArgs(process.argv.slice(2))
 const { server } =
   args.mode === 'development'
@@ -2741,6 +2956,10 @@ server.listen(args.port, args.host, () => {
   console.log(`Fantasy Football server running on http://${args.host}:${args.port} (${args.mode})`)
   // Initial scheduling pass — picks up overdue fixtures and schedules near-future ones.
   void scheduleServerFixtureScans()
+  void scheduleWCKnockoutUpdates()
   // Re-check every 12 hours to schedule fixtures that were previously out of setTimeout range.
-  setInterval(() => { void scheduleServerFixtureScans() }, 12 * 60 * 60 * 1000)
+  setInterval(() => {
+    void scheduleServerFixtureScans()
+    void scheduleWCKnockoutUpdates()
+  }, 12 * 60 * 60 * 1000)
 })

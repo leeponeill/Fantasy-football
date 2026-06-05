@@ -1,0 +1,912 @@
+[
+  {
+    "matchday": 1,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "Mexico vs South Africa",
+        "time": "8pm",
+        "date": "Thursday, June 11",
+        "stadium": "Mexico City Stadium",
+        "group": "Group A"
+      }
+    ]
+  },
+  {
+    "matchday": 2,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "Korea Republic vs Czechia",
+        "time": "3am",
+        "date": "Friday, June 12",
+        "stadium": "Guadalajara Stadium",
+        "group": "Group A"
+      },
+      {
+        "match": "Canada vs Bosnia and Herzegovina",
+        "time": "8pm",
+        "date": "Friday, June 12",
+        "stadium": "Toronto Stadium",
+        "group": "Group B"
+      }
+    ]
+  },
+  {
+    "matchday": 3,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "USA vs Paraguay",
+        "time": "2am",
+        "date": "Saturday, June 13",
+        "stadium": "Los Angeles Stadium",
+        "group": "Group D"
+      },
+      {
+        "match": "Qatar vs Switzerland",
+        "time": "8pm",
+        "date": "Saturday, June 13",
+        "stadium": "San Francisco Bay Area Stadium",
+        "group": "Group B"
+      },
+      {
+        "match": "Brazil vs Morocco",
+        "time": "11pm",
+        "date": "Saturday, June 13",
+        "stadium": "New York/New Jersey Stadium",
+        "group": "Group C"
+      }
+    ]
+  },
+  {
+    "matchday": 4,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "Haiti vs Scotland",
+        "time": "2am",
+        "date": "Sunday, June 14",
+        "stadium": "Boston Stadium",
+        "group": "Group C"
+      },
+      {
+        "match": "Australia vs Türkiye",
+        "time": "5am",
+        "date": "Sunday, June 14",
+        "stadium": "BC Place Vancouver",
+        "group": "Group D"
+      },
+      {
+        "match": "Germany vs Curaçao",
+        "time": "6pm",
+        "date": "Sunday, June 14",
+        "stadium": "Houston Stadium",
+        "group": "Group E"
+      },
+      {
+        "match": "Netherlands vs Japan",
+        "time": "9pm",
+        "date": "Sunday, June 14",
+        "stadium": "Dallas Stadium",
+        "group": "Group F"
+      }
+    ]
+  },
+  {
+    "matchday": 5,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "Côte d'Ivoire vs Ecuador",
+        "time": "12am",
+        "date": "Monday, June 15",
+        "stadium": "Philadelphia Stadium",
+        "group": "Group E"
+      },
+      {
+        "match": "Sweden vs Tunisia",
+        "time": "3am",
+        "date": "Monday, June 15",
+        "stadium": "Monterrey Stadium",
+        "group": "Group F"
+      },
+      {
+        "match": "Spain vs Cabo Verde",
+        "time": "5pm",
+        "date": "Monday, June 15",
+        "stadium": "Atlanta Stadium",
+        "group": "Group H"
+      },
+      {
+        "match": "Belgium vs Egypt",
+        "time": "8pm",
+        "date": "Monday, June 15",
+        "stadium": "Seattle Stadium",
+        "group": "Group G"
+      },
+      {
+        "match": "Saudi Arabia vs Uruguay",
+        "time": "11pm",
+        "date": "Monday, June 15",
+        "stadium": "Miami Stadium",
+        "group": "Group H"
+      }
+    ]
+  },
+  {
+    "matchday": 6,
+    "round": "Group Stage - Matchday 1",
+    "games": [
+      {
+        "match": "Iran vs New Zealand",
+        "time": "2am",
+        "date": "Tuesday, June 16",
+        "stadium": "Los Angeles Stadium",
+        "group": "Group G"
+      },
+      {
+        "match": "France vs Senegal",
+        "time": "8pm",
+        "date": "Tuesday, June 16",
+        "stadium": "New York/New Jersey Stadium",
+        "group": "Group I"
+      },
+      {
+        "match": "Iraq vs Norway",
+        "time": "11pm",
+        "date": "Tuesday, June 16",
+        "stadium": "Boston Stadium",
+        "group": "Group I"
+      }
+    ]
+  },
+  {
+    "matchday": 7,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Argentina vs Algeria",
+        "time": "2am",
+        "date": "Wednesday, June 17",
+        "stadium": "Kansas City Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "Austria vs Jordan",
+        "time": "5am",
+        "date": "Wednesday, June 17",
+        "stadium": "San Francisco Bay Area Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "Portugal vs Congo DR",
+        "time": "6pm",
+        "date": "Wednesday, June 17",
+        "stadium": "Houston Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "England vs Croatia",
+        "time": "9pm",
+        "date": "Wednesday, June 17",
+        "stadium": "Dallas Stadium",
+        "group": "Group L"
+      }
+    ]
+  },
+  {
+    "matchday": 8,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Ghana vs Panama",
+        "time": "12am",
+        "date": "Thursday, June 18",
+        "stadium": "Toronto Stadium",
+        "group": "Group L"
+      },
+      {
+        "match": "Uzbekistan vs Colombia",
+        "time": "3am",
+        "date": "Thursday, June 18",
+        "stadium": "Mexico City Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "Czechia vs South Africa",
+        "time": "5pm",
+        "date": "Thursday, June 18",
+        "stadium": "Atlanta Stadium",
+        "group": "Group A"
+      },
+      {
+        "match": "Switzerland vs Bosnia and Herzegovina",
+        "time": "8pm",
+        "date": "Thursday, June 18",
+        "stadium": "Los Angeles Stadium",
+        "group": "Group B"
+      },
+      {
+        "match": "Canada vs Qatar",
+        "time": "11pm",
+        "date": "Thursday, June 18",
+        "stadium": "BC Place Vancouver",
+        "group": "Group B"
+      }
+    ]
+  },
+  {
+    "matchday": 9,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Mexico vs Korea Republic",
+        "time": "2am",
+        "date": "Friday, June 19",
+        "stadium": "Guadalajara Stadium",
+        "group": "Group A"
+      },
+      {
+        "match": "USA vs Australia",
+        "time": "8pm",
+        "date": "Friday, June 19",
+        "stadium": "Seattle Stadium",
+        "group": "Group D"
+      },
+      {
+        "match": "Scotland vs Morocco",
+        "time": "11pm",
+        "date": "Friday, June 19",
+        "stadium": "Boston Stadium",
+        "group": "Group C"
+      }
+    ]
+  },
+  {
+    "matchday": 10,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Brazil vs Haiti",
+        "time": "1.30am",
+        "date": "Saturday, June 20",
+        "stadium": "Philadelphia Stadium",
+        "group": "Group C"
+      },
+      {
+        "match": "Türkiye vs Paraguay",
+        "time": "4am",
+        "date": "Saturday, June 20",
+        "stadium": "San Francisco Bay Area Stadium",
+        "group": "Group D"
+      },
+      {
+        "match": "Netherlands vs Sweden",
+        "time": "6pm",
+        "date": "Saturday, June 20",
+        "stadium": "Houston Stadium",
+        "group": "Group F"
+      },
+      {
+        "match": "Germany vs Côte d'Ivoire",
+        "time": "9pm",
+        "date": "Saturday, June 20",
+        "stadium": "Toronto Stadium",
+        "group": "Group E"
+      }
+    ]
+  },
+  {
+    "matchday": 11,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Ecuador vs Curaçao",
+        "time": "1am",
+        "date": "Sunday, June 21",
+        "stadium": "Kansas City Stadium",
+        "group": "Group E"
+      },
+      {
+        "match": "Tunisia vs Japan",
+        "time": "5am",
+        "date": "Sunday, June 21",
+        "stadium": "Monterrey Stadium",
+        "group": "Group F"
+      },
+      {
+        "match": "Spain vs Saudi Arabia",
+        "time": "5pm",
+        "date": "Sunday, June 21",
+        "stadium": "Atlanta Stadium",
+        "group": "Group H"
+      },
+      {
+        "match": "Belgium vs Iran",
+        "time": "8pm",
+        "date": "Sunday, June 21",
+        "stadium": "Los Angeles Stadium",
+        "group": "Group G"
+      },
+      {
+        "match": "Uruguay vs Cabo Verde",
+        "time": "11pm",
+        "date": "Sunday, June 21",
+        "stadium": "Miami Stadium",
+        "group": "Group H"
+      }
+    ]
+  },
+  {
+    "matchday": 12,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "New Zealand vs Egypt",
+        "time": "2am",
+        "date": "Monday, June 22",
+        "stadium": "BC Place Vancouver",
+        "group": "Group G"
+      },
+      {
+        "match": "Argentina vs Austria",
+        "time": "6pm",
+        "date": "Monday, June 22",
+        "stadium": "Dallas Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "France vs Iraq",
+        "time": "10pm",
+        "date": "Monday, June 22",
+        "stadium": "Philadelphia Stadium",
+        "group": "Group I"
+      }
+    ]
+  },
+  {
+    "matchday": 13,
+    "round": "Group Stage - Matchday 2",
+    "games": [
+      {
+        "match": "Norway vs Senegal",
+        "time": "1am",
+        "date": "Tuesday, June 23",
+        "stadium": "New York/New Jersey Stadium",
+        "group": "Group I"
+      },
+      {
+        "match": "Jordan vs Algeria",
+        "time": "4am",
+        "date": "Tuesday, June 23",
+        "stadium": "San Francisco Bay Area Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "Portugal vs Uzbekistan",
+        "time": "6pm",
+        "date": "Tuesday, June 23",
+        "stadium": "Houston Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "England vs Ghana",
+        "time": "9pm",
+        "date": "Tuesday, June 23",
+        "stadium": "Boston Stadium",
+        "group": "Group L"
+      }
+    ]
+  },
+  {
+    "matchday": 14,
+    "round": "Group Stage - Matchday 3",
+    "games": [
+      {
+        "match": "Panama vs Croatia",
+        "time": "12am",
+        "date": "Wednesday, June 24",
+        "stadium": "Toronto Stadium",
+        "group": "Group L"
+      },
+      {
+        "match": "Colombia vs Congo DR",
+        "time": "3am",
+        "date": "Wednesday, June 24",
+        "stadium": "Guadalajara Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "Switzerland vs Canada",
+        "time": "8pm",
+        "date": "Wednesday, June 24",
+        "stadium": "BC Place Vancouver",
+        "group": "Group B"
+      },
+      {
+        "match": "Bosnia and Herzegovina vs Qatar",
+        "time": "8pm",
+        "date": "Wednesday, June 24",
+        "stadium": "Seattle Stadium",
+        "group": "Group B"
+      },
+      {
+        "match": "Scotland vs Brazil",
+        "time": "11pm",
+        "date": "Wednesday, June 24",
+        "stadium": "Miami Stadium",
+        "group": "Group C"
+      },
+      {
+        "match": "Morocco vs Haiti",
+        "time": "11pm",
+        "date": "Wednesday, June 24",
+        "stadium": "Atlanta Stadium",
+        "group": "Group C"
+      }
+    ]
+  },
+  {
+    "matchday": 15,
+    "round": "Group Stage - Matchday 3",
+    "games": [
+      {
+        "match": "Czechia vs Mexico",
+        "time": "2am",
+        "date": "Thursday, June 25",
+        "stadium": "Mexico City Stadium",
+        "group": "Group A"
+      },
+      {
+        "match": "South Africa vs Korea Republic",
+        "time": "2am",
+        "date": "Thursday, June 25",
+        "stadium": "Monterrey Stadium",
+        "group": "Group A"
+      },
+      {
+        "match": "Curaçao vs Côte d'Ivoire",
+        "time": "9pm",
+        "date": "Thursday, June 25",
+        "stadium": "Philadelphia Stadium",
+        "group": "Group E"
+      },
+      {
+        "match": "Ecuador vs Germany",
+        "time": "9pm",
+        "date": "Thursday, June 25",
+        "stadium": "New York/New Jersey Stadium",
+        "group": "Group E"
+      }
+    ]
+  },
+  {
+    "matchday": 16,
+    "round": "Group Stage - Matchday 3",
+    "games": [
+      {
+        "match": "Japan vs Sweden",
+        "time": "12am",
+        "date": "Friday, June 26",
+        "stadium": "Dallas Stadium",
+        "group": "Group F"
+      },
+      {
+        "match": "Tunisia vs Netherlands",
+        "time": "12am",
+        "date": "Friday, June 26",
+        "stadium": "Kansas City Stadium",
+        "group": "Group F"
+      },
+      {
+        "match": "Türkiye vs USA",
+        "time": "3am",
+        "date": "Friday, June 26",
+        "stadium": "Los Angeles Stadium",
+        "group": "Group D"
+      },
+      {
+        "match": "Paraguay vs Australia",
+        "time": "3am",
+        "date": "Friday, June 26",
+        "stadium": "San Francisco Bay Area Stadium",
+        "group": "Group D"
+      },
+      {
+        "match": "Norway vs France",
+        "time": "8pm",
+        "date": "Friday, June 26",
+        "stadium": "Boston Stadium",
+        "group": "Group I"
+      },
+      {
+        "match": "Senegal vs Iraq",
+        "time": "8pm",
+        "date": "Friday, June 26",
+        "stadium": "Toronto Stadium",
+        "group": "Group I"
+      }
+    ]
+  },
+  {
+    "matchday": 17,
+    "round": "Group Stage - Matchday 3",
+    "games": [
+      {
+        "match": "Cabo Verde vs Saudi Arabia",
+        "time": "1am",
+        "date": "Saturday, June 27",
+        "stadium": "Houston Stadium",
+        "group": "Group H"
+      },
+      {
+        "match": "Uruguay vs Spain",
+        "time": "1am",
+        "date": "Saturday, June 27",
+        "stadium": "Guadalajara Stadium",
+        "group": "Group H"
+      },
+      {
+        "match": "Egypt vs Iran",
+        "time": "4am",
+        "date": "Saturday, June 27",
+        "stadium": "Seattle Stadium",
+        "group": "Group G"
+      },
+      {
+        "match": "New Zealand vs Belgium",
+        "time": "4am",
+        "date": "Saturday, June 27",
+        "stadium": "BC Place Vancouver",
+        "group": "Group G"
+      },
+      {
+        "match": "Panama vs England",
+        "time": "10pm",
+        "date": "Saturday, June 27",
+        "stadium": "New York/New Jersey Stadium",
+        "group": "Group L"
+      },
+      {
+        "match": "Croatia vs Ghana",
+        "time": "10pm",
+        "date": "Saturday, June 27",
+        "stadium": "Philadelphia Stadium",
+        "group": "Group L"
+      }
+    ]
+  },
+  {
+    "matchday": 18,
+    "round": "Group Stage - Matchday 3",
+    "games": [
+      {
+        "match": "Colombia vs Portugal",
+        "time": "12.30am",
+        "date": "Sunday, June 28",
+        "stadium": "Miami Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "Congo DR vs Uzbekistan",
+        "time": "12.30am",
+        "date": "Sunday, June 28",
+        "stadium": "Atlanta Stadium",
+        "group": "Group K"
+      },
+      {
+        "match": "Algeria vs Austria",
+        "time": "3am",
+        "date": "Sunday, June 28",
+        "stadium": "Kansas City Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "Jordan vs Argentina",
+        "time": "3am",
+        "date": "Sunday, June 28",
+        "stadium": "Dallas Stadium",
+        "group": "Group J"
+      },
+      {
+        "match": "2A vs 2B",
+        "time": "8pm",
+        "date": "Sunday, June 28",
+        "stadium": "Los Angeles Stadium",
+        "round": "Round of 32"
+      }
+    ]
+  },
+  {
+    "matchday": 19,
+    "round": "Round of 32",
+    "games": [
+      {
+        "match": "1C vs 2F",
+        "time": "6pm",
+        "date": "Monday, June 29",
+        "stadium": "Houston Stadium"
+      },
+      {
+        "match": "1E vs 3ABCDF",
+        "time": "9.30pm",
+        "date": "Monday, June 29",
+        "stadium": "Boston Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 20,
+    "round": "Round of 32",
+    "games": [
+      {
+        "match": "1F vs 2C",
+        "time": "2am",
+        "date": "Tuesday, June 30",
+        "stadium": "Monterrey Stadium"
+      },
+      {
+        "match": "2E vs 2I",
+        "time": "6pm",
+        "date": "Tuesday, June 30",
+        "stadium": "Dallas Stadium"
+      },
+      {
+        "match": "1I vs 3CDFGH",
+        "time": "10pm",
+        "date": "Tuesday, June 30",
+        "stadium": "New York/New Jersey Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 21,
+    "round": "Round of 32",
+    "games": [
+      {
+        "match": "1A vs 3CEFHI",
+        "time": "2am",
+        "date": "Wednesday, July 1",
+        "stadium": "Mexico City Stadium"
+      },
+      {
+        "match": "1L vs 3EHIJK",
+        "time": "5pm",
+        "date": "Wednesday, July 1",
+        "stadium": "Atlanta Stadium"
+      },
+      {
+        "match": "1G vs 3AEHIJ",
+        "time": "9pm",
+        "date": "Wednesday, July 1",
+        "stadium": "Seattle Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 22,
+    "round": "Round of 32",
+    "games": [
+      {
+        "match": "1D vs 3BEFIJ",
+        "time": "1am",
+        "date": "Thursday, July 2",
+        "stadium": "San Francisco Bay Area Stadium"
+      },
+      {
+        "match": "1H vs 2J",
+        "time": "8pm",
+        "date": "Thursday, July 2",
+        "stadium": "Los Angeles Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 23,
+    "round": "Round of 32",
+    "games": [
+      {
+        "match": "2K vs 2L",
+        "time": "12am",
+        "date": "Friday, July 3",
+        "stadium": "Toronto Stadium"
+      },
+      {
+        "match": "1B vs 3EFGIJ",
+        "time": "4am",
+        "date": "Friday, July 3",
+        "stadium": "BC Place Vancouver"
+      },
+      {
+        "match": "2D vs 2G",
+        "time": "7pm",
+        "date": "Friday, July 3",
+        "stadium": "Dallas Stadium"
+      },
+      {
+        "match": "1J vs 2H",
+        "time": "11pm",
+        "date": "Friday, July 3",
+        "stadium": "Miami Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 24,
+    "round": "Round of 32 / Round of 16",
+    "games": [
+      {
+        "match": "1K vs 3DEIJL",
+        "time": "2.30am",
+        "date": "Saturday, July 4",
+        "stadium": "Kansas City Stadium",
+        "round": "Round of 32"
+      },
+      {
+        "match": "W73 vs W75",
+        "time": "6pm",
+        "date": "Saturday, July 4",
+        "stadium": "Houston Stadium",
+        "round": "Round of 16"
+      },
+      {
+        "match": "W74 vs W77",
+        "time": "10pm",
+        "date": "Saturday, July 4",
+        "stadium": "Philadelphia Stadium",
+        "round": "Round of 16"
+      }
+    ]
+  },
+  {
+    "matchday": 25,
+    "round": "Round of 16",
+    "games": [
+      {
+        "match": "W76 vs W78",
+        "time": "9pm",
+        "date": "Sunday, July 5",
+        "stadium": "New York/New Jersey Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 26,
+    "round": "Round of 16",
+    "games": [
+      {
+        "match": "W79 vs W80",
+        "time": "1am",
+        "date": "Monday, July 6",
+        "stadium": "Mexico City Stadium"
+      },
+      {
+        "match": "W83 vs W84",
+        "time": "8pm",
+        "date": "Monday, July 6",
+        "stadium": "Dallas Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 27,
+    "round": "Round of 16",
+    "games": [
+      {
+        "match": "W81 vs W82",
+        "time": "1am",
+        "date": "Tuesday, July 7",
+        "stadium": "Seattle Stadium"
+      },
+      {
+        "match": "W86 vs W88",
+        "time": "5pm",
+        "date": "Tuesday, July 7",
+        "stadium": "Atlanta Stadium"
+      },
+      {
+        "match": "W85 vs W87",
+        "time": "9pm",
+        "date": "Tuesday, July 7",
+        "stadium": "BC Place Vancouver"
+      }
+    ]
+  },
+  {
+    "matchday": 28,
+    "round": "Quarter-final",
+    "games": [
+      {
+        "match": "W89 vs W90",
+        "time": "9pm",
+        "date": "Thursday, July 9",
+        "stadium": "Boston Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 29,
+    "round": "Quarter-final",
+    "games": [
+      {
+        "match": "W93 vs W94",
+        "time": "8pm",
+        "date": "Friday, July 10",
+        "stadium": "Los Angeles Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 30,
+    "round": "Quarter-final",
+    "games": [
+      {
+        "match": "W91 vs W92",
+        "time": "10pm",
+        "date": "Saturday, July 11",
+        "stadium": "Miami Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 31,
+    "round": "Quarter-final",
+    "games": [
+      {
+        "match": "W95 vs W96",
+        "time": "2am",
+        "date": "Sunday, July 12",
+        "stadium": "Kansas City Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 32,
+    "round": "Semi-final",
+    "games": [
+      {
+        "match": "W97 vs W98",
+        "time": "8pm",
+        "date": "Tuesday, July 14",
+        "stadium": "Dallas Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 33,
+    "round": "Semi-final",
+    "games": [
+      {
+        "match": "W99 vs W100",
+        "time": "8pm",
+        "date": "Wednesday, July 15",
+        "stadium": "Atlanta Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 34,
+    "round": "Third Place Play-off",
+    "games": [
+      {
+        "match": "RU101 vs RU102",
+        "time": "10pm",
+        "date": "Saturday, July 18",
+        "stadium": "Miami Stadium"
+      }
+    ]
+  },
+  {
+    "matchday": 35,
+    "round": "Final",
+    "games": [
+      {
+        "match": "W101 vs W102",
+        "time": "8pm",
+        "date": "Sunday, July 19",
+        "stadium": "New York/New Jersey Stadium"
+      }
+    ]
+  }
+]

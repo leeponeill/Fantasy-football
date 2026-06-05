@@ -1,5 +1,5 @@
 import { renderPage } from './renderPage'
-import { getTeamsSorted, positionOrder, type TeamSquad } from './teamsData'
+import { getTeamsSorted, positionOrder, type TeamSquad, getCountryFlag } from './teamsData'
 import { getPlayerPoints, getTotalAccumulatedPoints } from './teamsData'
 import { requireAuth } from './auth'
 
@@ -18,7 +18,7 @@ function escapeHtml(value: string): string {
 function renderTeams(teams: TeamSquad[]): string {
 	return teams
 		.map((team) => {
-			const statusLabel = team.status === 'final' ? 'Final' : 'Preliminary'
+			const countryFlag = getCountryFlag(team.name)
 			const orderedPlayers = [...team.players].sort((a, b) => {
 				const aRank = positionOrder[a.position] ?? 99
 				const bRank = positionOrder[b.position] ?? 99
@@ -43,8 +43,7 @@ function renderTeams(teams: TeamSquad[]): string {
 			return `
 				<details class="team-card">
 					<summary>
-						<span class="team-name">${escapeHtml(team.name)}</span>
-						<span class="team-status ${team.status}">${statusLabel}</span>
+						<span class="team-name">${countryFlag} ${escapeHtml(team.name)}</span>
 					</summary>
 					<ul class="player-list">${playerRows}</ul>
 				</details>

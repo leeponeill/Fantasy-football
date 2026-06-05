@@ -1,107 +1,42 @@
 import { renderPage } from './renderPage'
 import {
-	getFixtureMatchdays,
-	getFixtureResults,
 	type FixtureGame,
-	type FixtureMatchday,
-	type FixtureResult,
+} from './fixturesData'
+import {
+	getWCFixtureMatchdays,
+	type WCFixtureGame,
+	type WCFixtureMatchday,
 } from './fixturesData'
 import { requireAuth } from './auth'
+import { getCountryFlag } from './teamsData'
 
 requireAuth()
 
-const hostCitiesByCountry: Record<'Mexico' | 'USA' | 'Canada', string[]> = {
-	Mexico: ['Guadalajara', 'Mexico City', 'Monterrey'],
-	USA: [
-		'Atlanta',
-		'Boston',
-		'Dallas',
-		'Houston',
-		'Kansas City',
-		'Los Angeles',
-		'Miami',
-		'New York/New Jersey',
-		'Philadelphia',
-		'San Francisco Bay Area',
-		'Seattle',
-	],
-	Canada: ['Toronto', 'Vancouver'],
+const stadiumCountry: Record<string, 'Mexico' | 'USA' | 'Canada'> = {
+	'Guadalajara Stadium': 'Mexico',
+	'Mexico City Stadium': 'Mexico',
+	'Monterrey Stadium': 'Mexico',
+	'BC Place Vancouver': 'Canada',
+	'Toronto Stadium': 'Canada',
+	'Atlanta Stadium': 'USA',
+	'Boston Stadium': 'USA',
+	'Dallas Stadium': 'USA',
+	'Houston Stadium': 'USA',
+	'Kansas City Stadium': 'USA',
+	'Los Angeles Stadium': 'USA',
+	'Miami Stadium': 'USA',
+	'New York/New Jersey Stadium': 'USA',
+	'Philadelphia Stadium': 'USA',
+	'San Francisco Bay Area Stadium': 'USA',
+	'Seattle Stadium': 'USA',
 }
 
-function hashString(value: string): number {
-	let hash = 0
-	for (let index = 0; index < value.length; index += 1) {
-		hash = (hash * 31 + value.charCodeAt(index)) >>> 0
-	}
-
-	return hash
-}
-
-function getHostCityForGame(game: FixtureGame): string {
-	if (!game.country) {
-		return ''
-	}
-
-	const cityPool = hostCitiesByCountry[game.country]
-	const seed = `${game.date}|${game.time}|${game.match}|${game.country}`
-	const cityIndex = hashString(seed) % cityPool.length
-	return cityPool[cityIndex]
-}
-
-const teamFlags: Record<string, string> = {
-	Algeria: '🇩🇿',
-	Argentina: '🇦🇷',
-	Australia: '🇦🇺',
-	Austria: '🇦🇹',
-	Belgium: '🇧🇪',
-	'Bosnia & Herzegovina': '🇧🇦',
-	Brazil: '🇧🇷',
-	Canada: '🇨🇦',
-	'Cape Verde': '🇨🇻',
-	Colombia: '🇨🇴',
-	Croatia: '🇭🇷',
-	Curacao: '🇨🇼',
-	'Czech Republic': '🇨🇿',
-	'DR Congo': '🇨🇩',
-	Ecuador: '🇪🇨',
-	Egypt: '🇪🇬',
-	England: '🏴',
-	France: '🇫🇷',
-	Germany: '🇩🇪',
-	Ghana: '🇬🇭',
-	Haiti: '🇭🇹',
-	Iran: '🇮🇷',
-	Iraq: '🇮🇶',
-	'Ivory Coast': '🇨🇮',
-	Japan: '🇯🇵',
-	Jordan: '🇯🇴',
-	Mexico: '🇲🇽',
-	Morocco: '🇲🇦',
-	Netherlands: '🇳🇱',
-	'New Zealand': '🇳🇿',
-	Norway: '🇳🇴',
-	Panama: '🇵🇦',
-	Paraguay: '🇵🇾',
-	Portugal: '🇵🇹',
-	Qatar: '🇶🇦',
-	'Saudi Arabia': '🇸🇦',
-	Scotland: '🏴',
-	Senegal: '🇸🇳',
-	'South Africa': '🇿🇦',
-	'South Korea': '🇰🇷',
-	Spain: '🇪🇸',
-	Sweden: '🇸🇪',
-	Switzerland: '🇨🇭',
-	Tunisia: '🇹🇳',
-	Turkey: '🇹🇷',
-	Uruguay: '🇺🇾',
-	USA: '🇺🇸',
-	Uzbekistan: '🇺🇿',
+function getHostCountryForStadium(stadium: string): 'Mexico' | 'USA' | 'Canada' | '' {
+	return stadiumCountry[stadium] ?? ''
 }
 
 function withTeamFlag(name: string): string {
-	const flag = teamFlags[name]
-	return flag ? `${flag} ${name}` : name
+	return `${getCountryFlag(name)} ${name}`
 }
 
 function formatMatch(match: string): string {
@@ -111,12 +46,6 @@ function formatMatch(match: string): string {
 
 	const [left, right] = match.split(' vs ')
 	return `${withTeamFlag(left)} vs ${withTeamFlag(right)}`
-}
-
-function getFixtureKey(game: FixtureGame): string {
-	// Always use '' for missing or empty country
-	const country = game.country || ''
-	return `${game.date}|${game.time}|${country}|${game.match}`
 }
 
 function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
@@ -176,7 +105,7 @@ function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
 	return kickoff
 }
 
-function renderSectionMarkup(matchdays: Array<{ matchday: number; games: FixtureGame[] }>, section: 'fixtures' | 'results'): string {
+function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixtures' | 'results'): string {
 	if (matchdays.length === 0) {
 		return section === 'fixtures'
 			? '<p class="empty-state">No upcoming fixtures match your filter.</p>'
@@ -188,7 +117,7 @@ function renderSectionMarkup(matchdays: Array<{ matchday: number; games: Fixture
 			.map(
 				(matchday) => `
 					<section class="fixture-matchday">
-						<h2>Matchday ${matchday.matchday}</h2>
+						<h2>${matchday.round || `Matchday ${matchday.matchday}`}</h2>
 						<ul class="fixture-list">
 							${matchday.games
 								.map(
@@ -197,7 +126,8 @@ function renderSectionMarkup(matchdays: Array<{ matchday: number; games: Fixture
 											<span class="fixture-date">${game.date}</span>
 											<span class="fixture-time">${game.time}</span>
 											<span class="fixture-match">${formatMatch(game.match)}</span>
-											<span class="fixture-country">${getHostCityForGame(game) ? `Host city: ${getHostCityForGame(game)}` : ''}</span>
+											<span class="fixture-country">${game.stadium}</span>
+											${(game as WCFixtureGame).group ? `<span class="fixture-group">${(game as WCFixtureGame).group}</span>` : ''}
 										</li>
 									`,
 								)
@@ -209,29 +139,21 @@ function renderSectionMarkup(matchdays: Array<{ matchday: number; games: Fixture
 			.join('')
 	}
 
-	const resultByKey = new Map<string, FixtureResult>()
-	for (const result of fixtureResults) {
-		const country = result.country ? result.country : ''
-		resultByKey.set(`${result.date}|${result.time}|${country}|${result.match}`, result)
-	}
-
 	return matchdays
 		.map(
 			(matchday) => `
-				<section class="fixture-matchday fixture-matchday--results">
-					<h2>Matchday ${matchday.matchday}</h2>
+				<section class="fixture-matchday fixture-matchday--results"> 
+					<h2>${matchday.round || `Matchday ${matchday.matchday}`}</h2>
 					<ul class="fixture-list">
 						${matchday.games
 							.map((game) => {
-								const result = resultByKey.get(getFixtureKey(game))
-								const score = result ? `${result.homeScore} - ${result.awayScore}` : 'Score unavailable'
-
 								return `
 									<li class="fixture-item fixture-item--result">
 										<span class="fixture-date">${game.date}</span>
 										<span class="fixture-time">${game.time}</span>
 										<span class="fixture-match">${formatMatch(game.match)}</span>
-										<span class="fixture-score">${score}</span>
+										<span class="fixture-country">${(game as WCFixtureGame).stadium || ''}</span>
+										${(game as WCFixtureGame).group ? `<span class="fixture-group">${(game as WCFixtureGame).group}</span>` : ''}
 									</li>
 								`
 							})
@@ -246,37 +168,30 @@ function renderSectionMarkup(matchdays: Array<{ matchday: number; games: Fixture
 function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: string): string {
 	const query = searchText.trim().toLowerCase()
 	const now = new Date()
-	const resultByKey = new Map<string, FixtureResult>()
-	for (const result of fixtureResults) {
-		const country = result.country ? result.country : ''
-		resultByKey.set(`${result.date}|${result.time}|${country}|${result.match}`, result)
-	}
-
-	const upcomingMatchdays: Array<{ matchday: number; games: FixtureGame[] }> = []
-	const pastMatchdays: Array<{ matchday: number; games: FixtureGame[] }> = []
+	const upcomingMatchdays: WCFixtureMatchday[] = []
+	const pastMatchdays: WCFixtureMatchday[] = []
 
 	for (const matchday of fixtureMatchdays) {
-		const upcomingGames: FixtureGame[] = []
-		const pastGames: FixtureGame[] = []
+		const upcomingGames: WCFixtureGame[] = []
+		const pastGames: WCFixtureGame[] = []
 
 		for (const game of matchday.games) {
-			const result = resultByKey.get(getFixtureKey(game))
-			const scoreText = result ? `${result.homeScore} ${result.awayScore}` : ''
-			const countryMatches = selectedCountry === '' || game.country === selectedCountry
-			const countryText = (game.country ?? '').toLowerCase()
+			const countryMatches = selectedCountry === '' || getHostCountryForStadium(game.stadium) === selectedCountry
+			const stadiumText = game.stadium.toLowerCase()
 			const textMatches =
 				query === '' ||
 				game.date.toLowerCase().includes(query) ||
 				game.match.toLowerCase().includes(query) ||
 				game.time.toLowerCase().includes(query) ||
-				countryText.includes(query) ||
-				scoreText.toLowerCase().includes(query)
+				stadiumText.includes(query) ||
+				game.group.toLowerCase().includes(query) ||
+				game.round.toLowerCase().includes(query)
 
 			if (!(countryMatches && textMatches)) {
 				continue
 			}
 
-			const kickoff = parseFixtureKickoff(game, now)
+			const kickoff = parseFixtureKickoff(game as unknown as FixtureGame, now)
 			if (kickoff && kickoff.getTime() < now.getTime()) {
 				pastGames.push(game)
 			} else {
@@ -287,6 +202,7 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		if (upcomingGames.length > 0) {
 			upcomingMatchdays.push({
 				matchday: matchday.matchday,
+				round: matchday.round,
 				games: upcomingGames,
 			})
 		}
@@ -294,6 +210,7 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		if (pastGames.length > 0) {
 			pastMatchdays.push({
 				matchday: matchday.matchday,
+				round: matchday.round,
 				games: pastGames,
 			})
 		}
@@ -306,8 +223,8 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		.map((md) => ({
 			...md,
 			games: [...md.games].sort((a, b) => {
-				const ta = parseFixtureKickoff(a, now)?.getTime() ?? 0
-				const tb = parseFixtureKickoff(b, now)?.getTime() ?? 0
+				const ta = parseFixtureKickoff(a as unknown as FixtureGame, now)?.getTime() ?? 0
+				const tb = parseFixtureKickoff(b as unknown as FixtureGame, now)?.getTime() ?? 0
 				return tb - ta
 			}),
 		}))
@@ -317,8 +234,8 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		.map((md) => ({
 			...md,
 			games: [...md.games].sort((a, b) => {
-				const ta = parseFixtureKickoff(a, now)?.getTime() ?? Number.MAX_SAFE_INTEGER
-				const tb = parseFixtureKickoff(b, now)?.getTime() ?? Number.MAX_SAFE_INTEGER
+				const ta = parseFixtureKickoff(a as unknown as FixtureGame, now)?.getTime() ?? Number.MAX_SAFE_INTEGER
+				const tb = parseFixtureKickoff(b as unknown as FixtureGame, now)?.getTime() ?? Number.MAX_SAFE_INTEGER
 				return ta - tb
 			}),
 		}))
@@ -327,18 +244,17 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		<div class="fixtures-results-columns">
 			<section class="fixture-section">
 				<h2>Results</h2>
-				${renderSectionMarkup(sortedPastMatchdays, 'results')}
+				${renderWCSectionMarkup(sortedPastMatchdays, 'results')}
 			</section>
 			<section class="fixture-section">
 				<h2>Fixtures</h2>
-				${renderSectionMarkup(sortedUpcomingMatchdays, 'fixtures')}
+				${renderWCSectionMarkup(sortedUpcomingMatchdays, 'fixtures')}
 			</section>
 		</div>
 	`
 }
 
-let fixtureMatchdays: FixtureMatchday[] = []
-let fixtureResults: FixtureResult[] = []
+let fixtureMatchdays: WCFixtureMatchday[] = []
 
 const initialMarkup = `
 	<section class="fixture-controls">
@@ -379,12 +295,7 @@ if (results && searchInput && countrySelect) {
 
 	async function loadAndUpdateResults() {
 		try {
-			const [loadedMatchdays, loadedResults] = await Promise.all([
-				getFixtureMatchdays(),
-				getFixtureResults().catch(() => [] as FixtureResult[]),
-			])
-			fixtureMatchdays = loadedMatchdays
-			fixtureResults = loadedResults
+			fixtureMatchdays = await getWCFixtureMatchdays()
 			updateResults()
 		} catch {
 			if (results) {
@@ -395,13 +306,4 @@ if (results && searchInput && countrySelect) {
 
 	loadAndUpdateResults()
 
-	// Poll for new results every 10 seconds
-	setInterval(() => {
-		getFixtureResults()
-			.then((loadedResults) => {
-				fixtureResults = loadedResults
-				updateResults()
-			})
-			.catch(() => {/* ignore errors during polling */})
-	}, 10000)
 }

@@ -10,6 +10,21 @@ export type FixtureMatchday = {
   games: FixtureGame[]
 }
 
+export type WCFixtureGame = {
+  match: string
+  time: string
+  date: string
+  stadium: string
+  group: string
+  round: string
+}
+
+export type WCFixtureMatchday = {
+  matchday: number
+  round: string
+  games: WCFixtureGame[]
+}
+
 export type FixtureResult = {
   matchday: number
   match: string
@@ -31,6 +46,8 @@ type FixtureResultsApiResponse = {
 let fixtureMatchdaysPromise: Promise<FixtureMatchday[]> | null = null
 let fixtureResultsPromise: Promise<FixtureResult[]> | null = null
 
+let wcFixtureMatchdaysPromise: Promise<WCFixtureMatchday[]> | null = null
+
 function isFixtureCountry(value: unknown): value is FixtureGame['country'] {
   return value === 'Mexico' || value === 'USA' || value === 'Canada'
 }
@@ -46,6 +63,30 @@ function isFixtureGame(value: unknown): value is FixtureGame {
     typeof game.time === 'string' &&
     typeof game.date === 'string' &&
     (typeof game.country === 'undefined' || isFixtureCountry(game.country))
+  )
+}
+
+function isWCFixtureGame(value: unknown): value is WCFixtureGame {
+  if (!value || typeof value !== 'object') return false
+  const g = value as Record<string, unknown>
+  return (
+    typeof g.match === 'string' &&
+    typeof g.time === 'string' &&
+    typeof g.date === 'string' &&
+    typeof g.stadium === 'string' &&
+    typeof g.group === 'string' &&
+    typeof g.round === 'string'
+  )
+}
+
+function isWCFixtureMatchday(value: unknown): value is WCFixtureMatchday {
+  if (!value || typeof value !== 'object') return false
+  const m = value as Record<string, unknown>
+  return (
+    typeof m.matchday === 'number' &&
+    typeof m.round === 'string' &&
+    Array.isArray(m.games) &&
+    m.games.every(isWCFixtureGame)
   )
 }
 
@@ -125,4 +166,28 @@ export async function getFixtureResults(): Promise<FixtureResult[]> {
   }
 
   return fixtureResultsPromise
+}
+
+export async function getWCFixtureMatchdays(): Promise<WCFixtureMatchday[]> {
+  if (!wcFixtureMatchdaysPromise) {
+    wcFixtureMatchdaysPromise = fetch('/api/wc-fixtures')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load WC fixtures.')
+        }
+
+        const payload = (await response.json()) as { matchdays: unknown[] }
+        if (!Array.isArray(payload.matchdays) || !payload.matchdays.every(isWCFixtureMatchday)) {
+          throw new Error('WC fixture payload is invalid.')
+        }
+
+        return payload.matchdays
+      })
+      .catch((error: unknown) => {
+        wcFixtureMatchdaysPromise = null
+        throw error
+      })
+  }
+
+  return wcFixtureMatchdaysPromise
 }

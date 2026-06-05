@@ -11,6 +11,7 @@ type StoredUser = {
 
 type UserProfile = {
   teamName: string
+  theme?: 'light' | 'dark'
 }
 
 type UserProfiles = Record<string, UserProfile>
@@ -22,7 +23,7 @@ const userProfilesStorageKey = 'fantasy-football-user-profiles'
 const passwordResetRequestsStorageKey = 'fantasy-football-password-reset-requests'
 const globalBudgetStorageKey = 'fantasy-football-global-budget'
 const maxBudget = 100
-const maxUsers = 10
+export const maxUsers = 50
 
 function redirectIfNeeded(redirectPath: string): void {
   if (window.location.pathname === redirectPath) {
@@ -69,7 +70,10 @@ function readProfiles(): UserProfiles {
           typeof username === 'string' &&
           !!profile &&
           typeof profile === 'object' &&
-          typeof (profile as UserProfile).teamName === 'string',
+          typeof (profile as UserProfile).teamName === 'string' &&
+          (typeof (profile as UserProfile).theme === 'undefined' ||
+            (profile as UserProfile).theme === 'light' ||
+            (profile as UserProfile).theme === 'dark'),
       ),
     ) as UserProfiles
   } catch {
@@ -173,7 +177,7 @@ export function registerUser(username: string, password: string): { ok: boolean;
   }
 
   if (users.length >= maxUsers) {
-    return { ok: false, error: 'Maximum of 10 users reached.' }
+    return { ok: false, error: `Maximum of ${maxUsers} users reached.` }
   }
 
   const exists = users.some(
@@ -244,7 +248,11 @@ export function setCurrentUserTeamName(teamName: string): { ok: boolean; error?:
   }
 
   const profiles = readProfiles()
-  profiles[username] = { teamName: normalizedTeamName }
+  const existingProfile = profiles[username]
+  profiles[username] = {
+    teamName: normalizedTeamName,
+    ...(existingProfile?.theme ? { theme: existingProfile.theme } : {}),
+  }
   const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
   if (!didWriteProfiles) {
     return { ok: false, error: 'Cannot save team name. Browser storage is blocked for this site.' }
@@ -275,10 +283,49 @@ export function setTeamNameForUser(username: string, teamName: string): { ok: bo
   }
 
   const profiles = readProfiles()
-  profiles[existingUser.username] = { teamName: normalizedTeamName }
+  const existingProfile = profiles[existingUser.username]
+  profiles[existingUser.username] = {
+    teamName: normalizedTeamName,
+    ...(existingProfile?.theme ? { theme: existingProfile.theme } : {}),
+  }
   const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
   if (!didWriteProfiles) {
     return { ok: false, error: 'Cannot save team name. Browser storage is blocked for this site.' }
+  }
+
+  return { ok: true }
+}
+
+export function getThemePreferenceForUser(username: string): 'light' | 'dark' | null {
+  const profiles = readProfiles()
+  const profile = profiles[username]
+  if (!profile) {
+    return null
+  }
+
+  if (profile.theme === 'light' || profile.theme === 'dark') {
+    return profile.theme
+  }
+
+  return null
+}
+
+export function setCurrentUserThemePreference(theme: 'light' | 'dark'): { ok: boolean; error?: string } {
+  const username = getCurrentUsername()
+  if (!username) {
+    return { ok: false, error: 'No signed in user.' }
+  }
+
+  const profiles = readProfiles()
+  const existingProfile = profiles[username]
+  profiles[username] = {
+    teamName: existingProfile?.teamName ?? '',
+    theme,
+  }
+
+  const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
+  if (!didWriteProfiles) {
+    return { ok: false, error: 'Cannot save theme preference. Browser storage is blocked for this site.' }
   }
 
   return { ok: true }
@@ -384,6 +431,143 @@ export function resetUserPassword(username: string, newPassword: string): { ok: 
   setSharedItem(passwordResetRequestsStorageKey, JSON.stringify(remainingRequests))
 
   return { ok: true }
+}
+
+export function renameUser(
+  username: string,
+  nextUsername: string,
+): { ok: boolean; error?: string; username?: string } {
+  const normalizedUsername = username.trim()
+  const normalizedNextUsername = nextUsername.trim()
+
+  if (normalizedUsername.length === 0 || normalizedNextUsername.length === 0) {
+    return { ok: false, error: 'Username is required.' }
+  }
+
+  if (normalizedNextUsername.length < 3) {
+    return { ok: false, error: 'Username must be at least 3 characters.' }
+  }
+
+  const users = readUsers()
+  const userIndex = users.findIndex(
+    (user) => user.username.toLowerCase() === normalizedUsername.toLowerCase(),
+  )
+
+  if (userIndex === -1) {
+    return { ok: false, error: 'User not found.' }
+  }
+
+  const existingByNextUsername = users.find(
+    (user) => user.username.toLowerCase() === normalizedNextUsername.toLowerCase(),
+  )
+  if (existingByNextUsername && existingByNextUsername.username.toLowerCase() !== users[userIndex].username.toLowerCase()) {
+    return { ok: false, error: 'That username is already taken.' }
+  }
+
+  const canonicalOldUsername = users[userIndex].username
+  users[userIndex] = {
+    ...users[userIndex],
+    username: normalizedNextUsername,
+  }
+
+  const profiles = readProfiles()
+  const existingProfile = profiles[canonicalOldUsername]
+  if (existingProfile) {
+    profiles[normalizedNextUsername] = existingProfile
+    delete profiles[canonicalOldUsername]
+  }
+
+  const renamedRequests = Array.from(
+    new Map(
+      readPasswordResetRequests().map((requestUsername) => {
+        if (requestUsername.toLowerCase() === canonicalOldUsername.toLowerCase()) {
+          return [normalizedNextUsername.toLowerCase(), normalizedNextUsername]
+        }
+
+        return [requestUsername.toLowerCase(), requestUsername]
+      }),
+    ).values(),
+  )
+
+  const oldTeamStateStorageKey = userScopedStorageKey('fantasy-football-my-team-state', canonicalOldUsername)
+  const newTeamStateStorageKey = userScopedStorageKey('fantasy-football-my-team-state', normalizedNextUsername)
+  const oldTeamState = getSharedItem(oldTeamStateStorageKey)
+
+  const nextSetValues: Record<string, string> = {
+    [usersStorageKey]: JSON.stringify(users),
+    [userProfilesStorageKey]: JSON.stringify(profiles),
+    [passwordResetRequestsStorageKey]: JSON.stringify(renamedRequests),
+  }
+  if (typeof oldTeamState === 'string') {
+    nextSetValues[newTeamStateStorageKey] = oldTeamState
+  }
+
+  const didCommit = commitSharedStorageChanges({
+    set: nextSetValues,
+    remove: [oldTeamStateStorageKey],
+  })
+
+  if (!didCommit) {
+    return { ok: false, error: 'Unable to rename user right now.' }
+  }
+
+  const currentUsername = getCurrentUsername()
+  if (currentUsername && currentUsername.toLowerCase() === canonicalOldUsername.toLowerCase()) {
+    if (!safeSetStorageItem(currentUserStorageKey, normalizedNextUsername)) {
+      return { ok: false, error: 'Username was updated but session could not be refreshed.' }
+    }
+  }
+
+  return { ok: true, username: normalizedNextUsername }
+}
+
+export function deleteUser(username: string): { ok: boolean; error?: string; deletedUsername?: string } {
+  const normalizedUsername = username.trim()
+  if (normalizedUsername.length === 0) {
+    return { ok: false, error: 'Username is required.' }
+  }
+
+  const users = readUsers()
+  const existingUser = users.find(
+    (user) => user.username.toLowerCase() === normalizedUsername.toLowerCase(),
+  )
+
+  if (!existingUser) {
+    return { ok: false, error: 'User not found.' }
+  }
+
+  const nextUsers = users.filter(
+    (user) => user.username.toLowerCase() !== existingUser.username.toLowerCase(),
+  )
+
+  const profiles = readProfiles()
+  delete profiles[existingUser.username]
+
+  const remainingRequests = readPasswordResetRequests().filter(
+    (name) => name.toLowerCase() !== existingUser.username.toLowerCase(),
+  )
+
+  const didCommit = commitSharedStorageChanges({
+    set: {
+      [usersStorageKey]: JSON.stringify(nextUsers),
+      [userProfilesStorageKey]: JSON.stringify(profiles),
+      [passwordResetRequestsStorageKey]: JSON.stringify(remainingRequests),
+    },
+    remove: [
+      userScopedStorageKey('fantasy-football-my-team-state', existingUser.username),
+    ],
+  })
+
+  if (!didCommit) {
+    return { ok: false, error: 'Unable to delete user right now.' }
+  }
+
+  const currentUsername = getCurrentUsername()
+  if (currentUsername && currentUsername.toLowerCase() === existingUser.username.toLowerCase()) {
+    signOut()
+  }
+
+  return { ok: true, deletedUsername: existingUser.username }
 }
 
 export function adjustUserPoints(username: string, adjustment: number): { ok: boolean; error?: string } {
@@ -515,7 +699,7 @@ export function getUserTotalPoints(username: string): number {
       ? (state.captainBonusTotal as number)
       : 0
     const currentMatchday = Number.isFinite(state.currentMatchday as number)
-      ? Math.max(1, Number(state.currentMatchday as number))
+      ? Math.max(0, Number(state.currentMatchday as number))
       : 1
     const transferPointEvents = parseTransferPointEvents(state.transferPointEvents)
     const selectedPlayerKeys = Array.isArray(state.selectedPlayerKeys)

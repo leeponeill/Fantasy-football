@@ -293,3 +293,50 @@ npm run preview
 ```
 
 This uses the same host process as LAN mode, including the shared league API.
+
+## Deploy New Version To Raspberry Pi
+
+The repository includes a deployment script that:
+
+- builds locally,
+- syncs files to your Pi,
+- kills the old app,
+- starts the new app.
+
+Script path:
+
+- scripts/deploy-raspberry-pi.sh
+
+### Quick usage
+
+Run from project root:
+
+```bash
+PI_HOST=192.168.1.5 PI_USER=lee npm run deploy:pi
+```
+
+Or use a different host/user:
+
+```bash
+PI_HOST=192.168.1.50 PI_USER=lee npm run deploy:pi
+```
+
+### Behavior
+
+- Preserves shared league state by excluding `data/league-state.json` from sync.
+- If `PI_SERVICE` is set, it restarts that systemd service.
+- If `PI_SERVICE` is not set, it stops old `node server.mjs` and starts a detached process with `npm run host:lan`.
+
+### Optional environment variables
+
+- `PI_PORT` (default: `22`)
+- `PI_APP_DIR` (default: `/home/<PI_USER>/fantasy_football`)
+- `PI_SERVICE` (systemd service name, example: `fantasy-football`)
+- `PI_USE_SUDO=true` (use `sudo systemctl` when restarting service)
+- `PI_START_COMMAND` (default: `npm run host:lan` when not using systemd)
+
+### Example using systemd service
+
+```bash
+PI_HOST=192.168.1.50 PI_USER=lee PI_SERVICE=fantasy-football PI_USE_SUDO=true npm run deploy:pi
+```

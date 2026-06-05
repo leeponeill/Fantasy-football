@@ -3,6 +3,7 @@ import {
 	getCurrentUsername,
 	getRegisteredUserCount,
 	getTeamNameForUser,
+	maxUsers,
 	registerUser,
 	requestPasswordReset,
 	signIn,
@@ -11,7 +12,7 @@ import { flushSharedLeagueStorage, sharedLeagueUpdatedEvent } from './sharedLeag
 
 function getPostLoginPath(username: string): string {
 	const teamName = getTeamNameForUser(username)
-	return teamName ? '/fixtures.html' : '/team-setup.html'
+	return teamName ? '/my-team.html' : '/team-setup.html'
 }
 
 const existingSession = getCurrentUsername()
@@ -32,8 +33,8 @@ if (app) {
 					<img src="/crest-logo.png" alt="League crest" class="auth-logo" />
 				</div>
 				<h1>Fantasy Football Login</h1>
-				<p class="auth-help">Sign in to manage your personal team. Up to 10 users are supported.</p>
-				<p class="auth-meta" id="user-count">Registered users: ${getRegisteredUserCount()}/10</p>
+				<p class="auth-help">Sign in to manage your personal team. Up to ${maxUsers} users are supported.</p>
+				<p class="auth-meta" id="user-count">Registered users: ${getRegisteredUserCount()}/${maxUsers}</p>
 
 				<div class="auth-grid">
 					<form id="signin-form" class="auth-form" autocomplete="on">
@@ -83,7 +84,7 @@ if (app) {
 
 	const refreshUserCount = (): void => {
 		if (userCount) {
-			userCount.textContent = `Registered users: ${getRegisteredUserCount()}/10`
+			userCount.textContent = `Registered users: ${getRegisteredUserCount()}/${maxUsers}`
 		}
 	}
 

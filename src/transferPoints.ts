@@ -33,7 +33,7 @@ export function recordTransferPointEvent(
 }
 
 export function pruneTransferPointEvents(events: TransferPointEvent[], currentMatchday: number): TransferPointEvent[] {
-  const minMatchdayToKeep = Math.max(1, currentMatchday - 1)
+  const minMatchdayToKeep = Math.max(0, currentMatchday - 1)
   return events.filter((event) => Number.isFinite(event.matchday) && event.matchday >= minMatchdayToKeep)
 }
 

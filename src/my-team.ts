@@ -1,7 +1,15 @@
 import { renderPage } from './renderPage'
-import { getAllPlayers, getPlayerPoints, getTotalAccumulatedPoints as getPlayerTotalPoints, type SelectablePlayer, getCountryFlag } from './teamsData'
+import {
+	getAllPlayers,
+	getPlayerPoints,
+	getTotalAccumulatedPoints as getPlayerTotalPoints,
+	type SelectablePlayer,
+	getCountryFlag,
+	getTeamKitColors,
+} from './teamsData'
 import { getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
 import { getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
+import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
 import {
 	getTransferAwareMatchdayPoints,
 	getTransferAwarePlayerCurrentPoints,
@@ -24,6 +32,15 @@ function playerKey(player: SelectablePlayer): string {
 	return `${player.team}::${player.name}`
 }
 
+function renderPitchPlayerName(name: string): string {
+	const parts = name.trim().split(/\s+/)
+	if (parts.length === 2) {
+		return `${escapeHtml(parts[0])}<br />${escapeHtml(parts[1])}`
+	}
+
+	return escapeHtml(name)
+}
+
 const maxTeamSize = 11
 const maxBenchSize = 4
 const defaultBudget = 100
@@ -40,6 +57,15 @@ const positionLimits: Record<string, number> = {
 	Midfielder: 5,
 	Forward: 3,
 }
+const positionMinimums: Record<keyof typeof positionLimits, number> = {
+	Goalkeeper: 1,
+	Defender: 3,
+	Midfielder: 3,
+	Forward: 1,
+}
+
+const unlimitedTransferMatchday = 0
+const transferKickoffLockWindowMs = 3.5 * 60 * 60 * 1000
 
 const allPlayers = getAllPlayers()
 const minimumPlayerPrice = allPlayers.reduce((min, player) => Math.min(min, player.price), Number.POSITIVE_INFINITY)
@@ -55,6 +81,156 @@ let benchModeEnabled = getSharedItem(benchModeStorageKey) !== 'false'
 let remainingBudget = maxBudget
 let incomingTransferRequests: TransferRequest[] = []
 let outgoingTransferRequests: TransferRequest[] = []
+let fixtureMatchdays: FixtureMatchday[] = []
+
+const transferTeamAliases: Record<string, string> = {
+	manutd: 'manchesterunited',
+	manchesterutd: 'manchesterunited',
+	manchesterunited: 'manchesterunited',
+	mancity: 'manchestercity',
+	manchestercity: 'manchestercity',
+	spurs: 'tottenham',
+	tottenham: 'tottenham',
+	tottenhamhotspur: 'tottenham',
+	nottmforest: 'nottinghamforest',
+	nottinghamforest: 'nottinghamforest',
+	westham: 'westham',
+	westhamunited: 'westham',
+	wolves: 'wolves',
+	wolverhampton: 'wolves',
+	wolverhamptonwanderers: 'wolves',
+	brighton: 'brighton',
+	brightonandhovealbion: 'brighton',
+	newcastle: 'newcastle',
+	newcastleunited: 'newcastle',
+}
+
+function toToken(value: string): string {
+	return value
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]/g, '')
+}
+
+function normalizeTeamToken(teamName: string): string {
+	const token = toToken(teamName)
+	const trimmedToken = token.startsWith('afc') && token.length > 3
+		? token.slice(3)
+		: token.endsWith('fc') && token.length > 2
+			? token.slice(0, -2)
+			: token
+
+	return transferTeamAliases[token] ?? transferTeamAliases[trimmedToken] ?? trimmedToken
+}
+
+function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
+	const dateWithoutWeekday = game.date.includes(',') ? game.date.split(',').slice(1).join(',').trim() : game.date.trim()
+	const dateMatch = dateWithoutWeekday.match(/^([A-Za-z]+)\s+(\d{1,2})$/)
+	if (!dateMatch) {
+		return null
+	}
+
+	const timeMatch = game.time.trim().toLowerCase().match(/^(\d{1,2})(?:\.(\d{1,2}))?(am|pm)$/)
+	if (!timeMatch) {
+		return null
+	}
+
+	const monthName = dateMatch[1]
+	const day = Number.parseInt(dateMatch[2], 10)
+	const monthIndex = [
+		'january',
+		'february',
+		'march',
+		'april',
+		'may',
+		'june',
+		'july',
+		'august',
+		'september',
+		'october',
+		'november',
+		'december',
+	].indexOf(monthName.toLowerCase())
+
+	if (monthIndex < 0 || !Number.isFinite(day)) {
+		return null
+	}
+
+	const hour12 = Number.parseInt(timeMatch[1], 10)
+	const minute = Number.parseInt(timeMatch[2] ?? '0', 10)
+	const meridian = timeMatch[3]
+	if (!Number.isFinite(hour12) || !Number.isFinite(minute)) {
+		return null
+	}
+
+	let hour24 = hour12 % 12
+	if (meridian === 'pm') {
+		hour24 += 12
+	}
+
+	const currentYear = now.getFullYear()
+	const kickoff = new Date(currentYear, monthIndex, day, hour24, minute, 0, 0)
+	const halfYearMs = 180 * 24 * 60 * 60 * 1000
+	if (kickoff.getTime() - now.getTime() > halfYearMs) {
+		kickoff.setFullYear(currentYear - 1)
+	} else if (now.getTime() - kickoff.getTime() > halfYearMs) {
+		kickoff.setFullYear(currentYear + 1)
+	}
+
+	return kickoff
+}
+
+function fixtureGameIncludesTeam(game: FixtureGame, teamName: string): boolean {
+	const [homeTeam, awayTeam] = game.match.split(' vs ')
+	if (!homeTeam || !awayTeam) {
+		return false
+	}
+
+	const teamToken = normalizeTeamToken(teamName)
+	return normalizeTeamToken(homeTeam) === teamToken || normalizeTeamToken(awayTeam) === teamToken
+}
+
+function isPlayerTransferLockedNow(player: SelectablePlayer): boolean {
+	if (fixtureMatchdays.length === 0) {
+		return false
+	}
+
+	const now = new Date()
+	const nowMs = now.getTime()
+
+	for (const matchday of fixtureMatchdays) {
+		for (const game of matchday.games) {
+			if (!fixtureGameIncludesTeam(game, player.team)) {
+				continue
+			}
+
+			const kickoff = parseFixtureKickoff(game, now)
+			if (!kickoff) {
+				continue
+			}
+
+			const kickoffMs = kickoff.getTime()
+			if (nowMs >= kickoffMs && nowMs <= kickoffMs + transferKickoffLockWindowMs) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+function getTransferLockMessage(player: SelectablePlayer): string {
+	return `${player.name} cannot be transferred from kickoff until 3.5 hours after kickoff for ${player.team}.`
+}
+
+async function refreshFixtureMatchdays(): Promise<void> {
+	try {
+		fixtureMatchdays = await getFixtureMatchdays()
+	} catch {
+		fixtureMatchdays = []
+	}
+}
 
 type TransferRequest = {
 	id: string
@@ -206,6 +382,10 @@ function isDraftPhaseActive(): boolean {
 	return draftModeEnabled && !draftComplete && currentMatchday === 1
 }
 
+function isUnlimitedTransferMatchday(matchday: number = currentMatchday): boolean {
+	return matchday === unlimitedTransferMatchday
+}
+
 function renderTransferRequests(): void {
 	const section = document.querySelector<HTMLDivElement>('#transfer-requests-section')
 	const container = document.querySelector<HTMLDivElement>('#transfer-requests')
@@ -265,7 +445,6 @@ function renderTransferRequests(): void {
 	`
 }
 
-let isTeamLocked = false
 let transfersUsedThisMatchday = 0
 let currentMatchday = 1
 let captainPlayerKey: string | null = null
@@ -276,6 +455,10 @@ let isCaptainSelectMode = false
 let swapBenchKey: string | null = null
 let transferPointEvents: TransferPointEvent[] = []
 let hasLoadedTeamState = false
+
+function isTeamLockedForMatchday(matchday: number = currentMatchday): boolean {
+	return matchday !== unlimitedTransferMatchday
+}
 
 function getCurrentPointsByPlayerKey(key: string): number {
 	const parts = key.split('::')
@@ -289,7 +472,7 @@ function getCurrentPointsByPlayerKey(key: string): number {
 }
 
 function addTransferPointEvent(direction: 'in' | 'out', key: string): void {
-	if (!isTeamLocked) {
+	if (!isTeamLockedForMatchday()) {
 		return
 	}
 
@@ -303,7 +486,7 @@ function addTransferPointEvent(direction: 'in' | 'out', key: string): void {
 }
 
 function reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys: Set<string>, previousMatchday: number): void {
-	if (!hasLoadedTeamState || !isTeamLocked || previousMatchday !== currentMatchday) {
+	if (!hasLoadedTeamState || !isTeamLockedForMatchday() || previousMatchday !== currentMatchday) {
 		return
 	}
 
@@ -333,55 +516,15 @@ const uniqueCountries = Array.from(new Set(allPlayers.map((p) => p.team))).sort(
 
 const myTeamMarkup = `
 	<section class="my-team-grid">
-		<div class="my-team-panel">
-			<div class="search-panel-header">
-				<h2>Search Players</h2>
-				<button id="toggle-player-list-btn" type="button" class="player-list-toggle-btn" aria-expanded="true">Collapse Search</button>
-			</div>
-			<div id="search-panel-section">
-				<input id="player-search" type="text" placeholder="Search by player name" aria-label="Search players" />
-				<p class="transfer-badge" id="transfer-remaining-badge">Transfers Remaining: 3</p>
-				
-				<div class="filters-section">
-				<div class="filter-group">
-					<label for="filter-position">Position:</label>
-					<select id="filter-position" aria-label="Filter by position">
-						<option value="">All Positions</option>
-						${uniquePositions.map((pos) => `<option value="${escapeHtml(pos)}">${escapeHtml(pos)}</option>`).join('')}
-					</select>
-				</div>
-
-				<div class="filter-group">
-					<label for="filter-min-price">Min Price (£):</label>
-					<input id="filter-min-price" type="number" min="0" step="0.5" placeholder="Any" aria-label="Minimum price" />
-				</div>
-
-				<div class="filter-group">
-					<label for="filter-max-price">Max Price (£):</label>
-					<input id="filter-max-price" type="number" min="0" step="0.5" placeholder="Any" aria-label="Maximum price" />
-				</div>
-
-				<div class="filter-group">
-					<label for="filter-country">Country:</label>
-					<select id="filter-country" aria-label="Filter by country">
-						<option value="">All Countries</option>
-						${uniqueCountries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join('')}
-					</select>
-				</div>
-				</div>
-
-				<p class="players-help" id="draft-status">Draft Mode: Off</p>
-				<p class="players-help" id="search-count"></p>
-				<ul class="search-results" id="search-results"></ul>
-			</div>
-		</div>
 
 		<div class="my-team-panel pitch-container">
-			<h2>My Team <span id="team-count">0/11</span></h2>
+			<div class="search-panel-header">
+				<h2>My Team <span id="team-count">0/11</span></h2>
+				<button id="toggle-pitch-view-btn" type="button" class="player-list-toggle-btn" aria-expanded="true">Collapse Pitch</button>
+			</div>
 			<p class="my-team-name">${escapeHtml(currentTeamName)}</p>
-			<p class="players-help">Pick up to 11 players. Limits: 1 GK, 5 DEF, 5 MID, 3 FWD.</p>
-			<p class="players-help" id="team-lock-status">Status: Building</p>
-			<button id="lock-team-btn" type="button" class="lock-team-btn">Lock In Team</button>
+			<p class="players-help">Pick up to 11 players. Limits: 1 GK, 5 DEF, 5 MID, 3 FWD. Minimums: 1 GK, 3 DEF, 3 MID, 1 FWD.</p>
+			<p class="players-help" id="team-lock-status">Status: Locked</p>
 			<p class="players-help" id="transfer-status">Matchday 1 Transfers: 0/3 used</p>
 			<p class="players-help" id="captain-status">Captain: None</p>
 			<button id="select-captain-btn" type="button" class="lock-team-btn">Select Captain</button>
@@ -392,12 +535,68 @@ const myTeamMarkup = `
 					<p class="players-help">Total Points: <span id="total-points" style="font-weight: 700; color: #0f172a;">0</span></p>
 				</div>
 			</div>
-			<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
-			<div class="football-pitch" id="selected-team"></div>
-			<div class="bench-section" id="bench-section" hidden>
-				<h3>Bench <span id="bench-count">0/4</span></h3>
-				<p class="players-help">Pick 4 bench players. Swap to/from active team for free.</p>
-				<div class="bench-players" id="bench-players"></div>
+			<div id="pitch-panel-section">
+				<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
+				<div class="football-pitch" id="selected-team"></div>
+				<div class="bench-section" id="bench-section" hidden>
+					<h3>Bench <span id="bench-count">0/4</span></h3>
+					<p class="players-help">Pick 4 bench players. Swap to/from active team for free.</p>
+					<div class="bench-players" id="bench-players"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="my-team-panel">
+			<div class="search-panel-header">
+				<h2>Search Players</h2>
+				<button id="toggle-player-list-btn" type="button" class="player-list-toggle-btn" aria-expanded="true">Collapse Search</button>
+			</div>
+			<div id="search-panel-section">
+				<input id="player-search" type="text" placeholder="Search by player name" aria-label="Search players" />
+				<p class="transfer-badge" id="transfer-remaining-badge">Transfers Remaining: 3</p>
+
+				<div class="filters-section">
+					<div class="filter-group">
+						<label for="filter-position">Position:</label>
+						<select id="filter-position" aria-label="Filter by position">
+							<option value="">All Positions</option>
+							${uniquePositions.map((pos) => `<option value="${escapeHtml(pos)}">${escapeHtml(pos)}</option>`).join('')}
+						</select>
+					</div>
+
+					<div class="filter-group">
+						<label for="filter-sort">Sort By:</label>
+						<select id="filter-sort" aria-label="Sort players">
+							<option value="alphabetical">Alphabetical</option>
+							<option value="price-low-high">Price: Low to High</option>
+							<option value="price-high-low">Price: High to Low</option>
+							<option value="points-low-high">Total Points: Low to High</option>
+							<option value="points-high-low">Total Points: High to Low</option>
+						</select>
+					</div>
+
+					<div class="filter-group">
+						<label for="filter-min-price">Min Price (£):</label>
+						<input id="filter-min-price" type="number" min="0" step="0.5" placeholder="Any" aria-label="Minimum price" />
+					</div>
+
+					<div class="filter-group">
+						<label for="filter-max-price">Max Price (£):</label>
+						<input id="filter-max-price" type="number" min="0" step="0.5" placeholder="Any" aria-label="Maximum price" />
+					</div>
+
+					<div class="filter-group">
+						<label for="filter-country">Country:</label>
+						<select id="filter-country" aria-label="Filter by country">
+							<option value="">All Countries</option>
+							${uniqueCountries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join('')}
+						</select>
+					</div>
+				</div>
+
+				<p class="players-help" id="draft-status">Draft Mode: Off</p>
+				<p class="players-help" id="search-count"></p>
+				<ul class="search-results" id="search-results"></ul>
 			</div>
 		</div>
 	</section>
@@ -413,7 +612,6 @@ const searchCount = document.querySelector<HTMLParagraphElement>('#search-count'
 const budgetCount = document.querySelector<HTMLParagraphElement>('#budget-count')
 const matchdayPointsDisplay = document.querySelector<HTMLSpanElement>('#matchday-points')
 const totalPointsDisplay = document.querySelector<HTMLSpanElement>('#total-points')
-const lockTeamBtn = document.querySelector<HTMLButtonElement>('#lock-team-btn')
 const selectCaptainBtn = document.querySelector<HTMLButtonElement>('#select-captain-btn')
 const teamLockStatus = document.querySelector<HTMLParagraphElement>('#team-lock-status')
 const transferStatus = document.querySelector<HTMLParagraphElement>('#transfer-status')
@@ -424,10 +622,14 @@ const filterPosition = document.querySelector<HTMLSelectElement>('#filter-positi
 const filterMinPrice = document.querySelector<HTMLInputElement>('#filter-min-price')
 const filterMaxPrice = document.querySelector<HTMLInputElement>('#filter-max-price')
 const filterCountry = document.querySelector<HTMLSelectElement>('#filter-country')
+const filterSort = document.querySelector<HTMLSelectElement>('#filter-sort')
 const togglePlayerListBtn = document.querySelector<HTMLButtonElement>('#toggle-player-list-btn')
 const searchPanelSection = document.querySelector<HTMLDivElement>('#search-panel-section')
+const togglePitchViewBtn = document.querySelector<HTMLButtonElement>('#toggle-pitch-view-btn')
+const pitchPanelSection = document.querySelector<HTMLDivElement>('#pitch-panel-section')
 
 let isPlayerListCollapsed = false
+let isPitchViewCollapsed = false
 
 function renderPlayerListVisibility(): void {
 	if (!togglePlayerListBtn || !searchPanelSection) {
@@ -439,10 +641,20 @@ function renderPlayerListVisibility(): void {
 	togglePlayerListBtn.setAttribute('aria-expanded', String(!isPlayerListCollapsed))
 }
 
+function renderPitchViewVisibility(): void {
+	if (!togglePitchViewBtn || !pitchPanelSection) {
+		return
+	}
+
+	pitchPanelSection.hidden = isPitchViewCollapsed
+	togglePitchViewBtn.textContent = isPitchViewCollapsed ? 'Expand Pitch' : 'Collapse Pitch'
+	togglePitchViewBtn.setAttribute('aria-expanded', String(!isPitchViewCollapsed))
+}
+
 type SavedTeamState = {
 	selectedPlayerKeys: string[]
 	benchPlayerKeys?: string[]
-	isTeamLocked: boolean
+	isTeamLocked?: boolean
 	transfersUsedThisMatchday: number
 	currentMatchday: number
 	remainingBudget?: number
@@ -473,7 +685,6 @@ function saveTeamState(): void {
 	const state: SavedTeamState = {
 		selectedPlayerKeys: selectedPlayers.map(playerKey),
 		benchPlayerKeys: benchPlayers.map(playerKey),
-		isTeamLocked,
 		transfersUsedThisMatchday,
 		currentMatchday,
 		remainingBudget: Number(remainingBudget.toFixed(1)),
@@ -491,7 +702,7 @@ function saveTeamState(): void {
 function getGlobalMatchday(): number {
 	const raw = getSharedItem(globalMatchdayStorageKey)
 	const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-	if (Number.isFinite(parsed) && parsed >= 1) {
+	if (Number.isFinite(parsed) && parsed >= 0) {
 		return parsed
 	}
 
@@ -499,13 +710,13 @@ function getGlobalMatchday(): number {
 }
 
 function setGlobalMatchday(matchday: number): void {
-	const safeMatchday = Math.max(1, Math.floor(matchday))
+	const safeMatchday = Math.max(0, Math.floor(matchday))
 	setSharedItem(globalMatchdayStorageKey, String(safeMatchday))
 }
 
 function syncWithGlobalMatchday(): void {
 	const globalMatchday = getGlobalMatchday()
-	if (currentMatchday < globalMatchday) {
+	if (currentMatchday !== globalMatchday) {
 		currentMatchday = globalMatchday
 		transfersUsedThisMatchday = 0
 		captainChangesThisMatchday = 0
@@ -523,7 +734,6 @@ function loadTeamState(): void {
 	if (!raw) {
 		selectedPlayers = []
 		benchPlayers = []
-		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
 		remainingBudget = maxBudget
@@ -548,11 +758,10 @@ function loadTeamState(): void {
 			.map((key) => findPlayerByKey(key))
 			.filter((player): player is SelectablePlayer => Boolean(player))
 
-		isTeamLocked = Boolean(state.isTeamLocked)
 		transfersUsedThisMatchday = Number.isFinite(state.transfersUsedThisMatchday)
-			? Math.max(0, Math.min(maxTransfersPerMatchday, state.transfersUsedThisMatchday))
+			? Math.max(0, Math.floor(state.transfersUsedThisMatchday))
 			: 0
-		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(1, state.currentMatchday) : 1
+		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(0, Math.floor(state.currentMatchday)) : 1
 		
 		const allTeamPlayers = benchModeEnabled ? [...selectedPlayers, ...benchPlayers] : [...selectedPlayers]
 		const playersAreEmpty = allTeamPlayers.length === 0
@@ -578,7 +787,6 @@ function loadTeamState(): void {
 	} catch {
 		selectedPlayers = []
 		benchPlayers = []
-		isTeamLocked = false
 		transfersUsedThisMatchday = 0
 		currentMatchday = 1
 		remainingBudget = maxBudget
@@ -610,6 +818,19 @@ function positionBucket(position: string): 'Goalkeeper' | 'Defender' | 'Midfield
 
 function countByBucket(players: SelectablePlayer[], bucket: keyof typeof positionLimits): number {
 	return players.filter((player) => positionBucket(player.position) === bucket).length
+}
+
+function getMissingMinimumSlots(players: SelectablePlayer[]): number {
+	const buckets = Object.keys(positionMinimums) as Array<keyof typeof positionMinimums>
+	return buckets.reduce((sum, bucket) => {
+		const currentCount = countByBucket(players, bucket)
+		const missingForBucket = Math.max(0, positionMinimums[bucket] - currentCount)
+		return sum + missingForBucket
+	}, 0)
+}
+
+function meetsPositionMinimums(players: SelectablePlayer[]): boolean {
+	return getMissingMinimumSlots(players) === 0
 }
 
 function getTotalPrice(players: SelectablePlayer[]): number {
@@ -647,6 +868,10 @@ function getTotalPoints(players: SelectablePlayer[]): number {
 }
 
 function canAddPlayer(player: SelectablePlayer): boolean {
+	if (isPlayerTransferLockedNow(player)) {
+		return false
+	}
+
 	if (selectedPlayers.length >= maxTeamSize) {
 		return false
 	}
@@ -666,34 +891,39 @@ function canAddPlayer(player: SelectablePlayer): boolean {
 	}
 
 	const bucket = positionBucket(player.position)
-	return countByBucket(selectedPlayers, bucket) < positionLimits[bucket]
+	if (countByBucket(selectedPlayers, bucket) >= positionLimits[bucket]) {
+		return false
+	}
+
+	const nextSelectedPlayers = [...selectedPlayers, player]
+	return getMissingMinimumSlots(nextSelectedPlayers) <= remainingSlotsAfterAdding
 }
 
-function canRemovePlayer(): boolean {
+function canRemovePlayer(player?: SelectablePlayer): boolean {
+	if (player && isPlayerTransferLockedNow(player)) {
+		return false
+	}
+
 	if (isDraftPhaseActive()) {
 		return false
 	}
 
-	if (!isTeamLocked) {
+	if (!isTeamLockedForMatchday()) {
+		return true
+	}
+
+	if (isUnlimitedTransferMatchday()) {
 		return true
 	}
 
 	return transfersUsedThisMatchday < maxTransfersPerMatchday
 }
 
-function canLockTeam(): boolean {
-	if (isDraftPhaseActive()) {
+function canAddPlayerToBench(player: SelectablePlayer): boolean {
+	if (isPlayerTransferLockedNow(player)) {
 		return false
 	}
 
-	if (benchModeEnabled) {
-		return !isTeamLocked && selectedPlayers.length === maxTeamSize && benchPlayers.length === maxBenchSize
-	}
-
-	return !isTeamLocked && selectedPlayers.length === maxTeamSize
-}
-
-function canAddPlayerToBench(player: SelectablePlayer): boolean {
 	if (!benchModeEnabled) {
 		return false
 	}
@@ -760,7 +990,11 @@ function swapPlayerWithBench(activePlayerKey: string, benchPlayerKey: string): v
 }
 
 function getTransfersRemaining(): number {
-	if (!isTeamLocked) {
+	if (isUnlimitedTransferMatchday()) {
+		return Number.POSITIVE_INFINITY
+	}
+
+	if (!isTeamLockedForMatchday()) {
 		return maxTransfersPerMatchday
 	}
 
@@ -768,7 +1002,7 @@ function getTransfersRemaining(): number {
 }
 
 function canSetCaptain(targetKey: string): boolean {
-	if (!isTeamLocked) {
+	if (!isTeamLockedForMatchday()) {
 		return false
 	}
 
@@ -785,6 +1019,11 @@ function canSetCaptain(targetKey: string): boolean {
 
 function canAcceptTransfer(request: TransferRequest): boolean {
 	if (!request.position) {
+		return false
+	}
+
+	const player = findPlayerByKey(request.playerKey)
+	if (player && isPlayerTransferLockedNow(player)) {
 		return false
 	}
 
@@ -816,36 +1055,38 @@ function renderSelectedTeam(): void {
 		const spent = Number((maxBudget - remainingBudget).toFixed(1))
 		budgetCount.textContent = `Budget: £${spent.toFixed(1)} / £${maxBudget.toFixed(1)} (Remaining: £${remainingBudget.toFixed(1)})`
 	}
+	const teamLocked = isTeamLockedForMatchday()
 	if (matchdayPointsDisplay) {
-		matchdayPointsDisplay.textContent = `${isTeamLocked ? getMatchdayPoints(selectedPlayers) : 0}`
+		matchdayPointsDisplay.textContent = `${teamLocked ? getMatchdayPoints(selectedPlayers) : 0}`
 	}
 	if (totalPointsDisplay) {
-		totalPointsDisplay.textContent = `${isTeamLocked ? getTotalPoints(selectedPlayers) : 0}`
+		totalPointsDisplay.textContent = `${teamLocked ? getTotalPoints(selectedPlayers) : 0}`
 	}
 	if (teamLockStatus) {
-		if (isTeamLocked) {
+		if (teamLocked) {
 			teamLockStatus.textContent = 'Status: Locked'
+		} else if (selectedPlayers.length === maxTeamSize && meetsPositionMinimums(selectedPlayers)) {
+			teamLockStatus.textContent = 'Status: Unlocked (Matchday 0)'
 		} else if (selectedPlayers.length === maxTeamSize) {
-			teamLockStatus.textContent = 'Status: Ready to lock'
+			teamLockStatus.textContent = 'Status: Full team but minimum position requirements not met'
 		} else {
-			teamLockStatus.textContent = 'Status: Building'
+			teamLockStatus.textContent = 'Status: Unlocked (Matchday 0)'
 		}
 	}
-	if (lockTeamBtn) {
-		lockTeamBtn.disabled = !canLockTeam()
-	}
 	if (transferStatus) {
-		transferStatus.textContent = `Matchday ${currentMatchday} Transfers: ${transfersUsedThisMatchday}/${maxTransfersPerMatchday} used`
+		transferStatus.textContent = isUnlimitedTransferMatchday()
+			? `Matchday ${currentMatchday} Transfers: Unlimited`
+			: `Matchday ${currentMatchday} Transfers: ${transfersUsedThisMatchday}/${maxTransfersPerMatchday} used`
 	}
 	if (captainStatus) {
 		const captain = captainPlayerKey ? selectedPlayers.find((player) => playerKey(player) === captainPlayerKey) : null
-		const captainSelectedThisMatchday = isTeamLocked && captainChangesThisMatchday >= 1
+		const captainSelectedThisMatchday = teamLocked && captainChangesThisMatchday >= 1
 		const selectionLimitInfo = captainSelectedThisMatchday ? ' | Captain already selected this matchday' : ''
 		if (!captain) {
 			const modeHint = isCaptainSelectMode ? ' | Click a player card to assign captain' : ''
-			captainStatus.textContent = `Captain: None${isTeamLocked ? '' : ' (available after lock in)'}${selectionLimitInfo}${modeHint}`
+			captainStatus.textContent = `Captain: None${teamLocked ? '' : ' (available once matchday is not 0)'}${selectionLimitInfo}${modeHint}`
 		} else {
-			const captainChangeInfo = isTeamLocked
+			const captainChangeInfo = teamLocked
 				? ` | Captain changes this matchday: ${captainChangesThisMatchday}/1 used`
 				: ''
 			const modeHint = isCaptainSelectMode ? ' | Click a player card to assign captain' : ''
@@ -853,7 +1094,7 @@ function renderSelectedTeam(): void {
 		}
 	}
 	if (selectCaptainBtn) {
-		const canSelectCaptainThisMatchday = isTeamLocked && selectedPlayers.length > 0 && captainChangesThisMatchday < 1
+		const canSelectCaptainThisMatchday = teamLocked && selectedPlayers.length > 0 && captainChangesThisMatchday < 1
 		if (!canSelectCaptainThisMatchday) {
 			isCaptainSelectMode = false
 		}
@@ -861,7 +1102,10 @@ function renderSelectedTeam(): void {
 		selectCaptainBtn.textContent = isCaptainSelectMode ? 'Cancel Captain Select' : 'Select Captain'
 	}
 	if (transferRemainingBadge) {
-		transferRemainingBadge.textContent = `Transfers Remaining: ${getTransfersRemaining()}`
+		const transfersRemaining = getTransfersRemaining()
+		transferRemainingBadge.textContent = Number.isFinite(transfersRemaining)
+			? `Transfers Remaining: ${transfersRemaining}`
+			: 'Transfers Remaining: Unlimited'
 	}
 
 	if (selectedPlayers.length === 0) {
@@ -874,12 +1118,13 @@ function renderSelectedTeam(): void {
 	const midfielders = selectedPlayers.filter((p) => positionBucket(p.position) === 'Midfielder')
 	const forwards = selectedPlayers.filter((p) => positionBucket(p.position) === 'Forward')
 
-	const renderRow = (label: string, players: SelectablePlayer[]): string => {
+	const renderRow = (players: SelectablePlayer[]): string => {
 		if (players.length === 0) return ''
 		const selectedKeys = selectedPlayers.map(playerKey)
 		const playerCards = players
 			.map((player) => {
 				const key = playerKey(player)
+				const kitColors = getTeamKitColors(player.team)
 				let swapBtnMarkup = ''
 				if (swapBenchKey) {
 					const canSwap = canSwapWithBench(key, swapBenchKey)
@@ -888,15 +1133,15 @@ function renderSelectedTeam(): void {
 				}
 				return `
 					<div class="pitch-player">
-						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}" data-player-key="${escapeHtml(key)}">
+						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}" data-player-key="${escapeHtml(key)}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
 							${captainPlayerKey === key ? '<div class="captain-badge">C</div>' : ''}
-							<div class="player-name">${escapeHtml(player.name)}</div>
+							<div class="player-name">${renderPitchPlayerName(player.name)}</div>
 							<div class="player-details">
 								<div class="player-price">£${player.price.toFixed(1)}</div>
 								<div class="player-flag">${getCountryFlag(player.team)}</div>
-								<div class="player-points">${isTeamLocked ? getTransferAwarePlayerCurrentPoints(key, selectedKeys, currentMatchday, transferPointEvents, getCurrentPointsByPlayerKey) : 0}pts</div>
+									<div class="player-points">${teamLocked ? getTransferAwarePlayerCurrentPoints(key, selectedKeys, currentMatchday, transferPointEvents, getCurrentPointsByPlayerKey) : 0}pts</div>
 							</div>
-							<button class="remove-player-btn" type="button" data-key="${escapeHtml(key)}" title="Remove player" ${canRemovePlayer() ? '' : 'disabled'}>×</button>
+							<button class="remove-player-btn" type="button" data-key="${escapeHtml(key)}" title="Remove player" ${canRemovePlayer(player) ? '' : 'disabled'}>×</button>
 							${swapBtnMarkup}
 						</div>
 					</div>
@@ -906,7 +1151,6 @@ function renderSelectedTeam(): void {
 
 		return `
 			<div class="pitch-row">
-				<div class="pitch-label">${label}</div>
 				<div class="pitch-row-players">${playerCards}</div>
 			</div>
 		`
@@ -914,10 +1158,10 @@ function renderSelectedTeam(): void {
 
 	selectedTeamList.innerHTML = `
 		<div class="pitch">
-			${renderRow('GK', goalkeepers)}
-			${renderRow('DEF', defenders)}
-			${renderRow('MID', midfielders)}
-			${renderRow('FWD', forwards)}
+			${renderRow(goalkeepers)}
+			${renderRow(defenders)}
+			${renderRow(midfielders)}
+			${renderRow(forwards)}
 		</div>
 	`
 }
@@ -957,7 +1201,7 @@ function renderBench(): void {
 							<div class="player-price">£${player.price.toFixed(1)}</div>
 							<div class="player-flag">${getCountryFlag(player.team)}</div>
 							<div class="player-position">${player.position}</div>
-							<div class="player-points">${isTeamLocked ? getPlayerPoints(player.name, player.team) : 0}pts</div>
+							<div class="player-points">${isTeamLockedForMatchday() ? getPlayerPoints(player.name, player.team) : 0}pts</div>
 						</div>
 					</div>
 					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player" ${swapBenchKey ? 'disabled' : ''}>⇄</button>
@@ -987,6 +1231,7 @@ function renderSearchResults(): void {
 	const minPriceFilter = filterMinPrice?.value ? parseFloat(filterMinPrice.value) : null
 	const maxPriceFilter = filterMaxPrice?.value ? parseFloat(filterMaxPrice.value) : null
 	const selectedCountryFilter = filterCountry?.value || null
+	const sortMode = filterSort?.value ?? 'alphabetical'
 
 	const filtered = allPlayers.filter((player) => {
 		// Name filter
@@ -1015,26 +1260,52 @@ function renderSearchResults(): void {
 		return true
 	})
 
+	filtered.sort((a, b) => {
+		if (sortMode === 'price-low-high' || sortMode === 'price-high-low') {
+			const priceDiff = sortMode === 'price-low-high' ? a.price - b.price : b.price - a.price
+			if (priceDiff !== 0) {
+				return priceDiff
+			}
+		} else if (sortMode === 'points-low-high' || sortMode === 'points-high-low') {
+			const aPoints = getPlayerTotalPoints(a.name, a.team)
+			const bPoints = getPlayerTotalPoints(b.name, b.team)
+			const pointsDiff = sortMode === 'points-low-high' ? aPoints - bPoints : bPoints - aPoints
+			if (pointsDiff !== 0) {
+				return pointsDiff
+			}
+		}
+
+		return a.name.localeCompare(b.name)
+	})
+
 	searchCount.textContent = `${filtered.length} players found`
 
 	searchResults.innerHTML = filtered
 		.slice(0, 150)
 		.map((player) => {
 			const key = playerKey(player)
+			const countryFlag = getCountryFlag(player.team)
+			const kitColors = getTeamKitColors(player.team)
 			const alreadySelected = selectedKeys.has(key)
 			const benchKeys = new Set(benchPlayers.map(playerKey))
 			const alreadyOnBench = benchKeys.has(key)
+			const transferLocked = isPlayerTransferLockedNow(player)
 			const takenByOther = !alreadySelected && !alreadyOnBench && claimedKeys.has(key)
 			const owner = claimedKeys.get(key) ?? null
 			const hasPendingRequest = outgoingTransferRequests.some((request) => request.status === 'pending' && request.playerKey === key)
 			const blockedByTurn = !alreadySelected && !alreadyOnBench && notCurrentTurn
 			
 			// Check if we can add to bench
-			const canAddToBench = !alreadyOnBench && !alreadySelected && !takenByOther && canAddPlayerToBench(player)
+			const canAddToBench = !alreadyOnBench && !alreadySelected && !takenByOther && !transferLocked && canAddPlayerToBench(player)
 			const teamIsFull = selectedPlayers.length >= maxTeamSize
 			const benchIsFull = benchPlayers.length >= maxBenchSize
 			
-			const lockedAndNoTransfersLeft = isTeamLocked && !alreadySelected && selectedPlayers.length >= maxTeamSize && transfersUsedThisMatchday >= maxTransfersPerMatchday
+			const lockedAndNoTransfersLeft =
+				isTeamLockedForMatchday() &&
+				!isUnlimitedTransferMatchday() &&
+				!alreadySelected &&
+				selectedPlayers.length >= maxTeamSize &&
+				transfersUsedThisMatchday >= maxTransfersPerMatchday
 			const isRequestMode = takenByOther && !isDraftPhaseActive() && owner !== null
 			const canAddToActive = !alreadySelected && canAddPlayer(player)
 			const disabled = alreadySelected || (!isRequestMode && (takenByOther || !canAddToActive))
@@ -1044,6 +1315,8 @@ function renderSearchResults(): void {
 				? 'Added'
 				: alreadyOnBench
 					? 'On Bench'
+					: transferLocked
+						? 'Locked'
 					: isRequestMode
 						? hasPendingRequest
 							? 'Requested'
@@ -1066,16 +1339,16 @@ function renderSearchResults(): void {
 				? `data-key="${escapeHtml(key)}" data-owner="${escapeHtml(owner)}"`
 				: `data-key="${escapeHtml(key)}"`
 			
-			const requestDisabled = isRequestMode && (hasPendingRequest || selectedPlayers.length >= maxTeamSize)
+			const requestDisabled = isRequestMode && (hasPendingRequest || selectedPlayers.length >= maxTeamSize || transferLocked)
 			const benchDisabled = canAddToBench && benchIsFull
 			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : (canAddToBench ? benchDisabled : isDisabled)
 
 			const totalPts = getPlayerTotalPoints(player.name, player.team)
 			return `
-				<li class="search-item${takenByOther ? ' player-taken' : ''}">
+				<li class="search-item${takenByOther ? ' player-taken' : ''}" style="background: ${kitColors.backgroundColor}; border-color: ${kitColors.borderColor}; color: ${kitColors.textColor};">
 					<div>
-						<strong>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span> <span class="player-total-pts">${totalPts} pts</span></strong>
-						<div class="selected-meta">${escapeHtml(player.team)} (${escapeHtml(player.position)})</div>
+						<strong style="color: ${kitColors.textColor};">${countryFlag} ${escapeHtml(player.name)} <span class="player-price" style="color: ${kitColors.textColor};">(£${player.price.toFixed(1)})</span> <span class="player-total-pts" style="color: ${kitColors.textColor};">${totalPts} pts</span></strong>
+						<div class="selected-meta" style="color: ${kitColors.textColor};">${escapeHtml(player.team)} (${escapeHtml(player.position)})</div>
 					</div>
 					<button class="${buttonClass}" type="button" ${buttonDataAttrs} ${finalDisabled ? 'disabled' : ''}>${buttonLabel}</button>
 				</li>
@@ -1103,6 +1376,14 @@ if (searchInput && searchResults && selectedTeamList) {
 		renderPlayerListVisibility()
 	}
 
+	if (togglePitchViewBtn && pitchPanelSection) {
+		togglePitchViewBtn.addEventListener('click', () => {
+			isPitchViewCollapsed = !isPitchViewCollapsed
+			renderPitchViewVisibility()
+		})
+		renderPitchViewVisibility()
+	}
+
 	searchInput.addEventListener('input', renderSearchResults)
 
 	if (filterPosition) {
@@ -1117,6 +1398,9 @@ if (searchInput && searchResults && selectedTeamList) {
 	if (filterCountry) {
 		filterCountry.addEventListener('change', renderSearchResults)
 	}
+	if (filterSort) {
+		filterSort.addEventListener('change', renderSearchResults)
+	}
 
 	searchResults.addEventListener('click', async (event) => {
 		const target = event.target as HTMLElement
@@ -1127,6 +1411,10 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 			const requestedPlayer = findPlayerByKey(requestedPlayerKey)
+			if (requestedPlayer && isPlayerTransferLockedNow(requestedPlayer)) {
+				alert(getTransferLockMessage(requestedPlayer))
+				return
+			}
 			const offeredPriceText = window.prompt('Enter transfer offer price (£):')
 			if (offeredPriceText === null) {
 				return
@@ -1194,6 +1482,11 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 
+			if (isPlayerTransferLockedNow(player)) {
+				alert(getTransferLockMessage(player))
+				return
+			}
+
 			if (!canAddPlayerToBench(player)) {
 				alert(`Cannot add ${player.name}. Check position limits for bench.`)
 				return
@@ -1230,6 +1523,11 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
+		if (isPlayerTransferLockedNow(player)) {
+			alert(getTransferLockMessage(player))
+			return
+		}
+
 		if (claimedByOthers.has(key)) {
 			return
 		}
@@ -1245,7 +1543,12 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (!canAddPlayer(player)) {
 			return
 		}
-		if (isTeamLocked && selectedPlayers.length >= maxTeamSize && transfersUsedThisMatchday >= maxTransfersPerMatchday) {
+		if (
+			isTeamLockedForMatchday() &&
+			!isUnlimitedTransferMatchday() &&
+			selectedPlayers.length >= maxTeamSize &&
+			transfersUsedThisMatchday >= maxTransfersPerMatchday
+		) {
 			return
 		}
 
@@ -1316,13 +1619,21 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (!key) {
 			return
 		}
-		if (!canRemovePlayer()) {
+
+		const removedPlayer = findPlayerByKey(key)
+		if (!removedPlayer) {
+			return
+		}
+
+		if (!canRemovePlayer(removedPlayer)) {
+			if (isPlayerTransferLockedNow(removedPlayer)) {
+				alert(getTransferLockMessage(removedPlayer))
+			}
 			return
 		}
 
 		addTransferPointEvent('out', key)
 		selectedPlayers = selectedPlayers.filter((player) => playerKey(player) !== key)
-		const removedPlayer = findPlayerByKey(key)
 		if (removedPlayer) {
 			remainingBudget = Math.min(maxBudget, Number((remainingBudget + removedPlayer.price).toFixed(1)))
 			void logTransferHistoryEvent({
@@ -1336,7 +1647,7 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (captainPlayerKey === key) {
 			captainPlayerKey = null
 		}
-		if (isTeamLocked) {
+		if (isTeamLockedForMatchday()) {
 			transfersUsedThisMatchday += 1
 		}
 		saveTeamState()
@@ -1387,22 +1698,9 @@ if (searchInput && searchResults && selectedTeamList) {
 		})
 	}
 
-	if (lockTeamBtn) {
-		lockTeamBtn.addEventListener('click', () => {
-			if (!canLockTeam()) {
-				return
-			}
-
-			isTeamLocked = true
-			saveTeamState()
-			renderSelectedTeam()
-			renderSearchResults()
-		})
-	}
-
 	if (selectCaptainBtn) {
 		selectCaptainBtn.addEventListener('click', () => {
-			if (!isTeamLocked || selectedPlayers.length === 0 || captainChangesThisMatchday >= 1) {
+			if (!isTeamLockedForMatchday() || selectedPlayers.length === 0 || captainChangesThisMatchday >= 1) {
 				return
 			}
 
@@ -1452,7 +1750,12 @@ if (searchInput && searchResults && selectedTeamList) {
 			if (decision === 'accept') {
 				const targetRequest = incomingTransferRequests.find((r) => r.id === requestId)
 				if (targetRequest && !canAcceptTransfer(targetRequest)) {
-					alert(`Cannot accept: accepting this player would exceed the position limit for ${targetRequest.position}.`)
+					const targetPlayer = findPlayerByKey(targetRequest.playerKey)
+					if (targetPlayer && isPlayerTransferLockedNow(targetPlayer)) {
+						alert(getTransferLockMessage(targetPlayer))
+					} else {
+						alert(`Cannot accept: accepting this player would exceed the position limit for ${targetRequest.position}.`)
+					}
 					return
 				}
 			}
@@ -1498,6 +1801,11 @@ if (searchInput && searchResults && selectedTeamList) {
 	loadTeamState()
 	setGlobalMatchday(getGlobalMatchday())
 	syncWithGlobalMatchday()
+	void refreshFixtureMatchdays().then(() => {
+		renderSelectedTeam()
+		renderBench()
+		renderSearchResults()
+	})
 	renderSelectedTeam()
 	renderBench()
 	void refreshBenchMode()

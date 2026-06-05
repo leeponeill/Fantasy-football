@@ -525,7 +525,7 @@ function saveAutoAdvancedGameweeks(gameweeks: Set<number>): void {
 function getGlobalMatchday(): number {
   const raw = getSharedItem(globalMatchdayStorageKey)
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  if (Number.isFinite(parsed) && parsed >= 1) {
+  if (Number.isFinite(parsed) && parsed >= 0) {
     return parsed
   }
 
@@ -533,7 +533,7 @@ function getGlobalMatchday(): number {
 }
 
 function setGlobalMatchday(matchday: number): void {
-  const safe = Math.max(1, Math.floor(matchday))
+  const safe = Math.max(0, Math.floor(matchday))
   setSharedItem(globalMatchdayStorageKey, String(safe))
 }
 
