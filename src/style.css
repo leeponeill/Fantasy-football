@@ -287,6 +287,10 @@ body {
   gap: 0.75rem;
 }
 
+.fixture-controls--hidden {
+  display: none;
+}
+
 .fixture-controls input,
 .fixture-controls select {
   border: 1px solid #cbd5e1;
@@ -295,6 +299,108 @@ body {
   font: inherit;
 }
 
+.fixtures-view-switch {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #dce3ef;
+}
+
+.fixtures-view-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.fixtures-view-btn:hover {
+  color: #334155;
+}
+
+.fixtures-view-btn.is-active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+}
+
+.groups-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.groups-table .col-rank  { width: 36px; }
+.groups-table .col-team  { width: auto; }
+.groups-table .col-stat  { width: 36px; }
+.groups-table .col-form  { width: 120px; }
+
+.groups-table td,
+.groups-table th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groups-table td:first-child,
+.groups-table th:first-child {
+  white-space: nowrap;
+  width: 56px;
+  font-weight: 700;
+}
+
+.groups-table td:nth-child(2),
+.groups-table th:nth-child(2) {
+  min-width: unset;
+}
+
+.groups-table td:last-child,
+.groups-table th:last-child {
+  min-width: unset;
+  width: 120px;
+}
+
+.group-form {
+  letter-spacing: 0.08em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.group-form span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin: 0 1px;
+}
+
+.form-w { background: #10b981; color: #fff; }
+.form-l { background: #ef4444; color: #fff; }
+.form-d { background: #f59e0b; color: #fff; }
+.form-blank { background: #e5e7eb; color: #9ca3af; }
+
+body.dark-mode .form-blank { background: #4b5563; color: #ffffff; }
+body.dark-mode .fixtures-view-btn {
+  color: #cbd5e1;
+}
+
+body.dark-mode .fixtures-view-btn:hover {
+  color: #e5e7eb;
+}
+
+body.dark-mode .fixtures-view-btn.is-active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+body.dark-mode .fixtures-view-switch {
+  border-bottom-color: #334155;
+}
 
 .fixtures-results-columns {
   display: grid;
@@ -1045,11 +1151,15 @@ body {
   flex-wrap: nowrap;
   flex: 1;
   overflow-x: auto;
+  padding: 12px 0;
+  margin: -12px 0;
 }
 
 .pitch-player {
   flex: 0 0 114px;
   width: 114px;
+  position: relative;
+  overflow: visible;
 }
 
 .player-card {
@@ -1063,6 +1173,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   color: var(--kit-text, #0f172a);
+  overflow: visible;
 }
 
 .pitch-row-players .player-card {
@@ -1070,7 +1181,7 @@ body {
   min-width: 114px;
   min-height: 152px;
   height: 152px;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -1148,6 +1259,7 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 .player-card.captain-selectable {
@@ -1175,10 +1287,29 @@ body {
   font-size: 1.3rem;
   line-height: 1;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 .remove-player-btn:hover {
   background: #dc2626;
+}
+
+.team-played-badge {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 .stats-container {
