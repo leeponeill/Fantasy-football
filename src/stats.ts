@@ -2,7 +2,7 @@ import { renderPage } from './renderPage'
 import { addMatchdayPointsToTotal, getAllPlayers, getPlayerPoints, updatePlayerPoints, type SelectablePlayer } from './teamsData'
 import { calculatePlayerPoints, getPointsBreakdownText, type PlayerPerformance } from './pointsCalculator'
 import { getCurrentUsername, requireAuth } from './auth'
-import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
+import { getWCFixtureMatchdays, type WCFixtureGame, type WCFixtureMatchday } from './fixturesData'
 import { flushSharedLeagueStorage, getSharedItem, setSharedItem } from './sharedLeague'
 
 requireAuth()
@@ -64,7 +64,7 @@ type CalculatedImportResult = {
 }
 
 type FixtureDueMatch = {
-  game: FixtureGame
+  game: WCFixtureGame
   kickoff: Date
 }
 
@@ -100,9 +100,57 @@ function toToken(value: string): string {
 const teamAliases: Record<string, string> = {
   unitedstates: 'usa',
   us: 'usa',
+  mex: 'mexico',
+  rsa: 'southafrica',
+  kor: 'southkorea',
+  cze: 'czechia',
+  can: 'canada',
+  bih: 'bosniaandherzegovina',
+  par: 'paraguay',
+  qat: 'qatar',
+  sui: 'switzerland',
+  bra: 'brazil',
+  mar: 'morocco',
+  hai: 'haiti',
+  sco: 'scotland',
+  aus: 'australia',
+  tur: 'turkiye',
+  ger: 'germany',
+  cuw: 'curacao',
+  ned: 'netherlands',
+  jpn: 'japan',
+  civ: 'cotedivoire',
+  ecu: 'ecuador',
+  swe: 'sweden',
+  tun: 'tunisia',
+  esp: 'spain',
+  cpv: 'caboverde',
+  bel: 'belgium',
+  egy: 'egypt',
+  ksa: 'saudiarabia',
+  uru: 'uruguay',
+  irn: 'iran',
+  nzl: 'newzealand',
+  fra: 'france',
+  sen: 'senegal',
+  irq: 'iraq',
+  nor: 'norway',
+  arg: 'argentina',
+  alg: 'algeria',
+  aut: 'austria',
+  jor: 'jordan',
+  por: 'portugal',
+  cod: 'congodr',
+  eng: 'england',
+  cro: 'croatia',
+  gha: 'ghana',
+  pan: 'panama',
+  uzb: 'uzbekistan',
+  col: 'colombia',
   korearepublic: 'southkorea',
   republicofkorea: 'southkorea',
   czechrepublic: 'czechia',
+  czecrepublic: 'czechia',
   coteivoire: 'ivorycoast',
   manutd: 'manchesterunited',
   manchesterutd: 'manchesterunited',
@@ -227,9 +275,9 @@ const autoAdvancedGameweeksStorageKey = 'fantasy-football-auto-advanced-gameweek
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
 const dueFixtureScanDelayMs = 150 * 60 * 1000
 const autoGameweekScanDelayMs = 180 * 60 * 1000
-const autoGameweekAdvanceDelayMs = 12 * 60 * 60 * 1000
+const gameweekCompletionBufferMs = 210 * 60 * 1000
 const oneTimeScanMaxDelayMs = 2_147_000_000
-let fixtureMatchdays: FixtureMatchday[] = []
+let fixtureMatchdays: WCFixtureMatchday[] = []
 
 const playersByTeamAndName = new Map<string, SelectablePlayer>()
 const playersByName = new Map<string, SelectablePlayer[]>()
@@ -537,7 +585,7 @@ function setGlobalMatchday(matchday: number): void {
   setSharedItem(globalMatchdayStorageKey, String(safe))
 }
 
-function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
+function parseFixtureKickoff(game: WCFixtureGame, now: Date): Date | null {
   const dateWithoutWeekday = game.date.includes(',') ? game.date.split(',').slice(1).join(',').trim() : game.date.trim()
   const dateMatch = dateWithoutWeekday.match(/^([A-Za-z]+)\s+(\d{1,2})$/)
   if (!dateMatch) {
@@ -722,7 +770,7 @@ function getDueFixtureMatches(now: Date): FixtureDueMatch[] {
   return due
 }
 
-function selectBestMatchForFixture(game: FixtureGame, matches: MatchSearchResult[]): MatchSearchResult | null {
+function selectBestMatchForFixture(game: WCFixtureGame, matches: MatchSearchResult[]): MatchSearchResult | null {
   const teams = extractFixtureTeams(game.match)
   if (!teams) {
     return null
@@ -1096,7 +1144,7 @@ async function importAndApplyMatchStats(): Promise<void> {
 }
 
 async function scanFixtureGamesAndImport(
-  games: FixtureGame[],
+  games: WCFixtureGame[],
   scanLabel: string,
   options?: { skipAlreadyImported?: boolean; includeZeroPoints?: boolean; replaceExistingValues?: boolean },
 ): Promise<ScanImportSummary> {
@@ -1312,7 +1360,7 @@ async function scanSelectedGameweekAndImport(): Promise<void> {
   })
 }
 
-function getLatestKickoffForGameweek(matchday: FixtureMatchday, now: Date): Date | null {
+function getLatestKickoffForGameweek(matchday: WCFixtureMatchday, now: Date): Date | null {
   let latestKickoff: Date | null = null
 
   for (const game of matchday.games) {
@@ -1332,6 +1380,26 @@ function getLatestKickoffForGameweek(matchday: FixtureMatchday, now: Date): Date
   }
 
   return latestKickoff
+}
+
+function isGameweekComplete(matchdayNumber: number, now: Date): boolean {
+  const matchday = fixtureMatchdays.find((entry) => entry.matchday === matchdayNumber)
+  if (!matchday || matchday.games.length === 0) {
+    return false
+  }
+
+  for (const game of matchday.games) {
+    const kickoff = parseFixtureKickoff(game, now)
+    if (!kickoff) {
+      return false
+    }
+
+    if (kickoff.getTime() + gameweekCompletionBufferMs > now.getTime()) {
+      return false
+    }
+  }
+
+  return true
 }
 
 async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
@@ -1385,6 +1453,13 @@ async function triggerAutoGameweekAdvance(matchdayNumber: number): Promise<void>
     return
   }
 
+  if (!isGameweekComplete(matchdayNumber, new Date())) {
+    window.setTimeout(() => {
+      void triggerAutoGameweekAdvance(matchdayNumber)
+    }, 30 * 60 * 1000)
+    return
+  }
+
   const current = getGlobalMatchday()
   if (current <= matchdayNumber) {
     // Keep auto-advance behavior aligned with manual End Gameweek: roll points and clear current map.
@@ -1415,7 +1490,7 @@ function scheduleOneTimeGameweekScans(now: Date): void {
     const runAtMs = latestKickoff.getTime() + autoGameweekScanDelayMs
     const delayMs = runAtMs - now.getTime()
     scheduledAutoScanGameweekKeys.add(matchday.matchday)
-    const advanceAtMs = runAtMs + autoGameweekAdvanceDelayMs
+    const advanceAtMs = latestKickoff.getTime() + gameweekCompletionBufferMs
     const advanceDelayMs = advanceAtMs - nowMs
 
     if (delayMs <= 0) {
@@ -1461,7 +1536,7 @@ function scheduleOneTimeGameweekScans(now: Date): void {
 
 const scheduledAutoScanFixtureKeys = new Set<string>()
 
-function getFixtureScheduleKey(game: FixtureGame): string {
+function getFixtureScheduleKey(game: WCFixtureGame): string {
   return `${game.date}::${game.time}::${game.match}`
 }
 
@@ -1636,7 +1711,7 @@ async function initializeStatsPage(): Promise<void> {
   renderPlayerSearch()
 
   try {
-    fixtureMatchdays = await getFixtureMatchdays()
+    fixtureMatchdays = await getWCFixtureMatchdays()
     renderGameweekOptions()
   } catch {
     setAutoImportMessage('Unable to load fixture list for auto scan.', 'error')

@@ -403,11 +403,14 @@ body.dark-mode .fixtures-view-switch {
 }
 
 .fixtures-results-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   margin-top: 1.5rem;
+}
+
+.fixtures-results-view {
+  width: 100%;
 }
 
 .fixture-section {
@@ -466,6 +469,89 @@ body.dark-mode .fixtures-view-switch {
 
 .fixture-match {
   color: #1e293b;
+}
+
+.fixture-match--result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.fixture-scoreline {
+  display: block;
+  white-space: nowrap;
+}
+
+.fixture-scoreline-main {
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  column-gap: 0.35rem;
+  align-items: baseline;
+}
+
+.fixture-team--home {
+  text-align: left;
+}
+
+.fixture-team--away {
+  text-align: left;
+}
+
+.fixture-score-center {
+  white-space: nowrap;
+}
+
+.fixture-score-number {
+  font-size: 1.22em;
+  line-height: 1;
+}
+
+.fixture-score-separator {
+  display: inline-block;
+  margin: 0 0.15rem;
+  font-size: 1.06em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.fixture-scorers {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.25;
+}
+
+.fixture-scorers-grid {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  column-gap: 0.35rem;
+  margin-top: 0.1rem;
+  width: fit-content;
+}
+
+.fixture-scorers-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.25;
+}
+
+.fixture-scorers-col--home {
+  text-align: left;
+}
+
+.fixture-scorers-col--away {
+  text-align: left;
+}
+
+.fixture-scorers-col--score {
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.fixture-scorer-row {
+  display: block;
 }
 
 .fixture-country {

@@ -39,6 +39,106 @@ function withTeamFlag(name: string): string {
 	return `${getCountryFlag(name)} ${name}`
 }
 
+function normalizeTeamToken(value: string): string {
+	const aliases: Record<string, string> = {
+		mex: 'mexico',
+		rsa: 'southafrica',
+		kor: 'southkorea',
+		cze: 'czechia',
+		can: 'canada',
+		bih: 'bosniaandherzegovina',
+		par: 'paraguay',
+		qat: 'qatar',
+		sui: 'switzerland',
+		bra: 'brazil',
+		mar: 'morocco',
+		hai: 'haiti',
+		sco: 'scotland',
+		aus: 'australia',
+		tur: 'turkiye',
+		ger: 'germany',
+		cuw: 'curacao',
+		ned: 'netherlands',
+		jpn: 'japan',
+		civ: 'cotedivoire',
+		ecu: 'ecuador',
+		swe: 'sweden',
+		tun: 'tunisia',
+		esp: 'spain',
+		cpv: 'caboverde',
+		bel: 'belgium',
+		egy: 'egypt',
+		ksa: 'saudiarabia',
+		uru: 'uruguay',
+		irn: 'iran',
+		nzl: 'newzealand',
+		fra: 'france',
+		sen: 'senegal',
+		irq: 'iraq',
+		nor: 'norway',
+		arg: 'argentina',
+		alg: 'algeria',
+		aut: 'austria',
+		jor: 'jordan',
+		por: 'portugal',
+		cod: 'congodr',
+		eng: 'england',
+		cro: 'croatia',
+		gha: 'ghana',
+		pan: 'panama',
+		uzb: 'uzbekistan',
+		col: 'colombia',
+		korearepublic: 'southkorea',
+		republicofkorea: 'southkorea',
+		southkorea: 'southkorea',
+		czechrepublic: 'czechia',
+		czecrepublic: 'czechia',
+		unitedstates: 'usa',
+		unitedstatesofamerica: 'usa',
+		us: 'usa',
+		canadanationalteam: 'canada',
+		bosniaherzigovina: 'bosniaandherzegovina',
+		bosniaandherzigovina: 'bosniaandherzegovina',
+		bozniaherzigovina: 'bosniaandherzegovina',
+		bozniaandherzigovina: 'bosniaandherzegovina',
+		bozniaherzegovina: 'bosniaandherzegovina',
+		bozniaandherzegovina: 'bosniaandherzegovina',
+		boznia: 'bosniaandherzegovina',
+		iriran: 'iran',
+		islamicrepublicofiran: 'iran',
+		turkey: 'turkiye',
+		turquie: 'turkiye',
+		ivorycoast: 'cotedivoire',
+		coteivoire: 'cotedivoire',
+		capeverde: 'caboverde',
+		drcongo: 'congodr',
+		democraticrepublicofcongo: 'congodr',
+		democraticrepublicofthecongo: 'congodr',
+		republicofthecongo: 'congodr',
+		bosniaherzegovina: 'bosniaandherzegovina',
+		bosniaandherzegovia: 'bosniaandherzegovina',
+		bosnia: 'bosniaandherzegovina',
+	}
+
+	const base = value
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]/g, '')
+
+	const withoutNationalTeam = base.endsWith('nationalteam')
+		? base.slice(0, -'nationalteam'.length)
+		: base
+	const withoutMensSuffix = withoutNationalTeam.endsWith('mens')
+		? withoutNationalTeam.slice(0, -'mens'.length)
+		: withoutNationalTeam
+	const withoutWomensSuffix = withoutMensSuffix.endsWith('womens')
+		? withoutMensSuffix.slice(0, -'womens'.length)
+		: withoutMensSuffix
+
+	return aliases[base] ?? aliases[withoutNationalTeam] ?? aliases[withoutMensSuffix] ?? aliases[withoutWomensSuffix] ?? withoutWomensSuffix
+}
+
 function formatMatch(match: string): string {
 	if (!match.includes(' vs ')) {
 		return match
@@ -147,13 +247,63 @@ function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixture
 					<ul class="fixture-list">
 						${matchday.games
 							.map((game) => {
+								const wcGame = game as WCFixtureGame
+								const homeScore = typeof wcGame.homeScore === 'string' ? wcGame.homeScore.trim() : ''
+								const awayScore = typeof wcGame.awayScore === 'string' ? wcGame.awayScore.trim() : ''
+								const hasScore = /^\d+$/.test(homeScore) && /^\d+$/.test(awayScore)
+								const teams = game.match.split(' vs ')
+								const homeTeam = teams[0]?.trim() ?? ''
+								const awayTeam = teams[1]?.trim() ?? ''
+								const scorelineMarkup = hasScore && homeTeam && awayTeam
+									? `
+										<span class="fixture-scoreline-main">
+											<span class="fixture-team fixture-team--home">${withTeamFlag(homeTeam)}</span>
+											<span class="fixture-score-center"><strong class="fixture-score-number">${homeScore}</strong> <span class="fixture-score-separator">-</span> <strong class="fixture-score-number">${awayScore}</strong></span>
+											<span class="fixture-team fixture-team--away">${withTeamFlag(awayTeam)}</span>
+										</span>
+									`
+									: `${formatMatch(game.match)}${hasScore ? ` <strong>${homeScore}-${awayScore}</strong>` : ''}`
+								const scorerRows = Array.isArray(wcGame.scorers)
+									? wcGame.scorers
+										.filter((row) => row && typeof row.player === 'string')
+										.map((row) => {
+											const player = row.player.trim()
+											const minute = typeof row.minute === 'string' ? row.minute.trim() : ''
+											const team = typeof row.team === 'string' ? row.team.trim() : ''
+											if (!player) {
+												return null
+											}
+
+											return { player, minute, team }
+										})
+										.filter((value): value is { player: string; minute: string; team: string } => value !== null)
+									: []
+								const homeTeamToken = normalizeTeamToken(homeTeam)
+								const awayTeamToken = normalizeTeamToken(awayTeam)
+								const homeScorers = scorerRows.filter((row) => normalizeTeamToken(row.team) === homeTeamToken)
+								const awayScorers = scorerRows.filter((row) => normalizeTeamToken(row.team) === awayTeamToken)
+								const homeScorersMarkup = homeScorers
+									.map((row) => `<span class="fixture-scorer-row">${row.player}${row.minute ? ` ${row.minute}'` : ''}</span>`)
+									.join('')
+								const awayScorersMarkup = awayScorers
+									.map((row) => `<span class="fixture-scorer-row">${row.player}${row.minute ? ` ${row.minute}'` : ''}</span>`)
+									.join('')
+								const scorersMarkup = hasScore && (homeScorers.length > 0 || awayScorers.length > 0)
+									? `
+										<span class="fixture-scorers-grid">
+											<span class="fixture-scorers-col fixture-scorers-col--home">${homeScorersMarkup}</span>
+											<span class="fixture-scorers-col fixture-scorers-col--score" aria-hidden="true">${homeScore}-${awayScore}</span>
+											<span class="fixture-scorers-col fixture-scorers-col--away">${awayScorersMarkup}</span>
+										</span>
+									`
+									: ''
 								return `
 									<li class="fixture-item fixture-item--result">
 										<span class="fixture-date">${game.date}</span>
 										<span class="fixture-time">${game.time}</span>
-										<span class="fixture-match">${formatMatch(game.match)}</span>
-										<span class="fixture-country">${(game as WCFixtureGame).stadium || ''}</span>
-										${(game as WCFixtureGame).group ? `<span class="fixture-group">${(game as WCFixtureGame).group}</span>` : ''}
+										<span class="fixture-match fixture-match--result"><span class="fixture-scoreline">${scorelineMarkup}</span>${scorersMarkup}</span>
+										<span class="fixture-country">${wcGame.stadium || ''}</span>
+										${wcGame.group ? `<span class="fixture-group">${wcGame.group}</span>` : ''}
 									</li>
 								`
 							})
@@ -162,6 +312,264 @@ function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixture
 				</section>
 			`,
 		)
+		.join('')
+}
+
+type FixtureView = 'fixtures' | 'results' | 'groups'
+
+function renderGroupsTableMarkup(): string {
+	type GroupStandingRow = {
+		team: string
+		played: number
+		wins: number
+		draws: number
+		losses: number
+		goalsFor: number
+		goalsAgainst: number
+		points: number
+		form: string[]
+	}
+
+	type ParsedResult = {
+		homeTeam: string
+		awayTeam: string
+		homeScore: number
+		awayScore: number
+	}
+
+	function parseResultFromGame(game: WCFixtureGame): ParsedResult | null {
+		const homeScoreText = typeof game.homeScore === 'string' ? game.homeScore.trim() : ''
+		const awayScoreText = typeof game.awayScore === 'string' ? game.awayScore.trim() : ''
+
+		if (/^\d+$/.test(homeScoreText) && /^\d+$/.test(awayScoreText)) {
+			const teams = extractFixtureTeams(game.match)
+			if (!teams) {
+				return null
+			}
+
+			return {
+				homeTeam: teams[0],
+				awayTeam: teams[1],
+				homeScore: Number.parseInt(homeScoreText, 10),
+				awayScore: Number.parseInt(awayScoreText, 10),
+			}
+		}
+
+		return null
+	}
+
+	function extractFixtureTeams(match: string): [string, string] | null {
+		const parts = match.split(' vs ')
+		if (parts.length === 2) {
+			return [parts[0].trim(), parts[1].trim()]
+		}
+
+		return null
+	}
+
+	function isGroupStageGame(game: WCFixtureGame): boolean {
+		return 'group' in game && !!game.group
+	}
+
+	function createEmptyRow(team: string): GroupStandingRow {
+		return {
+			team,
+			played: 0,
+			wins: 0,
+			draws: 0,
+			losses: 0,
+			goalsFor: 0,
+			goalsAgainst: 0,
+			points: 0,
+			form: [],
+		}
+	}
+
+	const groupTeams = new Map<string, Set<string>>()
+	const standingsByGroup = new Map<string, Map<string, GroupStandingRow>>()
+	const now = new Date()
+
+	for (const matchday of fixtureMatchdays) {
+		for (const game of matchday.games) {
+			if (!isGroupStageGame(game)) {
+				continue
+			}
+
+			const teams = extractFixtureTeams(game.match)
+			if (!teams) {
+				continue
+			}
+
+			const groupName = game.group.trim()
+			if (!groupTeams.has(groupName)) {
+				groupTeams.set(groupName, new Set<string>())
+			}
+			if (!standingsByGroup.has(groupName)) {
+				standingsByGroup.set(groupName, new Map<string, GroupStandingRow>())
+			}
+
+			groupTeams.get(groupName)?.add(teams[0])
+			groupTeams.get(groupName)?.add(teams[1])
+
+			const groupStandings = standingsByGroup.get(groupName)
+			if (!groupStandings) {
+				continue
+			}
+
+			if (!groupStandings.has(teams[0])) {
+				groupStandings.set(teams[0], createEmptyRow(teams[0]))
+			}
+			if (!groupStandings.has(teams[1])) {
+				groupStandings.set(teams[1], createEmptyRow(teams[1]))
+			}
+
+			const kickoff = parseFixtureKickoff(game as unknown as FixtureGame, now)
+			if (!kickoff || kickoff.getTime() > now.getTime()) {
+				continue
+			}
+
+			const parsedResult = parseResultFromGame(game)
+			if (!parsedResult) {
+				continue
+			}
+
+			const homeRow = groupStandings.get(parsedResult.homeTeam)
+			const awayRow = groupStandings.get(parsedResult.awayTeam)
+			if (!homeRow || !awayRow) {
+				continue
+			}
+
+			homeRow.played += 1
+			awayRow.played += 1
+			homeRow.goalsFor += parsedResult.homeScore
+			homeRow.goalsAgainst += parsedResult.awayScore
+			awayRow.goalsFor += parsedResult.awayScore
+			awayRow.goalsAgainst += parsedResult.homeScore
+
+			if (parsedResult.homeScore > parsedResult.awayScore) {
+				homeRow.wins += 1
+				homeRow.points += 3
+				homeRow.form.push('W')
+				awayRow.losses += 1
+				awayRow.form.push('L')
+			} else if (parsedResult.homeScore < parsedResult.awayScore) {
+				awayRow.wins += 1
+				awayRow.points += 3
+				awayRow.form.push('W')
+				homeRow.losses += 1
+				homeRow.form.push('L')
+			} else {
+				homeRow.draws += 1
+				awayRow.draws += 1
+				homeRow.points += 1
+				awayRow.points += 1
+				homeRow.form.push('D')
+				awayRow.form.push('D')
+			}
+		}
+	}
+
+	const sortedGroups = Array.from(groupTeams.entries()).sort(([a], [b]) => a.localeCompare(b))
+	if (sortedGroups.length === 0) {
+		return '<p class="empty-state">No group data is available yet.</p>'
+	}
+
+	return sortedGroups
+		.map(([groupName, teams]) => {
+			const standings = standingsByGroup.get(groupName) ?? new Map<string, GroupStandingRow>()
+			for (const team of teams) {
+				if (!standings.has(team)) {
+					standings.set(team, createEmptyRow(team))
+				}
+			}
+
+			const sortedRows = Array.from(standings.values()).sort((a, b) => {
+				if (b.points !== a.points) {
+					return b.points - a.points
+				}
+
+				const goalDifferenceA = a.goalsFor - a.goalsAgainst
+				const goalDifferenceB = b.goalsFor - b.goalsAgainst
+				if (goalDifferenceB !== goalDifferenceA) {
+					return goalDifferenceB - goalDifferenceA
+				}
+
+				if (b.goalsFor !== a.goalsFor) {
+					return b.goalsFor - a.goalsFor
+				}
+
+				return a.team.localeCompare(b.team)
+			})
+
+			const rows = sortedRows
+				.map(
+					(row, index) => {
+						const recentForm = row.form.slice(-5)
+						const paddedForm = [...recentForm, ...Array.from({ length: Math.max(0, 5 - recentForm.length) }, () => '-')]
+						const formHtml = paddedForm
+							.map((r) => {
+								const cls = r === 'W' ? 'form-w' : r === 'L' ? 'form-l' : r === 'D' ? 'form-d' : 'form-blank'
+								return `<span class="${cls}">${r}</span>`
+							})
+							.join('')
+						return `
+						<tr>
+							<td>${index + 1}</td>
+							<td>${withTeamFlag(row.team)}</td>
+							<td>${row.played}</td>
+							<td>${row.wins}</td>
+							<td>${row.draws}</td>
+							<td>${row.losses}</td>
+							<td>${row.goalsFor}</td>
+							<td>${row.goalsAgainst}</td>
+							<td>${row.goalsFor - row.goalsAgainst}</td>
+							<td>${row.points}</td>
+							<td class="group-form">${formHtml}</td>
+						</tr>
+						`
+					},
+				)
+				.join('')
+
+			return `
+				<section class="fixture-matchday fixture-matchday--groups">
+					<h2>Standings - ${groupName}</h2>
+					<div class="history-table-wrap">
+						<table class="history-table groups-table">
+							<colgroup>
+								<col class="col-rank">
+								<col class="col-team">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-stat">
+								<col class="col-form">
+							</colgroup>
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>Team</th>
+									<th>P</th>
+									<th>W</th>
+									<th>D</th>
+									<th>L</th>
+									<th>GF</th>
+									<th>GA</th>
+									<th>GD</th>
+									<th>Pts</th>
+									<th>Form</th>
+								</tr>
+							</thead>
+							<tbody>${rows}</tbody>
+						</table>
+					</div>
+				</section>
+			`
+		})
 		.join('')
 }
 
@@ -240,37 +648,76 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 			}),
 		}))
 
-	return `
-		<div class="fixtures-results-columns">
+	const activeSection = activeFixtureView === 'results'
+		? `
 			<section class="fixture-section">
 				<h2>Results</h2>
 				${renderWCSectionMarkup(sortedPastMatchdays, 'results')}
 			</section>
+		`
+		: `
 			<section class="fixture-section">
 				<h2>Fixtures</h2>
 				${renderWCSectionMarkup(sortedUpcomingMatchdays, 'fixtures')}
 			</section>
+		`
+
+	return `
+		<div class="fixtures-results-view">
+			${activeSection}
 		</div>
 	`
 }
 
 let fixtureMatchdays: WCFixtureMatchday[] = []
+let activeFixtureView: FixtureView = 'results'
 
 const initialMarkup = `
-	<section class="fixture-controls">
-		<input
-			id="fixture-search"
-			type="text"
-			placeholder="Search by team, date, time, or score"
-			aria-label="Search fixtures"
-		/>
-		<select id="fixture-country" aria-label="Filter fixtures by country">
-			<option value="">All host countries</option>
-			<option value="Mexico">Mexico 🇲🇽</option>
-			<option value="USA">USA 🇺🇸</option>
-			<option value="Canada">Canada 🇨🇦</option>
-		</select>
-	</section>
+	<div class="fixtures-results-columns">
+		<div class="fixtures-view-switch" role="tablist" aria-label="Toggle fixtures, results, and groups views">
+			<button
+				type="button"
+				class="fixtures-view-btn is-active"
+				data-view="results"
+				role="tab"
+				aria-selected="true"
+			>
+				Results
+			</button>
+			<button
+				type="button"
+				class="fixtures-view-btn"
+				data-view="fixtures"
+				role="tab"
+				aria-selected="false"
+			>
+				Fixtures
+			</button>
+			<button
+				type="button"
+				class="fixtures-view-btn"
+				data-view="groups"
+				role="tab"
+				aria-selected="false"
+			>
+				Groups
+			</button>
+		</div>
+		<section class="fixture-controls">
+			<input
+				id="fixture-search"
+				type="text"
+				placeholder="Search by team, date, time, or score"
+				aria-label="Search fixtures"
+			/>
+			<select id="fixture-country" aria-label="Filter fixtures by country">
+				<option value="">All host countries</option>
+				<option value="Mexico">Mexico 🇲🇽</option>
+				<option value="USA">USA 🇺🇸</option>
+				<option value="Canada">Canada 🇨🇦</option>
+			</select>
+		</section>
+	</div>
 	<div id="fixture-results"></div>
 `
 
@@ -281,16 +728,50 @@ const searchInput = document.querySelector<HTMLInputElement>('#fixture-search')
 const countrySelect = document.querySelector<HTMLSelectElement>('#fixture-country')
 
 function updateResults(): void {
-	if (!results || !searchInput || !countrySelect) {
+	if (!results) {
 		return
 	}
 
-	results.innerHTML = renderFixturesAndResultsMarkup(searchInput.value, countrySelect.value)
+	if (activeFixtureView === 'groups') {
+		results.innerHTML = renderGroupsTableMarkup()
+	} else {
+		if (!searchInput || !countrySelect) {
+			return
+		}
+		results.innerHTML = renderFixturesAndResultsMarkup(searchInput.value, countrySelect.value)
+	}
 }
 
 if (results && searchInput && countrySelect) {
 	searchInput.addEventListener('input', updateResults)
 	countrySelect.addEventListener('change', updateResults)
+	
+	// Set up view switching
+	document.querySelectorAll<HTMLButtonElement>('.fixtures-view-btn').forEach((button) => {
+		button.addEventListener('click', () => {
+			const selectedView = button.getAttribute('data-view') as FixtureView
+			if (selectedView === activeFixtureView) {
+				return
+			}
+
+			activeFixtureView = selectedView
+
+			// Update button states
+			document.querySelectorAll<HTMLButtonElement>('.fixtures-view-btn').forEach((btn) => {
+				btn.classList.toggle('is-active', btn.getAttribute('data-view') === selectedView)
+				btn.setAttribute('aria-selected', String(btn.getAttribute('data-view') === selectedView))
+			})
+
+			// Show/hide controls
+			const controls = document.querySelector<HTMLElement>('.fixture-controls')
+			if (controls) {
+				controls.classList.toggle('fixture-controls--hidden', selectedView === 'groups')
+			}
+
+			updateResults()
+		})
+	})
+	
 	results.innerHTML = '<p class="empty-state">Loading fixtures...</p>'
 
 	async function loadAndUpdateResults() {

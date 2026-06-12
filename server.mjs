@@ -241,8 +241,31 @@ function sanitizeWCFixtureMatchdays(value) {
         stadium: typeof g.stadium === 'string' ? g.stadium : '',
         group: typeof g.group === 'string' ? g.group : '',
         round: typeof g.round === 'string' ? g.round : '',
+        homeScore: typeof g.homeScore === 'string' ? g.homeScore : '',
+        awayScore: typeof g.awayScore === 'string' ? g.awayScore : '',
+        scorers: Array.isArray(g.scorers)
+          ? g.scorers
+              .filter((entry) => entry && typeof entry === 'object')
+              .map((entry) => ({
+                team: typeof entry.team === 'string' ? entry.team : '',
+                player: typeof entry.player === 'string' ? entry.player : '',
+                minute: typeof entry.minute === 'string' ? entry.minute : '',
+              }))
+              .filter((entry) => entry.player !== '')
+          : [],
       }))
       .filter((g) => g.match && g.time && g.date)
+      .map((g) => ({
+        match: g.match,
+        time: g.time,
+        date: g.date,
+        stadium: g.stadium,
+        group: g.group,
+        round: g.round,
+        ...(g.homeScore !== '' ? { homeScore: g.homeScore } : {}),
+        ...(g.awayScore !== '' ? { awayScore: g.awayScore } : {}),
+        ...(g.scorers.length > 0 ? { scorers: g.scorers } : {}),
+      }))
     if (games.length === 0) continue
     sanitized.push({
       matchday: Number(matchdayRaw),
@@ -654,7 +677,31 @@ async function fetchJson(url, options = {}) {
     throw new Error(errorMsg)
   }
 
-  return response.json()
+  const bodyText = await response.text()
+  const trimmed = bodyText.trim()
+
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    // Some upstream endpoints prepend warnings/HTML before JSON.
+    const objectStart = trimmed.indexOf('{')
+    const arrayStart = trimmed.indexOf('[')
+    const candidateStart =
+      objectStart < 0 ? arrayStart : arrayStart < 0 ? objectStart : Math.min(objectStart, arrayStart)
+
+    if (candidateStart >= 0) {
+      const candidate = trimmed.slice(candidateStart)
+      try {
+        return JSON.parse(candidate)
+      } catch {
+        // Fall through to error below.
+      }
+    }
+
+    const parseError = `API response was not valid JSON from ${url}. Response: ${trimmed.slice(0, 500)}`
+    console.error(`[auto-scan] ${parseError}`)
+    throw new Error(parseError)
+  }
 }
 
 await loadEnvFile()
@@ -671,6 +718,53 @@ const fixtureTeamExpansions = {
 }
 
 const serverTeamAliases = {
+  mex: 'mexico',
+  rsa: 'southafrica',
+  kor: 'southkorea',
+  cze: 'czechia',
+  can: 'canada',
+  bih: 'bosniaandherzegovina',
+  par: 'paraguay',
+  qat: 'qatar',
+  sui: 'switzerland',
+  bra: 'brazil',
+  mar: 'morocco',
+  hai: 'haiti',
+  sco: 'scotland',
+  aus: 'australia',
+  tur: 'turkiye',
+  ger: 'germany',
+  cuw: 'curacao',
+  ned: 'netherlands',
+  jpn: 'japan',
+  civ: 'cotedivoire',
+  ecu: 'ecuador',
+  swe: 'sweden',
+  tun: 'tunisia',
+  esp: 'spain',
+  cpv: 'caboverde',
+  bel: 'belgium',
+  egy: 'egypt',
+  ksa: 'saudiarabia',
+  uru: 'uruguay',
+  irn: 'iran',
+  nzl: 'newzealand',
+  fra: 'france',
+  sen: 'senegal',
+  irq: 'iraq',
+  nor: 'norway',
+  arg: 'argentina',
+  alg: 'algeria',
+  aut: 'austria',
+  jor: 'jordan',
+  por: 'portugal',
+  cod: 'congodr',
+  eng: 'england',
+  cro: 'croatia',
+  gha: 'ghana',
+  pan: 'panama',
+  uzb: 'uzbekistan',
+  col: 'colombia',
   manutd: 'manchesterunited',
   manchesterutd: 'manchesterunited',
   manchesterunited: 'manchesterunited',
@@ -688,11 +782,56 @@ const serverTeamAliases = {
   westhamunited: 'westham',
   newcastleunited: 'newcastle',
   wolverhamptonwanderers: 'wolves',
+  korearepublic: 'southkorea',
+  republicofkorea: 'southkorea',
+  southkorea: 'southkorea',
+  czechrepublic: 'czechia',
+  czecrepublic: 'czechia',
+  // WC 2026 — common API/broadcast spellings → canonical fixture token
+  iriran: 'iran',
+  islamicrepublicofiran: 'iran',
+  turkey: 'turkiye',
+  turquie: 'turkiye',
+  ivorycoast: 'cotedivoire',
+  coteivoire: 'cotedivoire',
+  capeverde: 'caboverde',
+  drcongo: 'congodr',
+  democraticrepublicofcongo: 'congodr',
+  democraticrepublicofthecongo: 'congodr',
+  republicofthecongo: 'congodr',
+  bosniaherzegovina: 'bosniaandherzegovina',
+  bosniaandherzegovia: 'bosniaandherzegovina',
+  bosnia: 'bosniaandherzegovina',
+  unitedstates: 'usa',
+  unitedstatesofamerica: 'usa',
+  us: 'usa',
+  canadanationalteam: 'canada',
+  bosniaherzigovina: 'bosniaandherzegovina',
+  bosniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzigovina: 'bosniaandherzegovina',
+  bozniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzegovina: 'bosniaandherzegovina',
+  bozniaandherzegovina: 'bosniaandherzegovina',
+  boznia: 'bosniaandherzegovina',
   arsenalfc: 'arsenal',
   burnleyfc: 'burnley',
   crystalpalacefc: 'crystalpalace',
   liverpoolfc: 'liverpool',
   evertonfc: 'everton',
+}
+
+function normalizeAliasToken(raw, aliases) {
+  const withoutNationalTeam = raw.endsWith('nationalteam')
+    ? raw.slice(0, -'nationalteam'.length)
+    : raw
+  const withoutMensSuffix = withoutNationalTeam.endsWith('mens')
+    ? withoutNationalTeam.slice(0, -'mens'.length)
+    : withoutNationalTeam
+  const withoutWomensSuffix = withoutMensSuffix.endsWith('womens')
+    ? withoutMensSuffix.slice(0, -'womens'.length)
+    : withoutMensSuffix
+
+  return aliases[raw] ?? aliases[withoutNationalTeam] ?? aliases[withoutMensSuffix] ?? aliases[withoutWomensSuffix] ?? withoutWomensSuffix
 }
 
 function expandTeamNameForSearch(name) {
@@ -723,6 +862,10 @@ function formatDateYYYYMMDD(date) {
   return `${y}-${m}-${d}`
 }
 
+function formatDateYYYYMMDDCompact(date) {
+  return formatDateYYYYMMDD(date).replace(/-/g, '')
+}
+
 function getDateCandidatesAroundNow(daysBack, daysAhead) {
   const now = new Date()
   const dates = []
@@ -749,7 +892,7 @@ function toTeamToken(value) {
       ? base.slice(0, -2)
       : base
 
-  return serverTeamAliases[raw] ?? raw
+  return normalizeAliasToken(raw, serverTeamAliases)
 }
 
 function getSportFixtureValue(fixture, keys, fallback = '') {
@@ -1235,6 +1378,90 @@ function normalizeApiFootballScore(value) {
   }
 
   return null
+}
+
+function formatGoalMinuteLabel(event) {
+  const minuteRaw = getAsString(event?.minute).trim()
+  const extraRaw = getAsString(event?.extra_minute ?? event?.extraMinute).trim()
+  const minuteMatch = minuteRaw.match(/^(\d{1,3})/)
+  if (!minuteMatch) {
+    return ''
+  }
+
+  const base = minuteMatch[1]
+  const extraMatch = extraRaw.match(/^(\d{1,2})$/)
+  if (extraMatch) {
+    return `${base}+${extraMatch[1]}`
+  }
+
+  const minutePlusMatch = minuteRaw.match(/^(\d{1,3})\s*\+\s*(\d{1,2})/)
+  if (minutePlusMatch) {
+    return `${minutePlusMatch[1]}+${minutePlusMatch[2]}`
+  }
+
+  return base
+}
+
+function toGoalScorerRows(events, homeTeam, awayTeam) {
+  if (!Array.isArray(events)) {
+    return []
+  }
+
+  const scorers = []
+  const homeToken = toTeamToken(homeTeam)
+  const awayToken = toTeamToken(awayTeam)
+
+  for (const event of events) {
+    const eventType = getAsString(event?.event_type ?? event?.type).toLowerCase()
+    if (!eventType.includes('goal')) {
+      continue
+    }
+
+    const player = getAsString(event?.player_name ?? event?.player).trim()
+    if (!player) {
+      continue
+    }
+
+    const minute = formatGoalMinuteLabel(event)
+    const side = getAsString(event?.team_side).toLowerCase().trim()
+    const eventTeamName = getAsString(event?.team_name ?? event?.team).trim()
+    const eventTeamToken = toTeamToken(eventTeamName)
+
+    let team = ''
+    if (side === 'home') {
+      team = homeTeam
+    } else if (side === 'away') {
+      team = awayTeam
+    } else if (eventTeamToken && eventTeamToken === homeToken) {
+      team = homeTeam
+    } else if (eventTeamToken && eventTeamToken === awayToken) {
+      team = awayTeam
+    } else if (eventTeamName) {
+      team = eventTeamName
+    }
+
+    scorers.push({
+      team,
+      player,
+      minute,
+    })
+  }
+
+  return scorers
+}
+
+async function getApiFootballFixtureScorers(fixtureId, homeTeam, awayTeam, apiFootballKey) {
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/events`, {
+    headers: sportApiAuthHeaders(apiFootballKey),
+  })
+
+  const events = Array.isArray(payload?.events)
+    ? payload.events
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : []
+
+  return toGoalScorerRows(events, homeTeam, awayTeam)
 }
 
 async function getApiFootballFixtureScore(fixtureId, apiFootballKey) {
@@ -1815,6 +2042,13 @@ async function handleApiRequest(request, response) {
   if (request.method === 'GET' && url.pathname === '/api/wc-fixtures') {
     try {
       const matchdays = await readWCFixtureMatchdays()
+      const state = await readLeagueState()
+      const storedResults = readStoredFixtureResults(state.storage)
+      const updatedFromStoredResults = applyStoredResultsToWCFixtureMatchdays(matchdays, storedResults)
+      const updatedFromEspnScorers = await backfillMissingWcScorers(matchdays, new Date())
+      if (updatedFromStoredResults || updatedFromEspnScorers) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(matchdays, null, 2)}\n`, 'utf8')
+      }
       sendJson(response, 200, { matchdays })
     } catch {
       sendJson(response, 500, { error: 'Unable to read WC fixtures file.' })
@@ -1824,10 +2058,8 @@ async function handleApiRequest(request, response) {
 
   if (request.method === 'GET' && url.pathname === '/api/fixtures/results') {
     try {
-      const fixtureMatchdays = await readFixtureMatchdays()
       const state = await readLeagueState()
-      const syncedState = await syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays)
-      const results = readStoredFixtureResults(syncedState.storage)
+      const results = readStoredFixtureResults(state.storage)
       sendJson(response, 200, { results })
     } catch {
       sendJson(response, 500, { error: 'Unable to read fixture results.' })
@@ -1852,10 +2084,9 @@ async function handleApiRequest(request, response) {
         return true
       }
 
-      const fixtureMatchdays = await readFixtureMatchdays()
+      const fixtureMatchdays = await readWCFixtureMatchdays()
       const state = await readLeagueState()
-      const syncedState = await syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays)
-      const existingResults = readStoredFixtureResults(syncedState.storage)
+      const existingResults = readStoredFixtureResults(state.storage)
       const resultByKey = new Map(existingResults.map((result) => [fixtureResultIdentityKey(result), result]))
       const now = new Date()
 
@@ -1868,10 +2099,6 @@ async function handleApiRequest(request, response) {
           }
 
           const identityKey = `${matchday.matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
-          if (resultByKey.has(identityKey)) {
-            continue
-          }
-
           scanned += 1
           try {
             const result = await getFixtureResult(game, matchday.matchday, now, apiFootballKey)
@@ -1879,8 +2106,21 @@ async function handleApiRequest(request, response) {
               continue
             }
 
-            resultByKey.set(identityKey, result)
-            added += 1
+            const existing = resultByKey.get(identityKey)
+            const existingScorers = Array.isArray(existing?.scorers) ? existing.scorers : []
+            const nextScorers = Array.isArray(result.scorers) ? result.scorers : []
+            const shouldUpdate =
+              !existing ||
+              existing.homeScore !== result.homeScore ||
+              existing.awayScore !== result.awayScore ||
+              JSON.stringify(existingScorers) !== JSON.stringify(nextScorers)
+
+            if (shouldUpdate) {
+              resultByKey.set(identityKey, result)
+              if (!existing) {
+                added += 1
+              }
+            }
           } catch {
             continue
           }
@@ -1889,10 +2129,44 @@ async function handleApiRequest(request, response) {
 
       const nextResults = Array.from(resultByKey.values())
       const nextStorage = {
-        ...syncedState.storage,
+        ...state.storage,
         [fixtureResultsStorageKey]: JSON.stringify(nextResults),
       }
       await writeLeagueState(nextStorage)
+
+      // Keep WC fixture scorelines in sync with imported results so the Fixtures page shows latest scores.
+      let wcScoresUpdated = false
+      for (const matchday of fixtureMatchdays) {
+        for (const game of matchday.games) {
+          const identityKey = `${matchday.matchday}|${game.date}|${game.time}||${game.match}`
+          const result = resultByKey.get(identityKey)
+          if (!result) {
+            continue
+          }
+
+          const nextScorers = Array.isArray(result.scorers) ? result.scorers : []
+          const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+
+          if (
+            game.homeScore !== result.homeScore ||
+            game.awayScore !== result.awayScore ||
+            JSON.stringify(currentScorers) !== JSON.stringify(nextScorers)
+          ) {
+            game.homeScore = result.homeScore
+            game.awayScore = result.awayScore
+            if (nextScorers.length > 0) {
+              game.scorers = nextScorers
+            } else if ('scorers' in game) {
+              delete game.scorers
+            }
+            wcScoresUpdated = true
+          }
+        }
+      }
+
+      if (wcScoresUpdated) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(fixtureMatchdays, null, 2)}\n`, 'utf8')
+      }
 
       sendJson(response, 200, {
         added,
@@ -1920,10 +2194,13 @@ async function handleApiRequest(request, response) {
       delete nextStorage[serverPlayerPointsKey]
       await writeLeagueState(nextStorage)
 
-      // Trigger an immediate rescan in the background
-      void serverScanDueFixturesAndImport()
+      const summary = await serverScanDueFixturesAndImport()
 
-      sendJson(response, 200, { ok: true, message: 'Auto-scan history cleared. Rescan started.' })
+      sendJson(response, 200, {
+        ok: true,
+        message: 'Auto-scan history cleared. Rescan completed.',
+        summary,
+      })
     } catch {
       sendJson(response, 500, { error: 'Unable to trigger rescan.' })
     }
@@ -2224,10 +2501,81 @@ function serverToToken(value) {
 const serverAutoScanTeamAliases = {
   unitedstates: 'usa',
   us: 'usa',
+  mex: 'mexico',
+  rsa: 'southafrica',
+  kor: 'southkorea',
+  cze: 'czechia',
+  can: 'canada',
+  canadanationalteam: 'canada',
+  bih: 'bosniaandherzegovina',
+  bosniaherzigovina: 'bosniaandherzegovina',
+  bosniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzigovina: 'bosniaandherzegovina',
+  bozniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzegovina: 'bosniaandherzegovina',
+  bozniaandherzegovina: 'bosniaandherzegovina',
+  boznia: 'bosniaandherzegovina',
+  par: 'paraguay',
+  qat: 'qatar',
+  sui: 'switzerland',
+  bra: 'brazil',
+  mar: 'morocco',
+  hai: 'haiti',
+  sco: 'scotland',
+  aus: 'australia',
+  tur: 'turkiye',
+  ger: 'germany',
+  cuw: 'curacao',
+  ned: 'netherlands',
+  jpn: 'japan',
+  civ: 'cotedivoire',
+  ecu: 'ecuador',
+  swe: 'sweden',
+  tun: 'tunisia',
+  esp: 'spain',
+  cpv: 'caboverde',
+  bel: 'belgium',
+  egy: 'egypt',
+  ksa: 'saudiarabia',
+  uru: 'uruguay',
+  irn: 'iran',
+  nzl: 'newzealand',
+  fra: 'france',
+  sen: 'senegal',
+  irq: 'iraq',
+  nor: 'norway',
+  arg: 'argentina',
+  alg: 'algeria',
+  aut: 'austria',
+  jor: 'jordan',
+  por: 'portugal',
+  cod: 'congodr',
+  eng: 'england',
+  cro: 'croatia',
+  gha: 'ghana',
+  pan: 'panama',
+  uzb: 'uzbekistan',
+  col: 'colombia',
   korearepublic: 'southkorea',
   republicofkorea: 'southkorea',
   czechrepublic: 'czechia',
-  coteivoire: 'ivorycoast',
+  czecrepublic: 'czechia',
+  czecrepublic: 'czechia',
+  // WC 2026 — common API/broadcast spellings → canonical player-team token
+  iriran: 'iran',
+  islamicrepublicofiran: 'iran',
+  turkey: 'turkiye',
+  turquie: 'turkiye',
+  ivorycoast: 'cotedivoire',
+  coteivoire: 'cotedivoire',
+  capeverde: 'caboverde',
+  drcongo: 'congodr',
+  democraticrepublicofcongo: 'congodr',
+  democraticrepublicofthecongo: 'congodr',
+  republicofthecongo: 'congodr',
+  bosniaherzegovina: 'bosniaandherzegovina',
+  bosniaandherzegovia: 'bosniaandherzegovina',
+  bosnia: 'bosniaandherzegovina',
   // Premier League — map full API names to the abbreviated tokens used in teams.txt
   manchestercity: 'mancity',
   manchesterunited: 'manutd',
@@ -2254,7 +2602,7 @@ const serverAutoScanTeamAliases = {
 
 function serverNormalizeTeamToken(teamName) {
   const token = serverToToken(teamName)
-  return serverAutoScanTeamAliases[token] ?? token
+  return normalizeAliasToken(token, serverAutoScanTeamAliases)
 }
 
 function serverPlayerLastWordToken(name) {
@@ -2262,9 +2610,31 @@ function serverPlayerLastWordToken(name) {
   return serverToToken(words[words.length - 1])
 }
 
+// Maps API-returned player name tokens to canonical tokens used in teams.txt.
+// Needed when an API uses a different name order or spelling (e.g. Korean names
+// returned as "Given-name Surname" but stored as "Surname Given-name").
+const serverPlayerNameAliases = {
+  // Korea Republic — API returns Given-name Surname, teams.txt uses Surname Given-name
+  hanbeomlee: 'leehanbeom',
+  gihyuklee: 'leegihyuk',
+  youngwooseol: 'seolyoungwoo',
+  seunghopaik: 'paikseungho',
+  kanginlee: 'leekangin',
+  jaesunglee: 'leejaesung',
+  jisungeom: 'eomjisung',
+  hyeongyuoh: 'ohhyeongyu',
+  jingyukim: 'kimjingyu',
+  jinseobpark: 'parkjinseob',
+  wijecho: 'chowije',
+  donggyeonglee: 'leedonggyeong',
+  junhobae: 'baejunho',
+  guesungcho: 'choguesung',
+}
+
 function serverFindPlayer(players, row) {
   const teamToken = serverNormalizeTeamToken(row.teamName)
-  const nameToken = serverToToken(row.playerName)
+  const rawNameToken = serverToToken(row.playerName)
+  const nameToken = serverPlayerNameAliases[rawNameToken] ?? rawNameToken
 
   // 1. Strict: exact team + exact name
   const strict = players.find(
@@ -2279,6 +2649,23 @@ function serverFindPlayer(players, row) {
   // 3. Exact name on same team
   const byNameAndTeam = byName.find((p) => serverNormalizeTeamToken(p.team) === teamToken)
   if (byNameAndTeam) return byNameAndTeam
+
+  // 3a/3b. Reversed name order — handles APIs that return "Given-name Surname" when
+  //        teams.txt stores "Surname Given-name" (Korean, Japanese, etc.) and vice-versa.
+  //        "Han-Beom Lee" → try "Lee Han-Beom"; "Sano Kaishu" → try "Kaishu Sano".
+  const nameParts = row.playerName.trim().split(/\s+/)
+  if (nameParts.length >= 2) {
+    const reversedName = [nameParts[nameParts.length - 1], ...nameParts.slice(0, -1)].join(' ')
+    const reversedToken = serverToToken(reversedName)
+    if (reversedToken !== nameToken) {
+      const byReversedTeam = players.filter(
+        (p) => serverNormalizeTeamToken(p.team) === teamToken && serverToToken(p.name) === reversedToken,
+      )
+      if (byReversedTeam.length === 1) return byReversedTeam[0]
+      const byReversedAll = players.filter((p) => serverToToken(p.name) === reversedToken)
+      if (byReversedAll.length === 1) return byReversedAll[0]
+    }
+  }
 
   const byTeam = players.filter((p) => serverNormalizeTeamToken(p.team) === teamToken)
 
@@ -2385,6 +2772,7 @@ function serverCalculateImportedRows(players, importedRows, fixture = {}) {
     if (!matched) { skipped++; console.log(`[auto-scan] Skipped unmatched player: "${row.playerName}" (${row.teamName})`); continue }
     const minutesPlayed = Math.max(0, Math.floor(row.minutesPlayed))
     const teamGoalsConceded = getTeamGoalsConceded(row.teamName)
+    const goalsConcededForPlayer = minutesPlayed > 0 ? teamGoalsConceded : 0
     const perf = {
       position: serverGetPositionType(matched),
       minutesPlayed,
@@ -2395,7 +2783,7 @@ function serverCalculateImportedRows(players, importedRows, fixture = {}) {
       defensiveContributions: Math.max(0, Math.floor(row.defensiveContributions)),
       penaltySaves: Math.max(0, Math.floor(row.penaltySaves)),
       penaltyMisses: Math.max(0, Math.floor(row.penaltyMisses)),
-      goalsConceded: teamGoalsConceded,
+      goalsConceded: goalsConcededForPlayer,
       yellowCards: Math.max(0, Math.floor(row.yellowCards)),
       redCards: Math.max(0, Math.floor(row.redCards)),
     }
@@ -2455,6 +2843,8 @@ function serverSelectBestMatch(game, matches) {
 
 const fixtureResultCache = new Map()
 const fixtureResultCacheTtlMs = 15 * 60 * 1000
+const apiSportsFixtureDateCache = new Map()
+const espnScoreboardDateCache = new Map()
 
 function getFixtureResultCacheKey(matchday, game) {
   return `${matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
@@ -2483,6 +2873,375 @@ function writeFixtureResultCache(matchday, game, value, nowMs) {
   })
 }
 
+async function getApiSportsFixturesByDate(date, apiSportsKey) {
+  const cached = apiSportsFixtureDateCache.get(date)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.fixtures
+  }
+
+  const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(date)}`, {
+    headers: {
+      'x-apisports-key': apiSportsKey,
+    },
+  })
+
+  const fixtures = Array.isArray(payload?.response) ? payload.response : []
+  apiSportsFixtureDateCache.set(date, {
+    fixtures,
+    expiresAt: nowMs + 5 * 60 * 1000,
+  })
+  return fixtures
+}
+
+async function getApiSportsFallbackMatchByGame(game, matchday, now) {
+  const apiSportsKey = getApiSportsKey()
+  if (!apiSportsKey) {
+    return null
+  }
+
+  const teams = serverExtractFixtureTeams(game)
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!teams || !kickoff) {
+    return null
+  }
+
+  const fixtureDate = formatDateYYYYMMDD(kickoff)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  const fixtures = await getApiSportsFixturesByDate(fixtureDate, apiSportsKey)
+
+  const matched = fixtures.find((fixture) => {
+    const leagueName = getAsString(fixture?.league?.name).toLowerCase()
+    const homeName = getAsString(fixture?.teams?.home?.name)
+    const awayName = getAsString(fixture?.teams?.away?.name)
+    const isWorldCupLeague = leagueName.includes('world cup')
+    return (
+      isWorldCupLeague &&
+      toTeamToken(homeName) === expectedHome &&
+      toTeamToken(awayName) === expectedAway
+    )
+  })
+
+  if (!matched) {
+    return null
+  }
+
+  const fixtureId = getAsIdString(matched?.fixture?.id)
+  const homeTeam = getAsString(matched?.teams?.home?.name)
+  const awayTeam = getAsString(matched?.teams?.away?.name)
+  if (!fixtureId || !homeTeam || !awayTeam) {
+    return null
+  }
+
+  return {
+    idEvent: `api-sports:${fixtureId}`,
+    idApiFootball: fixtureId,
+    name: `${homeTeam} vs ${awayTeam}`,
+    date: game.date,
+    league: getAsString(matched?.league?.name),
+    season: getAsString(matched?.league?.season),
+    homeTeam,
+    awayTeam,
+    homeScore: normalizeApiFootballScore(matched?.goals?.home ?? matched?.score?.fulltime?.home) ?? '',
+    awayScore: normalizeApiFootballScore(matched?.goals?.away ?? matched?.score?.fulltime?.away) ?? '',
+    status: getAsString(matched?.fixture?.status?.short ?? matched?.fixture?.status?.long),
+  }
+}
+
+async function getApiSportsFixtureScoreByGame(game, matchday, now) {
+  const fallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday, now)
+  if (!fallbackMatch) {
+    return null
+  }
+  const homeScore = fallbackMatch.homeScore || null
+  const awayScore = fallbackMatch.awayScore || null
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  return {
+    matchday,
+    match: game.match,
+    time: game.time,
+    date: game.date,
+    homeScore,
+    awayScore,
+  }
+}
+
+async function getApiSportsFixtureScorersByGame(game, matchday, now) {
+  const apiSportsKey = getApiSportsKey()
+  if (!apiSportsKey) {
+    return []
+  }
+
+  const fallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday, now)
+  if (!fallbackMatch || !fallbackMatch.idApiFootball) {
+    return []
+  }
+
+  const payload = await fetchJson(
+    `https://v3.football.api-sports.io/fixtures/events?fixture=${encodeURIComponent(fallbackMatch.idApiFootball)}`,
+    {
+      headers: {
+        'x-apisports-key': apiSportsKey,
+      },
+    },
+  )
+
+  const events = Array.isArray(payload?.response) ? payload.response : []
+  const scorers = []
+
+  for (const event of events) {
+    const type = getAsString(event?.type).toLowerCase()
+    const detail = getAsString(event?.detail).toLowerCase()
+    const isGoal = type.includes('goal') || detail.includes('goal')
+    if (!isGoal) {
+      continue
+    }
+
+    const player = getAsString(event?.player?.name)
+    if (!player) {
+      continue
+    }
+
+    const elapsed = Number.parseInt(getAsString(event?.time?.elapsed), 10)
+    const extra = Number.parseInt(getAsString(event?.time?.extra), 10)
+    let minute = ''
+    if (Number.isFinite(elapsed) && elapsed > 0) {
+      minute = Number.isFinite(extra) && extra > 0 ? `${elapsed}+${extra}` : String(elapsed)
+    }
+
+    scorers.push({
+      team: getAsString(event?.team?.name),
+      player,
+      minute,
+    })
+  }
+
+  return scorers
+}
+
+async function getEspnWorldCupScoreboardByDate(dateKey) {
+  const cached = espnScoreboardDateCache.get(dateKey)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.events
+  }
+
+  const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${encodeURIComponent(dateKey)}`
+  const payload = await fetchJson(url)
+  const events = Array.isArray(payload?.events) ? payload.events : []
+  espnScoreboardDateCache.set(dateKey, {
+    events,
+    expiresAt: nowMs + 5 * 60 * 1000,
+  })
+  return events
+}
+
+function extractEspnScorerNameFromText(text) {
+  const value = getAsString(text)
+  const pattern = /\.\s*([^()]+?)\s*\(([^)]+)\)/
+  const match = value.match(pattern)
+  return match ? match[1].trim() : ''
+}
+
+async function getEspnFixtureScorersByGame(game, matchday, now) {
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return []
+  }
+
+  const kickoff = serverParseFixtureKickoff(game, now)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  if (!kickoff) {
+    return []
+  }
+
+  const dateCandidates = [
+    formatDateYYYYMMDDCompact(kickoff),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() - 24 * 60 * 60 * 1000)),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() + 24 * 60 * 60 * 1000)),
+  ]
+
+  const seenDates = new Set()
+  for (const dateKey of dateCandidates) {
+    if (seenDates.has(dateKey)) {
+      continue
+    }
+    seenDates.add(dateKey)
+
+    const events = await getEspnWorldCupScoreboardByDate(dateKey)
+    for (const event of events) {
+      const competition = Array.isArray(event?.competitions) ? event.competitions[0] : null
+      const competitors = Array.isArray(competition?.competitors) ? competition.competitors : []
+      const home = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'home')
+      const away = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'away')
+      if (!home || !away) {
+        continue
+      }
+
+      const homeTeam = getAsString(home?.team?.displayName)
+      const awayTeam = getAsString(away?.team?.displayName)
+      const homeToken = toTeamToken(homeTeam)
+      const awayToken = toTeamToken(awayTeam)
+      const strict = homeToken === expectedHome && awayToken === expectedAway
+      const swapped = homeToken === expectedAway && awayToken === expectedHome
+      if (!strict && !swapped) {
+        continue
+      }
+
+      const eventId = getAsString(event?.id)
+      if (!eventId) {
+        return []
+      }
+
+      const summary = await fetchJson(
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${encodeURIComponent(eventId)}`,
+      )
+      const keyEvents = Array.isArray(summary?.keyEvents) ? summary.keyEvents : []
+      const scorers = []
+
+      for (const keyEvent of keyEvents) {
+        const eventType = getAsString(keyEvent?.type?.text ?? keyEvent?.type?.abbreviation).toLowerCase()
+        if (!eventType.includes('goal')) {
+          continue
+        }
+
+        const minute = getAsString(keyEvent?.clock?.displayValue).replace(/'/g, '').trim()
+        const participants = Array.isArray(keyEvent?.participants) ? keyEvent.participants : []
+        const primary = participants[0]
+        const participantName = getAsString(primary?.athlete?.displayName)
+        const player = participantName || extractEspnScorerNameFromText(keyEvent?.text)
+        if (!player) {
+          continue
+        }
+
+        const eventTeam = getAsString(keyEvent?.team?.displayName)
+        const eventTeamToken = toTeamToken(eventTeam)
+        let team = eventTeam
+        if (eventTeamToken === expectedHome) {
+          team = teams[0]
+        } else if (eventTeamToken === expectedAway) {
+          team = teams[1]
+        }
+
+        scorers.push({
+          team,
+          player,
+          minute,
+        })
+      }
+
+      return scorers
+    }
+  }
+
+  return []
+}
+
+async function backfillMissingWcScorers(matchdays, now) {
+  let updated = false
+
+  for (const matchday of matchdays) {
+    for (const game of matchday.games) {
+      const homeScore = getAsString(game.homeScore)
+      const awayScore = getAsString(game.awayScore)
+      const hasScore = /^\d+$/.test(homeScore) && /^\d+$/.test(awayScore)
+      const hasScorers = Array.isArray(game.scorers) && game.scorers.length > 0
+      if (!hasScore || hasScorers) {
+        continue
+      }
+
+      try {
+        const scorers = await getEspnFixtureScorersByGame(game, matchday.matchday, now)
+        if (scorers.length > 0) {
+          game.scorers = scorers
+          updated = true
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return updated
+}
+
+async function getEspnFixtureScoreByGame(game, matchday, now) {
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return null
+  }
+
+  const kickoff = serverParseFixtureKickoff(game, now)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  if (!kickoff) {
+    return null
+  }
+
+  const dateCandidates = [
+    formatDateYYYYMMDDCompact(kickoff),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() - 24 * 60 * 60 * 1000)),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() + 24 * 60 * 60 * 1000)),
+  ]
+
+  const seenDates = new Set()
+  for (const dateKey of dateCandidates) {
+    if (seenDates.has(dateKey)) {
+      continue
+    }
+    seenDates.add(dateKey)
+
+    const events = await getEspnWorldCupScoreboardByDate(dateKey)
+    for (const event of events) {
+      const competition = Array.isArray(event?.competitions) ? event.competitions[0] : null
+      const competitors = Array.isArray(competition?.competitors) ? competition.competitors : []
+      const home = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'home')
+      const away = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'away')
+      if (!home || !away) {
+        continue
+      }
+
+      const homeTeam = getAsString(home?.team?.displayName)
+      const awayTeam = getAsString(away?.team?.displayName)
+      const homeToken = toTeamToken(homeTeam)
+      const awayToken = toTeamToken(awayTeam)
+      const homeScore = getAsString(home?.score)
+      const awayScore = getAsString(away?.score)
+
+      if (!/^\d+$/.test(homeScore) || !/^\d+$/.test(awayScore)) {
+        continue
+      }
+
+      const state = getAsString(competition?.status?.type?.state).toLowerCase()
+      if (state && state !== 'post') {
+        continue
+      }
+
+      const strict = homeToken === expectedHome && awayToken === expectedAway
+      const swapped = homeToken === expectedAway && awayToken === expectedHome
+      if (!strict && !swapped) {
+        continue
+      }
+
+      return {
+        matchday,
+        match: game.match,
+        time: game.time,
+        date: game.date,
+        homeScore: strict ? homeScore : awayScore,
+        awayScore: strict ? awayScore : homeScore,
+      }
+    }
+  }
+
+  return null
+}
+
 async function getFixtureResult(game, matchday, now, apiFootballKey) {
   const kickoff = serverParseFixtureKickoff(game, now)
   if (!kickoff || kickoff.getTime() > now.getTime()) {
@@ -2500,18 +3259,96 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
     return cached
   }
 
-  const searchResults = await searchFinishedSoccerEvents(game.match)
+  let fallbackApiSportsResult = null
+  try {
+    fallbackApiSportsResult = await getApiSportsFixtureScoreByGame(game, matchday, now)
+  } catch {
+    fallbackApiSportsResult = null
+  }
+
+  let fallbackEspnResult = null
+  try {
+    fallbackEspnResult = await getEspnFixtureScoreByGame(game, matchday, now)
+  } catch {
+    fallbackEspnResult = null
+  }
+
+  let searchResults = []
+  try {
+    searchResults = await searchFinishedSoccerEvents(game.match)
+  } catch {
+    searchResults = []
+  }
   const bestMatch = serverSelectBestMatch(game, searchResults)
   if (!bestMatch) {
+    let fallbackScorers = []
+    try {
+      fallbackScorers = await getEspnFixtureScorersByGame(game, matchday, now)
+    } catch {
+      fallbackScorers = []
+    }
+
+    if (fallbackScorers.length === 0) {
+      try {
+        fallbackScorers = await getApiSportsFixtureScorersByGame(game, matchday, now)
+      } catch {
+        fallbackScorers = []
+      }
+    }
+
+    if (fallbackEspnResult) {
+      const resultWithScorers = {
+        ...fallbackEspnResult,
+        ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+      }
+      writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
+      return resultWithScorers
+    }
+    if (fallbackApiSportsResult) {
+      const resultWithScorers = {
+        ...fallbackApiSportsResult,
+        ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+      }
+      writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
+      return resultWithScorers
+    }
     return null
   }
 
   let score = null
+  let scorers = []
   if (bestMatch.idApiFootball && apiFootballKey) {
     try {
       score = await getApiFootballFixtureScore(bestMatch.idApiFootball, apiFootballKey)
     } catch {
       score = null
+    }
+
+    try {
+      scorers = await getApiFootballFixtureScorers(
+        bestMatch.idApiFootball,
+        getAsString(bestMatch.homeTeam),
+        getAsString(bestMatch.awayTeam),
+        apiFootballKey,
+      )
+    } catch {
+      scorers = []
+    }
+  }
+
+  if (scorers.length === 0) {
+    try {
+      scorers = await getApiSportsFixtureScorersByGame(game, matchday, now)
+    } catch {
+      scorers = []
+    }
+  }
+
+  if (scorers.length === 0) {
+    try {
+      scorers = await getEspnFixtureScorersByGame(game, matchday, now)
+    } catch {
+      scorers = []
     }
   }
 
@@ -2520,6 +3357,14 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
   const homeScore = score?.homeScore ?? (fallbackHomeScore !== '' ? fallbackHomeScore : null)
   const awayScore = score?.awayScore ?? (fallbackAwayScore !== '' ? fallbackAwayScore : null)
   if (homeScore === null || awayScore === null) {
+    if (fallbackEspnResult) {
+      writeFixtureResultCache(matchday, game, fallbackEspnResult, nowMs)
+      return fallbackEspnResult
+    }
+    if (fallbackApiSportsResult) {
+      writeFixtureResultCache(matchday, game, fallbackApiSportsResult, nowMs)
+      return fallbackApiSportsResult
+    }
     return null
   }
 
@@ -2531,6 +3376,7 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
     date: game.date,
     homeScore,
     awayScore,
+    ...(scorers.length > 0 ? { scorers } : {}),
   }
   writeFixtureResultCache(matchday, game, result, nowMs)
   return result
@@ -2558,6 +3404,16 @@ function readStoredFixtureResults(storage) {
         date: typeof item.date === 'string' ? item.date : '',
         homeScore: typeof item.homeScore === 'string' ? item.homeScore : '',
         awayScore: typeof item.awayScore === 'string' ? item.awayScore : '',
+        scorers: Array.isArray(item.scorers)
+          ? item.scorers
+              .filter((entry) => entry && typeof entry === 'object')
+              .map((entry) => ({
+                team: typeof entry.team === 'string' ? entry.team : '',
+                player: typeof entry.player === 'string' ? entry.player : '',
+                minute: typeof entry.minute === 'string' ? entry.minute : '',
+              }))
+              .filter((entry) => entry.player !== '')
+          : [],
       }))
       .filter((item) => Number.isFinite(item.matchday) && item.match && item.time && item.date && item.homeScore !== '' && item.awayScore !== '')
   } catch {
@@ -2596,9 +3452,48 @@ async function syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays) 
     ...state.storage,
     [fixtureSignatureStorageKey]: nextSignature,
   }
-  delete nextStorage[fixtureResultsStorageKey]
 
   return writeLeagueState(nextStorage)
+}
+
+function applyStoredResultsToWCFixtureMatchdays(matchdays, storedResults) {
+  const resultByKey = new Map(storedResults.map((result) => [fixtureResultIdentityKey(result), result]))
+  let updated = false
+
+  for (const matchday of matchdays) {
+    for (const game of matchday.games) {
+      const lookupKey = fixtureResultIdentityKey({
+        matchday: matchday.matchday,
+        date: game.date,
+        time: game.time,
+        country: '',
+        match: game.match,
+      })
+      const storedResult = resultByKey.get(lookupKey)
+      if (!storedResult) {
+        continue
+      }
+
+      if (game.homeScore !== storedResult.homeScore || game.awayScore !== storedResult.awayScore) {
+        game.homeScore = storedResult.homeScore
+        game.awayScore = storedResult.awayScore
+        updated = true
+      }
+
+      const nextScorers = Array.isArray(storedResult.scorers) ? storedResult.scorers : []
+      const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+      if (JSON.stringify(currentScorers) !== JSON.stringify(nextScorers)) {
+        if (nextScorers.length > 0) {
+          game.scorers = nextScorers
+        } else if ('scorers' in game) {
+          delete game.scorers
+        }
+        updated = true
+      }
+    }
+  }
+
+  return updated
 }
 
 // ---- Auto-imported event ID helpers ----
@@ -2630,11 +3525,30 @@ function serverReadPlayerPointsMap(storage) {
 let serverScanRunning = false
 
 async function serverScanDueFixturesAndImport() {
-  if (serverScanRunning) return
+  if (serverScanRunning) {
+    return {
+      skippedBecauseRunning: true,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 0,
+      scoreUpdates: 0,
+    }
+  }
   const apiKey = getApiFootballKey()
   if (!apiKey) {
     console.log('[auto-scan] Skipping — no SportAPI token set (SPORTAPI_TOKEN).')
-    return
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: true,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 0,
+      scoreUpdates: 0,
+    }
   }
 
   serverScanRunning = true
@@ -2647,12 +3561,16 @@ async function serverScanDueFixturesAndImport() {
     const state = await readLeagueState()
     const importedIds = serverReadAutoImportedIds(state.storage)
     const playerPointsMap = serverReadPlayerPointsMap(state.storage)
+    const existingResults = readStoredFixtureResults(state.storage)
+    const resultByKey = new Map(existingResults.map((result) => [fixtureResultIdentityKey(result), result]))
 
     let importedCount = 0
     let appliedPlayers = 0
     let skippedPlayers = 0
     let alreadyImported = 0
     let errors = 0
+    let scoreUpdates = 0
+    let wcScoresUpdated = false
 
     for (const matchday of fixtureMatchdays) {
       for (const game of matchday.games) {
@@ -2663,8 +3581,54 @@ async function serverScanDueFixturesAndImport() {
         if (kickoff.getTime() + serverAutoScanDelayMs > now.getTime()) continue
 
         try {
-          const searchRes = await searchFinishedSoccerEvents(game.match)
-          const bestMatch = serverSelectBestMatch(game, searchRes)
+          const scoreResult = await getFixtureResult(game, matchday.matchday, now, apiKey)
+          if (scoreResult) {
+            const identityKey = fixtureResultIdentityKey(scoreResult)
+            const existing = resultByKey.get(identityKey)
+            const existingScorers = Array.isArray(existing?.scorers) ? existing.scorers : []
+            const nextScorers = Array.isArray(scoreResult.scorers) ? scoreResult.scorers : []
+            if (
+              !existing ||
+              existing.homeScore !== scoreResult.homeScore ||
+              existing.awayScore !== scoreResult.awayScore ||
+              JSON.stringify(existingScorers) !== JSON.stringify(nextScorers)
+            ) {
+              resultByKey.set(identityKey, scoreResult)
+              scoreUpdates++
+            }
+
+            const nextGameScorers = Array.isArray(scoreResult.scorers) ? scoreResult.scorers : []
+            const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+            if (
+              game.homeScore !== scoreResult.homeScore ||
+              game.awayScore !== scoreResult.awayScore ||
+              JSON.stringify(currentScorers) !== JSON.stringify(nextGameScorers)
+            ) {
+              game.homeScore = scoreResult.homeScore
+              game.awayScore = scoreResult.awayScore
+              if (nextGameScorers.length > 0) {
+                game.scorers = nextGameScorers
+              } else if ('scorers' in game) {
+                delete game.scorers
+              }
+              wcScoresUpdated = true
+            }
+          }
+
+          let searchRes = []
+          try {
+            searchRes = await searchFinishedSoccerEvents(game.match)
+          } catch {
+            searchRes = []
+          }
+
+          let apiSportsFallbackMatch = null
+          try {
+            apiSportsFallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday.matchday, now)
+          } catch {
+            apiSportsFallbackMatch = null
+          }
+          const bestMatch = serverSelectBestMatch(game, searchRes) ?? apiSportsFallbackMatch
           if (!bestMatch) { console.log(`[auto-scan] No match found for: ${game.match}`); continue }
 
           if (importedIds.has(bestMatch.idEvent)) { alreadyImported++; continue }
@@ -2679,7 +3643,9 @@ async function serverScanDueFixturesAndImport() {
             await new Promise(resolve => setTimeout(resolve, 7000))
           }
 
-          const importedRows = await getApiFootballPlayerStats(bestMatch.idApiFootball, apiKey)
+          const importedRows = bestMatch.idEvent.startsWith('api-sports:')
+            ? await getApiSportsPlayerStats(bestMatch.idApiFootball, getApiSportsKey())
+            : await getApiFootballPlayerStats(bestMatch.idApiFootball, apiKey)
           const { calculated, skipped } = serverCalculateImportedRows(players, importedRows, bestMatch)
 
           for (const row of calculated) {
@@ -2699,19 +3665,45 @@ async function serverScanDueFixturesAndImport() {
       }
     }
 
-    if (importedCount > 0) {
+    if (importedCount > 0 || scoreUpdates > 0) {
       const nextStorage = {
         ...state.storage,
         [serverAutoImportedIdsKey]: JSON.stringify(Array.from(importedIds).sort()),
         [serverPlayerPointsKey]: JSON.stringify(playerPointsMap),
+        [fixtureResultsStorageKey]: JSON.stringify(Array.from(resultByKey.values())),
       }
       await writeLeagueState(nextStorage)
-      console.log(`[auto-scan] Done. Imported: ${importedCount} matches, ${appliedPlayers} players applied, ${skippedPlayers} skipped, ${alreadyImported} already done, ${errors} errors.`)
+      if (wcScoresUpdated) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(fixtureMatchdays, null, 2)}\n`, 'utf8')
+      }
+      console.log(`[auto-scan] Done. Imported: ${importedCount} matches, ${appliedPlayers} players applied, ${skippedPlayers} skipped, ${alreadyImported} already done, ${scoreUpdates} score updates, ${errors} errors.`)
     } else {
       console.log(`[auto-scan] Done. Nothing new to import (${alreadyImported} already done, ${errors} errors).`)
     }
+
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: false,
+      importedCount,
+      appliedPlayers,
+      skippedPlayers,
+      alreadyImported,
+      errors,
+      scoreUpdates,
+    }
   } catch (err) {
     console.error('[auto-scan] Unexpected error:', err.message)
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: false,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 1,
+      scoreUpdates: 0,
+      errorMessage: err.message,
+    }
   } finally {
     serverScanRunning = false
   }

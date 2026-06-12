@@ -1,5 +1,11 @@
 import { renderPage } from './renderPage'
-import { getAllUsernames, getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
+import {
+  getAllUsernames,
+  getTeamNameForUser,
+  getTeamTileDisplayPreferenceForUser,
+  requireAuth,
+  userScopedStorageKey,
+} from './auth'
 import { getLeaguesForUser, joinLeague, type LeagueRecord } from './leagues'
 import {
   getAllPlayers,
@@ -40,6 +46,7 @@ type LeaderboardRow = {
   points: number
   teamValue: number
   players: SelectablePlayer[]
+  captainPlayerKey: string | null
 }
 
 function escapeHtml(value: string): string {
@@ -65,6 +72,34 @@ const currentUsername = requireAuth()
 
 const allPlayers = getAllPlayers()
 const playerByKey = new Map(allPlayers.map((player) => [`${player.team}::${player.name}`, player]))
+
+function teamPlayedToken(name: string): string {
+  const t = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+  if (t === 'iriran') return 'iran'
+  if (t === 'korearepublic') return 'southkorea'
+  return t
+}
+
+let teamsPlayedThisMatchday = new Set<string>()
+
+type TeamTileDisplayMode = 'flag' | 'name'
+
+function getTeamTileDisplayMode(): TeamTileDisplayMode {
+  const perUserPreference = getTeamTileDisplayPreferenceForUser(currentUsername)
+  if (perUserPreference) {
+    return perUserPreference
+  }
+
+  return 'flag'
+}
+
+function renderTeamIdentity(player: SelectablePlayer): string {
+  if (getTeamTileDisplayMode() === 'name') {
+    return `<div class="player-flag player-team-name">${escapeHtml(player.team)}</div>`
+  }
+
+  return `<div class="player-flag">${getCountryFlag(player.team)}</div>`
+}
 
 function readUserTeam(username: string): UserTeamState {
   const storageKey = userScopedStorageKey('fantasy-football-my-team-state', username)
@@ -193,8 +228,9 @@ function buildLeaderboard(usernames: string[]): LeaderboardRow[] {
         username,
         teamName: getTeamNameForUser(username) ?? username,
         players,
-        points: userTeamState.isTeamLocked ? basePoints + captainBonusTotal + captainCurrentBonus : 0,
+        points: basePoints + captainBonusTotal + captainCurrentBonus,
         teamValue: getTeamValue(players),
+        captainPlayerKey,
       }
     })
     .sort((a, b) => {
@@ -291,13 +327,17 @@ function renderSelectedTeamMarkup(selected: LeaderboardRow | undefined): string 
       .map(
         (player) => {
           const kitColors = getTeamKitColors(player.team)
+          const key = `${player.team}::${player.name}`
+          const played = teamsPlayedThisMatchday.has(teamPlayedToken(player.team))
           return `
           <div class="pitch-player">
-            <div class="player-card" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+            <div class="player-card${played ? ' team-has-played' : ''}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+              ${selected.captainPlayerKey === key ? '<div class="captain-badge">C</div>' : ''}
+              ${played ? '<div class="team-played-badge">✓</div>' : ''}
               <div class="player-name">${renderPitchPlayerName(player.name)}</div>
               <div class="player-details">
                 <div class="player-price">£${player.price.toFixed(1)}</div>
-                <div class="player-flag">${getCountryFlag(player.team)}</div>
+                ${renderTeamIdentity(player)}
                 <div class="player-points">${getPlayerPoints(player.name, player.team) + getTotalAccumulatedPoints(player.name, player.team)}pts</div>
               </div>
             </div>
@@ -489,5 +529,26 @@ document.addEventListener('visibilitychange', () => {
     refreshTableView()
   }
 })
+
+void (() => {
+  const currentMatchdayRaw = getSharedItem('fantasy-football-global-matchday')
+  const currentMatchday = currentMatchdayRaw ? Number.parseInt(currentMatchdayRaw, 10) : 1
+  const raw = getSharedItem('fantasy-football-fixture-results')
+  const results: Array<{ match: string; homeScore?: string; awayScore?: string }> =
+    raw ? (JSON.parse(raw) as Array<{ match: string; homeScore?: string; awayScore?: string }>) : []
+  const teamCount: Record<string, number> = {}
+  for (const result of results) {
+    if (result.homeScore !== undefined && result.awayScore !== undefined) {
+      const [home, away] = result.match.split(' vs ')
+      if (home) teamCount[home.trim()] = (teamCount[home.trim()] ?? 0) + 1
+      if (away) teamCount[away.trim()] = (teamCount[away.trim()] ?? 0) + 1
+    }
+  }
+  const played = new Set<string>()
+  for (const [team, count] of Object.entries(teamCount)) {
+    if (count >= currentMatchday) played.add(teamPlayedToken(team))
+  }
+  teamsPlayedThisMatchday = played
+})()
 
 refreshTableView()

@@ -34,6 +34,7 @@ import {
   renameLeague,
   renameUserInLeagues,
 } from './leagues'
+import { getWCFixtureMatchdays } from './fixturesData'
 
 requireAuth()
 
@@ -93,6 +94,7 @@ const adminMarkup = `
         <button id="admin-prev-gameweek-btn" type="button" class="lock-team-btn">Go Back One Gameweek</button>
       </div>
       <p class="danger-copy">Going back a gameweek only changes matchday state. It does not roll back awarded points.</p>
+      <p id="gameweek-wc-status" class="admin-message" aria-live="polite"></p>
     </section>
 
     <details class="admin-card admin-collapsible-card" open>
@@ -183,6 +185,7 @@ const adminCheckScoresBtn = document.querySelector<HTMLButtonElement>('#admin-ch
 const adminClearApiDataBtn = document.querySelector<HTMLButtonElement>('#admin-clear-api-data-btn')
 const gameweekStatusEl = document.querySelector<HTMLParagraphElement>('#gameweek-status')
 const gameweekMessageEl = document.querySelector<HTMLParagraphElement>('#gameweek-message')
+const gameweekWcStatusEl = document.querySelector<HTMLParagraphElement>('#gameweek-wc-status')
 const adminEndGameweekBtn = document.querySelector<HTMLButtonElement>('#admin-end-gameweek-btn')
 const adminPrevGameweekBtn = document.querySelector<HTMLButtonElement>('#admin-prev-gameweek-btn')
 
@@ -313,6 +316,89 @@ function renderGameweekControls(): void {
   if (adminPrevGameweekBtn) {
     adminPrevGameweekBtn.disabled = currentMatchday <= 0
     adminPrevGameweekBtn.title = currentMatchday <= 0 ? 'Gameweek cannot go below 0.' : ''
+  }
+
+  void refreshWCGameweekStatus(currentMatchday)
+}
+
+async function refreshWCGameweekStatus(matchday: number): Promise<void> {
+  if (!adminEndGameweekBtn || !gameweekWcStatusEl) return
+  try {
+    const wcMatchdays = await getWCFixtureMatchdays()
+
+    // Collect all real team names from group stage fixtures.
+    // Placeholder names (knockout seeds like "W73", "1A", "3ABCDF", "RU101") start with a digit, W, or R.
+    const groupStageTeams = new Set<string>()
+    for (const md of wcMatchdays) {
+      if (!md.round.startsWith('Group Stage')) continue
+      for (const game of md.games) {
+        const [home, away] = game.match.split(' vs ')
+        if (home && !/^[WR\d]/.test(home.trim())) groupStageTeams.add(home.trim())
+        if (away && !/^[WR\d]/.test(away.trim())) groupStageTeams.add(away.trim())
+      }
+    }
+
+    const resultsRaw = getSharedItem('fantasy-football-fixture-results')
+    const results: Array<{ match: string; homeScore?: string; awayScore?: string }> =
+      resultsRaw ? (JSON.parse(resultsRaw) as Array<{ match: string; homeScore?: string; awayScore?: string }>) : []
+
+    // Count completed games per team (team names match WCfixtures because the server
+    // stores the exact match string from WCfixtures.json)
+    const teamResultCount: Record<string, number> = {}
+    for (const result of results) {
+      if (result.homeScore !== undefined && result.awayScore !== undefined) {
+        const [home, away] = result.match.split(' vs ')
+        if (home) teamResultCount[home.trim()] = (teamResultCount[home.trim()] ?? 0) + 1
+        if (away) teamResultCount[away.trim()] = (teamResultCount[away.trim()] ?? 0) + 1
+      }
+    }
+
+    if (matchday <= 3) {
+      // Group stage: every team must have played at least `matchday` times
+      const pending = [...groupStageTeams].filter((t) => (teamResultCount[t] ?? 0) < matchday).sort()
+      if (pending.length > 0) {
+        adminEndGameweekBtn.disabled = true
+        adminEndGameweekBtn.title = `${pending.length} team${pending.length === 1 ? '' : 's'} yet to play`
+        gameweekWcStatusEl.textContent = `⏳ ${pending.length} team${pending.length === 1 ? '' : 's'} yet to play in gameweek ${matchday}: ${pending.join(', ')}`
+        gameweekWcStatusEl.className = 'admin-message error'
+      } else {
+        adminEndGameweekBtn.disabled = false
+        adminEndGameweekBtn.title = ''
+        gameweekWcStatusEl.textContent = `✓ All ${groupStageTeams.size} teams have played their gameweek ${matchday} game.`
+        gameweekWcStatusEl.className = 'admin-message ok'
+      }
+    } else {
+      // Knockout rounds: find the first WC fixture matchday that has incomplete games
+      // (any matchday that has at least one completed AND one missing result, or is fully unplayed
+      // and comes after the last completed matchday)
+      const completedMatchSet = new Set(results.filter((r) => r.homeScore !== undefined).map((r) => r.match))
+      let pendingGames: string[] = []
+      let checkedMatchday: number | null = null
+      for (const md of wcMatchdays) {
+        if (md.round.startsWith('Group Stage')) continue
+        const mdPending = md.games.filter((g) => !completedMatchSet.has(g.match)).map((g) => g.match)
+        if (mdPending.length > 0) {
+          pendingGames = mdPending
+          checkedMatchday = md.matchday
+          break
+        }
+      }
+      if (pendingGames.length > 0) {
+        adminEndGameweekBtn.disabled = true
+        adminEndGameweekBtn.title = `${pendingGames.length} game${pendingGames.length === 1 ? '' : 's'} still pending`
+        gameweekWcStatusEl.textContent = `⏳ ${pendingGames.length} game${pendingGames.length === 1 ? '' : 's'} still to play (round ${checkedMatchday ?? '?'}): ${pendingGames.join(', ')}`
+        gameweekWcStatusEl.className = 'admin-message error'
+      } else {
+        adminEndGameweekBtn.disabled = false
+        adminEndGameweekBtn.title = ''
+        gameweekWcStatusEl.textContent = `✓ All knockout games have results.`
+        gameweekWcStatusEl.className = 'admin-message ok'
+      }
+    }
+  } catch {
+    adminEndGameweekBtn.disabled = false
+    adminEndGameweekBtn.title = ''
+    gameweekWcStatusEl.textContent = ''
   }
 }
 

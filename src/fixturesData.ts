@@ -17,6 +17,13 @@ export type WCFixtureGame = {
   stadium: string
   group: string
   round: string
+  homeScore?: string
+  awayScore?: string
+  scorers?: Array<{
+    team: string
+    player: string
+    minute: string
+  }>
 }
 
 export type WCFixtureMatchday = {
@@ -69,13 +76,28 @@ function isFixtureGame(value: unknown): value is FixtureGame {
 function isWCFixtureGame(value: unknown): value is WCFixtureGame {
   if (!value || typeof value !== 'object') return false
   const g = value as Record<string, unknown>
+  const hasValidScorers =
+    typeof g.scorers === 'undefined' ||
+    (Array.isArray(g.scorers) &&
+      g.scorers.every(
+        (entry) =>
+          entry &&
+          typeof entry === 'object' &&
+          typeof (entry as Record<string, unknown>).team === 'string' &&
+          typeof (entry as Record<string, unknown>).player === 'string' &&
+          typeof (entry as Record<string, unknown>).minute === 'string',
+      ))
+
   return (
     typeof g.match === 'string' &&
     typeof g.time === 'string' &&
     typeof g.date === 'string' &&
     typeof g.stadium === 'string' &&
     typeof g.group === 'string' &&
-    typeof g.round === 'string'
+    typeof g.round === 'string' &&
+    (typeof g.homeScore === 'undefined' || typeof g.homeScore === 'string') &&
+    (typeof g.awayScore === 'undefined' || typeof g.awayScore === 'string') &&
+    hasValidScorers
   )
 }
 

@@ -1,12 +1,14 @@
 import {
+  getTeamTileDisplayPreferenceForUser,
   getCurrentUsername,
   getTeamNameForUser,
   requireAuth,
+  setCurrentUserTeamTileDisplayPreference,
   setTeamNameForUser,
 } from './auth'
 import { renderPage } from './renderPage'
 import { applyTheme, applyThemeFromStorage, saveTheme, type ThemeMode } from './theme'
-import { flushSharedLeagueStorage, sharedLeagueUpdatedEvent } from './sharedLeague'
+import { flushSharedLeagueStorage, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
 
 requireAuth()
 
@@ -27,16 +29,49 @@ function getToggleButtonLabel(theme: ThemeMode): string {
   return theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'
 }
 
+type TeamTileDisplayMode = 'flag' | 'name'
+
+const teamTileDisplayStorageKey = 'fantasy-football-team-tile-display-mode'
+
+function getTeamTileDisplayMode(): TeamTileDisplayMode {
+  const username = getCurrentUsername()
+  if (username) {
+    const perUserPreference = getTeamTileDisplayPreferenceForUser(username)
+    if (perUserPreference) {
+      return perUserPreference
+    }
+  }
+
+  return 'flag'
+}
+
+function setTeamTileDisplayMode(mode: TeamTileDisplayMode): void {
+  setCurrentUserTeamTileDisplayPreference(mode)
+  // Keep legacy global key in sync for older clients/pages that still read it.
+  setSharedItem(teamTileDisplayStorageKey, mode)
+}
+
+function getTeamTileDisplayLabel(mode: TeamTileDisplayMode): string {
+  return mode === 'name' ? 'Team Name' : 'Flag'
+}
+
+function getTeamTileDisplayToggleLabel(mode: TeamTileDisplayMode): string {
+  return mode === 'name' ? 'Show Flag' : 'Show Team Name'
+}
+
 function renderSettings(theme: ThemeMode): void {
   const username = getCurrentUsername()
   const currentTeamName = username ? getTeamNameForUser(username) ?? '' : ''
   const canAwardPoints = username?.toLowerCase() === 'lee'
+  const teamTileDisplayMode = getTeamTileDisplayMode()
 
   const markup = `
     <section class="admin-card settings-card">
       <h2>Appearance</h2>
       <p class="players-help">Current theme: <strong id="theme-current-label">${getThemeLabel(theme)}</strong></p>
       <button id="theme-toggle-btn" type="button" class="lock-team-btn">${getToggleButtonLabel(theme)}</button>
+      <p class="players-help">Player tiles: <strong id="team-tile-display-current-label">${getTeamTileDisplayLabel(teamTileDisplayMode)}</strong></p>
+      <button id="team-tile-display-toggle-btn" type="button" class="lock-team-btn">${getTeamTileDisplayToggleLabel(teamTileDisplayMode)}</button>
     </section>
 
     ${canAwardPoints ? `
@@ -46,6 +81,7 @@ function renderSettings(theme: ThemeMode): void {
       <div class="settings-links">
         <a class="lock-team-btn settings-link-btn" href="/stats.html">Stats</a>
         <a class="lock-team-btn settings-link-btn" href="/admin.html">Admin</a>
+        <a class="lock-team-btn settings-link-btn" href="/all-teams.html">All User Teams</a>
       </div>
     </section>
     ` : ''}
@@ -74,6 +110,8 @@ function renderSettings(theme: ThemeMode): void {
 
   const themeLabel = document.querySelector<HTMLSpanElement>('#theme-current-label')
   const themeToggleBtn = document.querySelector<HTMLButtonElement>('#theme-toggle-btn')
+  const teamTileDisplayLabel = document.querySelector<HTMLSpanElement>('#team-tile-display-current-label')
+  const teamTileDisplayToggleBtn = document.querySelector<HTMLButtonElement>('#team-tile-display-toggle-btn')
   const teamNameForm = document.querySelector<HTMLFormElement>('#team-name-form')
   const teamNameInput = document.querySelector<HTMLInputElement>('#team-name-input')
   const teamNameCurrentLabel = document.querySelector<HTMLSpanElement>('#team-name-current-label')
@@ -91,6 +129,17 @@ function renderSettings(theme: ThemeMode): void {
     themeLabel.textContent = getThemeLabel(currentTheme)
     themeToggleBtn.textContent = getToggleButtonLabel(currentTheme)
   })
+
+  if (teamTileDisplayLabel && teamTileDisplayToggleBtn) {
+    let currentTeamTileDisplayMode = teamTileDisplayMode
+    teamTileDisplayToggleBtn.addEventListener('click', async () => {
+      currentTeamTileDisplayMode = currentTeamTileDisplayMode === 'flag' ? 'name' : 'flag'
+      setTeamTileDisplayMode(currentTeamTileDisplayMode)
+      await flushSharedLeagueStorage()
+      teamTileDisplayLabel.textContent = getTeamTileDisplayLabel(currentTeamTileDisplayMode)
+      teamTileDisplayToggleBtn.textContent = getTeamTileDisplayToggleLabel(currentTeamTileDisplayMode)
+    })
+  }
 
   if (teamNameForm && teamNameInput && teamNameCurrentLabel && teamNameMessage) {
     const setTeamNameMessage = (text: string, type: 'ok' | 'error'): void => {
@@ -131,6 +180,12 @@ function renderSettings(theme: ThemeMode): void {
       teamNameCurrentLabel.textContent = refreshedTeamName || 'Not set'
       if (document.activeElement !== teamNameInput) {
         teamNameInput.value = refreshedTeamName
+      }
+
+      if (teamTileDisplayLabel && teamTileDisplayToggleBtn) {
+        const refreshedMode = getTeamTileDisplayMode()
+        teamTileDisplayLabel.textContent = getTeamTileDisplayLabel(refreshedMode)
+        teamTileDisplayToggleBtn.textContent = getTeamTileDisplayToggleLabel(refreshedMode)
       }
     })
   }

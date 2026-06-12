@@ -12,6 +12,7 @@ type StoredUser = {
 type UserProfile = {
   teamName: string
   theme?: 'light' | 'dark'
+  teamTileDisplayMode?: 'flag' | 'name'
 }
 
 type UserProfiles = Record<string, UserProfile>
@@ -73,7 +74,10 @@ function readProfiles(): UserProfiles {
           typeof (profile as UserProfile).teamName === 'string' &&
           (typeof (profile as UserProfile).theme === 'undefined' ||
             (profile as UserProfile).theme === 'light' ||
-            (profile as UserProfile).theme === 'dark'),
+            (profile as UserProfile).theme === 'dark') &&
+          (typeof (profile as UserProfile).teamTileDisplayMode === 'undefined' ||
+            (profile as UserProfile).teamTileDisplayMode === 'flag' ||
+            (profile as UserProfile).teamTileDisplayMode === 'name'),
       ),
     ) as UserProfiles
   } catch {
@@ -250,8 +254,8 @@ export function setCurrentUserTeamName(teamName: string): { ok: boolean; error?:
   const profiles = readProfiles()
   const existingProfile = profiles[username]
   profiles[username] = {
+    ...existingProfile,
     teamName: normalizedTeamName,
-    ...(existingProfile?.theme ? { theme: existingProfile.theme } : {}),
   }
   const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
   if (!didWriteProfiles) {
@@ -285,8 +289,8 @@ export function setTeamNameForUser(username: string, teamName: string): { ok: bo
   const profiles = readProfiles()
   const existingProfile = profiles[existingUser.username]
   profiles[existingUser.username] = {
+    ...existingProfile,
     teamName: normalizedTeamName,
-    ...(existingProfile?.theme ? { theme: existingProfile.theme } : {}),
   }
   const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
   if (!didWriteProfiles) {
@@ -319,6 +323,7 @@ export function setCurrentUserThemePreference(theme: 'light' | 'dark'): { ok: bo
   const profiles = readProfiles()
   const existingProfile = profiles[username]
   profiles[username] = {
+    ...existingProfile,
     teamName: existingProfile?.teamName ?? '',
     theme,
   }
@@ -326,6 +331,42 @@ export function setCurrentUserThemePreference(theme: 'light' | 'dark'): { ok: bo
   const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
   if (!didWriteProfiles) {
     return { ok: false, error: 'Cannot save theme preference. Browser storage is blocked for this site.' }
+  }
+
+  return { ok: true }
+}
+
+export function getTeamTileDisplayPreferenceForUser(username: string): 'flag' | 'name' | null {
+  const profiles = readProfiles()
+  const profile = profiles[username]
+  if (!profile) {
+    return null
+  }
+
+  if (profile.teamTileDisplayMode === 'flag' || profile.teamTileDisplayMode === 'name') {
+    return profile.teamTileDisplayMode
+  }
+
+  return null
+}
+
+export function setCurrentUserTeamTileDisplayPreference(mode: 'flag' | 'name'): { ok: boolean; error?: string } {
+  const username = getCurrentUsername()
+  if (!username) {
+    return { ok: false, error: 'No signed in user.' }
+  }
+
+  const profiles = readProfiles()
+  const existingProfile = profiles[username]
+  profiles[username] = {
+    ...existingProfile,
+    teamName: existingProfile?.teamName ?? '',
+    teamTileDisplayMode: mode,
+  }
+
+  const didWriteProfiles = setSharedItem(userProfilesStorageKey, JSON.stringify(profiles))
+  if (!didWriteProfiles) {
+    return { ok: false, error: 'Cannot save tile display preference. Browser storage is blocked for this site.' }
   }
 
   return { ok: true }

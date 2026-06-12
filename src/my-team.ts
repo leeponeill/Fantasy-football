@@ -7,7 +7,7 @@ import {
 	getCountryFlag,
 	getTeamKitColors,
 } from './teamsData'
-import { getTeamNameForUser, requireAuth, userScopedStorageKey } from './auth'
+import { getTeamNameForUser, getTeamTileDisplayPreferenceForUser, requireAuth, userScopedStorageKey } from './auth'
 import { getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
 import { getFixtureMatchdays, type FixtureGame, type FixtureMatchday } from './fixturesData'
 import {
@@ -82,6 +82,25 @@ let remainingBudget = maxBudget
 let incomingTransferRequests: TransferRequest[] = []
 let outgoingTransferRequests: TransferRequest[] = []
 let fixtureMatchdays: FixtureMatchday[] = []
+
+type TeamTileDisplayMode = 'flag' | 'name'
+
+function getTeamTileDisplayMode(): TeamTileDisplayMode {
+	const perUserPreference = getTeamTileDisplayPreferenceForUser(currentUsername)
+	if (perUserPreference) {
+		return perUserPreference
+	}
+
+	return 'flag'
+}
+
+function renderTeamIdentity(player: SelectablePlayer): string {
+	if (getTeamTileDisplayMode() === 'name') {
+		return `<div class="player-flag player-team-name">${escapeHtml(player.team)}</div>`
+	}
+
+	return `<div class="player-flag">${getCountryFlag(player.team)}</div>`
+}
 
 const transferTeamAliases: Record<string, string> = {
 	manutd: 'manchesterunited',
@@ -229,6 +248,39 @@ async function refreshFixtureMatchdays(): Promise<void> {
 		fixtureMatchdays = await getFixtureMatchdays()
 	} catch {
 		fixtureMatchdays = []
+	}
+}
+
+function teamPlayedToken(name: string): string {
+	const t = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+	if (t === 'iriran') return 'iran'
+	if (t === 'korearepublic') return 'southkorea'
+	return t
+}
+
+let teamsPlayedThisMatchday = new Set<string>()
+
+async function refreshTeamsPlayedThisMatchday(): Promise<void> {
+	try {
+		const currentMatchday = getGlobalMatchday()
+		const raw = getSharedItem('fantasy-football-fixture-results')
+		const results: Array<{ match: string; homeScore?: string; awayScore?: string }> =
+			raw ? (JSON.parse(raw) as Array<{ match: string; homeScore?: string; awayScore?: string }>) : []
+		const teamCount: Record<string, number> = {}
+		for (const result of results) {
+			if (result.homeScore !== undefined && result.awayScore !== undefined) {
+				const [home, away] = result.match.split(' vs ')
+				if (home) teamCount[home.trim()] = (teamCount[home.trim()] ?? 0) + 1
+				if (away) teamCount[away.trim()] = (teamCount[away.trim()] ?? 0) + 1
+			}
+		}
+		const played = new Set<string>()
+		for (const [team, count] of Object.entries(teamCount)) {
+			if (count >= currentMatchday) played.add(teamPlayedToken(team))
+		}
+		teamsPlayedThisMatchday = played
+	} catch {
+		// ignore
 	}
 }
 
@@ -469,6 +521,23 @@ function getCurrentPointsByPlayerKey(key: string): number {
 	const teamName = parts[0]
 	const playerName = parts.slice(1).join('::')
 	return getPlayerPoints(playerName, teamName)
+}
+
+function getDisplayedPlayerTotalPoints(playerName: string, teamName: string): number {
+	return getPlayerTotalPoints(playerName, teamName) + getPlayerPoints(playerName, teamName)
+}
+
+function getDisplayedSelectedPlayerTotalPoints(player: SelectablePlayer, selectedKeys: string[]): number {
+	return (
+		getPlayerTotalPoints(player.name, player.team) +
+		getTransferAwarePlayerCurrentPoints(
+			playerKey(player),
+			selectedKeys,
+			currentMatchday,
+			transferPointEvents,
+			getCurrentPointsByPlayerKey,
+		)
+	)
 }
 
 function addTransferPointEvent(direction: 'in' | 'out', key: string): void {
@@ -1001,12 +1070,21 @@ function getTransfersRemaining(): number {
 	return Math.max(0, maxTransfersPerMatchday - transfersUsedThisMatchday)
 }
 
-function canSetCaptain(targetKey: string): boolean {
-	if (!isTeamLockedForMatchday()) {
+function hasCurrentCaptainPlayedThisMatchday(): boolean {
+	if (!captainPlayerKey) {
 		return false
 	}
 
-	if (captainChangesThisMatchday >= 1) {
+	const captain = selectedPlayers.find((player) => playerKey(player) === captainPlayerKey)
+	if (!captain) {
+		return false
+	}
+
+	return teamsPlayedThisMatchday.has(teamPlayedToken(captain.team))
+}
+
+function canSetCaptain(targetKey: string): boolean {
+	if (isTeamLockedForMatchday() && hasCurrentCaptainPlayedThisMatchday()) {
 		return false
 	}
 
@@ -1038,7 +1116,7 @@ function setCaptain(targetKey: string): void {
 	}
 
 	captainPlayerKey = targetKey
-	captainChangesThisMatchday = 1
+	captainChangesThisMatchday += 1
 	isCaptainSelectMode = false
 	saveTeamState()
 	renderSelectedTeam()
@@ -1080,21 +1158,20 @@ function renderSelectedTeam(): void {
 	}
 	if (captainStatus) {
 		const captain = captainPlayerKey ? selectedPlayers.find((player) => playerKey(player) === captainPlayerKey) : null
-		const captainSelectedThisMatchday = teamLocked && captainChangesThisMatchday >= 1
-		const selectionLimitInfo = captainSelectedThisMatchday ? ' | Captain already selected this matchday' : ''
+		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisMatchday()
+		const selectionLimitInfo = captainLockedBecausePlayed ? ' | Captain locked (already played this matchday)' : ''
 		if (!captain) {
 			const modeHint = isCaptainSelectMode ? ' | Click a player card to assign captain' : ''
-			captainStatus.textContent = `Captain: None${teamLocked ? '' : ' (available once matchday is not 0)'}${selectionLimitInfo}${modeHint}`
+			captainStatus.textContent = `Captain: None${selectionLimitInfo}${modeHint}`
 		} else {
-			const captainChangeInfo = teamLocked
-				? ` | Captain changes this matchday: ${captainChangesThisMatchday}/1 used`
-				: ''
 			const modeHint = isCaptainSelectMode ? ' | Click a player card to assign captain' : ''
-			captainStatus.textContent = `Captain: ${captain.name}${captainChangeInfo}${selectionLimitInfo}${modeHint}`
+			captainStatus.textContent = `Captain: ${captain.name}${selectionLimitInfo}${modeHint}`
 		}
 	}
 	if (selectCaptainBtn) {
-		const canSelectCaptainThisMatchday = teamLocked && selectedPlayers.length > 0 && captainChangesThisMatchday < 1
+		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisMatchday()
+		const canSelectCaptainThisMatchday =
+			selectedPlayers.length > 0 && !captainLockedBecausePlayed
 		if (!canSelectCaptainThisMatchday) {
 			isCaptainSelectMode = false
 		}
@@ -1124,6 +1201,7 @@ function renderSelectedTeam(): void {
 		const playerCards = players
 			.map((player) => {
 				const key = playerKey(player)
+				const displayedPoints = teamLocked ? getDisplayedSelectedPlayerTotalPoints(player, selectedKeys) : 0
 				const kitColors = getTeamKitColors(player.team)
 				let swapBtnMarkup = ''
 				if (swapBenchKey) {
@@ -1131,15 +1209,17 @@ function renderSelectedTeam(): void {
 					const btnClass = canSwap ? 'swap-here-btn swap-here-btn--ok' : 'swap-here-btn swap-here-btn--bad'
 						swapBtnMarkup = `<button class="${btnClass}" type="button" data-pitch-key="${escapeHtml(key)}"${canSwap ? '' : ' disabled'}>${canSwap ? 'Swap Here' : "Can't Swap"}</button>`
 				}
-				return `
+				const played = teamsPlayedThisMatchday.has(teamPlayedToken(player.team))
+			return `
 					<div class="pitch-player">
-						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}" data-player-key="${escapeHtml(key)}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}${played ? ' team-has-played' : ''}" data-player-key="${escapeHtml(key)}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
 							${captainPlayerKey === key ? '<div class="captain-badge">C</div>' : ''}
+							${played ? '<div class="team-played-badge">✓</div>' : ''}
 							<div class="player-name">${renderPitchPlayerName(player.name)}</div>
 							<div class="player-details">
 								<div class="player-price">£${player.price.toFixed(1)}</div>
-								<div class="player-flag">${getCountryFlag(player.team)}</div>
-									<div class="player-points">${teamLocked ? getTransferAwarePlayerCurrentPoints(key, selectedKeys, currentMatchday, transferPointEvents, getCurrentPointsByPlayerKey) : 0}pts</div>
+								${renderTeamIdentity(player)}
+									<div class="player-points">${displayedPoints}pts</div>
 							</div>
 							<button class="remove-player-btn" type="button" data-key="${escapeHtml(key)}" title="Remove player" ${canRemovePlayer(player) ? '' : 'disabled'}>×</button>
 							${swapBtnMarkup}
@@ -1199,9 +1279,9 @@ function renderBench(): void {
 						<div class="player-name">${escapeHtml(player.name)}</div>
 						<div class="player-details">
 							<div class="player-price">£${player.price.toFixed(1)}</div>
-							<div class="player-flag">${getCountryFlag(player.team)}</div>
+							${renderTeamIdentity(player)}
 							<div class="player-position">${player.position}</div>
-							<div class="player-points">${isTeamLockedForMatchday() ? getPlayerPoints(player.name, player.team) : 0}pts</div>
+							<div class="player-points">${isTeamLockedForMatchday() ? getDisplayedPlayerTotalPoints(player.name, player.team) : 0}pts</div>
 						</div>
 					</div>
 					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player" ${swapBenchKey ? 'disabled' : ''}>⇄</button>
@@ -1267,8 +1347,8 @@ function renderSearchResults(): void {
 				return priceDiff
 			}
 		} else if (sortMode === 'points-low-high' || sortMode === 'points-high-low') {
-			const aPoints = getPlayerTotalPoints(a.name, a.team)
-			const bPoints = getPlayerTotalPoints(b.name, b.team)
+			const aPoints = getDisplayedPlayerTotalPoints(a.name, a.team)
+			const bPoints = getDisplayedPlayerTotalPoints(b.name, b.team)
 			const pointsDiff = sortMode === 'points-low-high' ? aPoints - bPoints : bPoints - aPoints
 			if (pointsDiff !== 0) {
 				return pointsDiff
@@ -1343,7 +1423,7 @@ function renderSearchResults(): void {
 			const benchDisabled = canAddToBench && benchIsFull
 			const finalDisabled = isRequestMode ? requestDisabled || blockedByTurn : (canAddToBench ? benchDisabled : isDisabled)
 
-			const totalPts = getPlayerTotalPoints(player.name, player.team)
+			const totalPts = getDisplayedPlayerTotalPoints(player.name, player.team)
 			return `
 				<li class="search-item${takenByOther ? ' player-taken' : ''}" style="background: ${kitColors.backgroundColor}; border-color: ${kitColors.borderColor}; color: ${kitColors.textColor};">
 					<div>
@@ -1700,7 +1780,11 @@ if (searchInput && searchResults && selectedTeamList) {
 
 	if (selectCaptainBtn) {
 		selectCaptainBtn.addEventListener('click', () => {
-			if (!isTeamLockedForMatchday() || selectedPlayers.length === 0 || captainChangesThisMatchday >= 1) {
+			if (selectedPlayers.length === 0) {
+				return
+			}
+
+			if (isTeamLockedForMatchday() && hasCurrentCaptainPlayedThisMatchday()) {
 				return
 			}
 
@@ -1727,7 +1811,10 @@ if (searchInput && searchResults && selectedTeamList) {
 	window.addEventListener(sharedLeagueUpdatedEvent, () => {
 		loadTeamState()
 		syncWithGlobalMatchday()
-		void refreshClaimedPlayers().then(() => refreshLivePointsView())
+		void refreshClaimedPlayers().then(async () => {
+			await refreshTeamsPlayedThisMatchday()
+			refreshLivePointsView()
+		})
 		void refreshDraftMode()
 		void refreshBenchMode()
 		void refreshTransferRequests()
@@ -1793,7 +1880,9 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (document.visibilityState === 'visible') {
 			loadTeamState()
 			syncWithGlobalMatchday()
-			refreshLivePointsView()
+			void refreshTeamsPlayedThisMatchday().then(() => {
+				refreshLivePointsView()
+			})
 			void refreshTransferRequests()
 		}
 	})
@@ -1805,6 +1894,10 @@ if (searchInput && searchResults && selectedTeamList) {
 		renderSelectedTeam()
 		renderBench()
 		renderSearchResults()
+	})
+	void refreshTeamsPlayedThisMatchday().then(() => {
+		renderSelectedTeam()
+		renderBench()
 	})
 	renderSelectedTeam()
 	renderBench()

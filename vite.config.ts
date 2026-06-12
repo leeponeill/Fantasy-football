@@ -13,6 +13,7 @@ export default defineConfig({
         myTeam: fileURLToPath(new URL('./my-team.html', import.meta.url)),
         transferHistory: fileURLToPath(new URL('./transfer-history.html', import.meta.url)),
         stats: fileURLToPath(new URL('./stats.html', import.meta.url)),
+        allTeams: fileURLToPath(new URL('./all-teams.html', import.meta.url)),
         table: fileURLToPath(new URL('./table.html', import.meta.url)),
         teamSetup: fileURLToPath(new URL('./team-setup.html', import.meta.url)),
         admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
