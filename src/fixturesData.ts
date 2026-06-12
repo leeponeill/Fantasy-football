@@ -19,6 +19,10 @@ export type WCFixtureGame = {
   round: string
   homeScore?: string
   awayScore?: string
+  homeYellowCards?: number
+  awayYellowCards?: number
+  homeRedCards?: number
+  awayRedCards?: number
   scorers?: Array<{
     team: string
     player: string
@@ -76,6 +80,11 @@ function isFixtureGame(value: unknown): value is FixtureGame {
 function isWCFixtureGame(value: unknown): value is WCFixtureGame {
   if (!value || typeof value !== 'object') return false
   const g = value as Record<string, unknown>
+  const hasValidConduct =
+    (typeof g.homeYellowCards === 'undefined' || (typeof g.homeYellowCards === 'number' && Number.isFinite(g.homeYellowCards) && g.homeYellowCards >= 0)) &&
+    (typeof g.awayYellowCards === 'undefined' || (typeof g.awayYellowCards === 'number' && Number.isFinite(g.awayYellowCards) && g.awayYellowCards >= 0)) &&
+    (typeof g.homeRedCards === 'undefined' || (typeof g.homeRedCards === 'number' && Number.isFinite(g.homeRedCards) && g.homeRedCards >= 0)) &&
+    (typeof g.awayRedCards === 'undefined' || (typeof g.awayRedCards === 'number' && Number.isFinite(g.awayRedCards) && g.awayRedCards >= 0))
   const hasValidScorers =
     typeof g.scorers === 'undefined' ||
     (Array.isArray(g.scorers) &&
@@ -97,6 +106,7 @@ function isWCFixtureGame(value: unknown): value is WCFixtureGame {
     typeof g.round === 'string' &&
     (typeof g.homeScore === 'undefined' || typeof g.homeScore === 'string') &&
     (typeof g.awayScore === 'undefined' || typeof g.awayScore === 'string') &&
+    hasValidConduct &&
     hasValidScorers
   )
 }

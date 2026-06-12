@@ -354,6 +354,8 @@ body {
 .groups-table td:nth-child(2),
 .groups-table th:nth-child(2) {
   min-width: unset;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .groups-table td:last-child,
@@ -361,6 +363,7 @@ body {
   min-width: unset;
   width: 120px;
 }
+
 
 .group-form {
   letter-spacing: 0.08em;
@@ -2122,6 +2125,56 @@ body.dark-mode .fixtures-view-switch {
 }
 
 @media (max-width: 720px) {
+  .groups-table--compact col:nth-child(4),
+  .groups-table--compact col:nth-child(5),
+  .groups-table--compact col:nth-child(6),
+  .groups-table--compact col:nth-child(7),
+  .groups-table--compact col:nth-child(8) {
+    display: none;
+  }
+
+  .groups-table--compact th:nth-child(4),
+  .groups-table--compact th:nth-child(5),
+  .groups-table--compact th:nth-child(6),
+  .groups-table--compact th:nth-child(7),
+  .groups-table--compact th:nth-child(8),
+  .groups-table--compact td:nth-child(4),
+  .groups-table--compact td:nth-child(5),
+  .groups-table--compact td:nth-child(6),
+  .groups-table--compact td:nth-child(7),
+  .groups-table--compact td:nth-child(8) {
+    display: none;
+  }
+
+  .groups-table--compact .col-rank {
+    width: 30px;
+  }
+
+  .groups-table--compact .col-stat {
+    width: 34px;
+  }
+
+  .groups-table--compact .col-form {
+    width: 98px;
+  }
+
+  .groups-table--compact td:nth-child(2),
+  .groups-table--compact th:nth-child(2) {
+    min-width: 108px;
+    white-space: normal;
+  }
+
+  .groups-table--compact .group-form {
+    letter-spacing: 0.04em;
+  }
+
+  .groups-table--compact .group-form span {
+    width: 1.15em;
+    height: 1.15em;
+    font-size: 0.68rem;
+    margin: 0 0.5px;
+  }
+
   .tabs {
     flex-direction: column;
     align-items: stretch;

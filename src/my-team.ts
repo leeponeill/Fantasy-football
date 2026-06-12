@@ -593,7 +593,6 @@ const myTeamMarkup = `
 			</div>
 			<p class="my-team-name">${escapeHtml(currentTeamName)}</p>
 			<p class="players-help">Pick up to 11 players. Limits: 1 GK, 5 DEF, 5 MID, 3 FWD. Minimums: 1 GK, 3 DEF, 3 MID, 1 FWD.</p>
-			<p class="players-help" id="team-lock-status">Status: Locked</p>
 			<p class="players-help" id="transfer-status">Matchday 1 Transfers: 0/3 used</p>
 			<p class="players-help" id="captain-status">Captain: None</p>
 			<button id="select-captain-btn" type="button" class="lock-team-btn">Select Captain</button>
@@ -682,7 +681,6 @@ const budgetCount = document.querySelector<HTMLParagraphElement>('#budget-count'
 const matchdayPointsDisplay = document.querySelector<HTMLSpanElement>('#matchday-points')
 const totalPointsDisplay = document.querySelector<HTMLSpanElement>('#total-points')
 const selectCaptainBtn = document.querySelector<HTMLButtonElement>('#select-captain-btn')
-const teamLockStatus = document.querySelector<HTMLParagraphElement>('#team-lock-status')
 const transferStatus = document.querySelector<HTMLParagraphElement>('#transfer-status')
 const captainStatus = document.querySelector<HTMLParagraphElement>('#captain-status')
 const transferRemainingBadge = document.querySelector<HTMLParagraphElement>('#transfer-remaining-badge')
@@ -896,10 +894,6 @@ function getMissingMinimumSlots(players: SelectablePlayer[]): number {
 		const missingForBucket = Math.max(0, positionMinimums[bucket] - currentCount)
 		return sum + missingForBucket
 	}, 0)
-}
-
-function meetsPositionMinimums(players: SelectablePlayer[]): boolean {
-	return getMissingMinimumSlots(players) === 0
 }
 
 function getTotalPrice(players: SelectablePlayer[]): number {
@@ -1139,17 +1133,6 @@ function renderSelectedTeam(): void {
 	}
 	if (totalPointsDisplay) {
 		totalPointsDisplay.textContent = `${teamLocked ? getTotalPoints(selectedPlayers) : 0}`
-	}
-	if (teamLockStatus) {
-		if (teamLocked) {
-			teamLockStatus.textContent = 'Status: Locked'
-		} else if (selectedPlayers.length === maxTeamSize && meetsPositionMinimums(selectedPlayers)) {
-			teamLockStatus.textContent = 'Status: Unlocked (Matchday 0)'
-		} else if (selectedPlayers.length === maxTeamSize) {
-			teamLockStatus.textContent = 'Status: Full team but minimum position requirements not met'
-		} else {
-			teamLockStatus.textContent = 'Status: Unlocked (Matchday 0)'
-		}
 	}
 	if (transferStatus) {
 		transferStatus.textContent = isUnlimitedTransferMatchday()

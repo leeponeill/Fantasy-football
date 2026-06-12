@@ -317,6 +317,10 @@ function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixture
 
 type FixtureView = 'fixtures' | 'results' | 'groups'
 
+function isMobileViewport(): boolean {
+	return window.matchMedia('(max-width: 720px)').matches
+}
+
 function renderGroupsTableMarkup(): string {
 	type GroupStandingRow = {
 		team: string
@@ -335,6 +339,16 @@ function renderGroupsTableMarkup(): string {
 		awayTeam: string
 		homeScore: number
 		awayScore: number
+		homeYellowCards: number
+		awayYellowCards: number
+		homeRedCards: number
+		awayRedCards: number
+	}
+
+	type TiebreakMetrics = {
+		points: number
+		goalDifference: number
+		goalsFor: number
 	}
 
 	function parseResultFromGame(game: WCFixtureGame): ParsedResult | null {
@@ -347,11 +361,20 @@ function renderGroupsTableMarkup(): string {
 				return null
 			}
 
+			const homeYellowCards = Number.isFinite(game.homeYellowCards) ? Math.max(0, Math.floor(game.homeYellowCards ?? 0)) : 0
+			const awayYellowCards = Number.isFinite(game.awayYellowCards) ? Math.max(0, Math.floor(game.awayYellowCards ?? 0)) : 0
+			const homeRedCards = Number.isFinite(game.homeRedCards) ? Math.max(0, Math.floor(game.homeRedCards ?? 0)) : 0
+			const awayRedCards = Number.isFinite(game.awayRedCards) ? Math.max(0, Math.floor(game.awayRedCards ?? 0)) : 0
+
 			return {
 				homeTeam: teams[0],
 				awayTeam: teams[1],
 				homeScore: Number.parseInt(homeScoreText, 10),
 				awayScore: Number.parseInt(awayScoreText, 10),
+				homeYellowCards,
+				awayYellowCards,
+				homeRedCards,
+				awayRedCards,
 			}
 		}
 
@@ -385,8 +408,124 @@ function renderGroupsTableMarkup(): string {
 		}
 	}
 
+	function buildHeadToHeadMetrics(tiedTeams: Set<string>, results: ParsedResult[]): Map<string, TiebreakMetrics> {
+		const metrics = new Map<string, TiebreakMetrics>()
+		for (const team of tiedTeams) {
+			metrics.set(team, { points: 0, goalDifference: 0, goalsFor: 0 })
+		}
+
+		for (const result of results) {
+			if (!tiedTeams.has(result.homeTeam) || !tiedTeams.has(result.awayTeam)) {
+				continue
+			}
+
+			const homeMetrics = metrics.get(result.homeTeam)
+			const awayMetrics = metrics.get(result.awayTeam)
+			if (!homeMetrics || !awayMetrics) {
+				continue
+			}
+
+			homeMetrics.goalsFor += result.homeScore
+			homeMetrics.goalDifference += result.homeScore - result.awayScore
+			awayMetrics.goalsFor += result.awayScore
+			awayMetrics.goalDifference += result.awayScore - result.homeScore
+
+			if (result.homeScore > result.awayScore) {
+				homeMetrics.points += 3
+			} else if (result.homeScore < result.awayScore) {
+				awayMetrics.points += 3
+			} else {
+				homeMetrics.points += 1
+				awayMetrics.points += 1
+			}
+		}
+
+		return metrics
+	}
+
+	function getTeamConductScore(team: string, results: ParsedResult[]): number {
+		let yellowCards = 0
+		let redCards = 0
+
+		for (const result of results) {
+			if (result.homeTeam === team) {
+				yellowCards += result.homeYellowCards
+				redCards += result.homeRedCards
+			}
+			if (result.awayTeam === team) {
+				yellowCards += result.awayYellowCards
+				redCards += result.awayRedCards
+			}
+		}
+
+		// Higher score is better: fewer cards leads to less negative score.
+		return (yellowCards * -1) + (redCards * -3)
+	}
+
+	function rankRowsByCompetitionTiebreakers(rows: GroupStandingRow[], results: ParsedResult[]): GroupStandingRow[] {
+		const byPoints = new Map<number, GroupStandingRow[]>()
+		for (const row of rows) {
+			const bucket = byPoints.get(row.points) ?? []
+			bucket.push(row)
+			byPoints.set(row.points, bucket)
+		}
+
+		const sortedPointValues = Array.from(byPoints.keys()).sort((a, b) => b - a)
+		const ranked: GroupStandingRow[] = []
+
+		for (const pointsValue of sortedPointValues) {
+			const tiedRows = byPoints.get(pointsValue) ?? []
+			if (tiedRows.length <= 1) {
+				ranked.push(...tiedRows)
+				continue
+			}
+
+			const tiedTeams = new Set(tiedRows.map((row) => row.team))
+			const headToHead = buildHeadToHeadMetrics(tiedTeams, results)
+
+			const ordered = [...tiedRows].sort((a, b) => {
+				const aH2H = headToHead.get(a.team) ?? { points: 0, goalDifference: 0, goalsFor: 0 }
+				const bH2H = headToHead.get(b.team) ?? { points: 0, goalDifference: 0, goalsFor: 0 }
+
+				// Step one: head-to-head points, head-to-head GD, head-to-head goals scored.
+				if (bH2H.points !== aH2H.points) {
+					return bH2H.points - aH2H.points
+				}
+				if (bH2H.goalDifference !== aH2H.goalDifference) {
+					return bH2H.goalDifference - aH2H.goalDifference
+				}
+				if (bH2H.goalsFor !== aH2H.goalsFor) {
+					return bH2H.goalsFor - aH2H.goalsFor
+				}
+
+				// Step two: overall GD, overall goals scored, then conduct score.
+				const aOverallGD = a.goalsFor - a.goalsAgainst
+				const bOverallGD = b.goalsFor - b.goalsAgainst
+				if (bOverallGD !== aOverallGD) {
+					return bOverallGD - aOverallGD
+				}
+				if (b.goalsFor !== a.goalsFor) {
+					return b.goalsFor - a.goalsFor
+				}
+
+				const aConductScore = getTeamConductScore(a.team, results)
+				const bConductScore = getTeamConductScore(b.team, results)
+				if (bConductScore !== aConductScore) {
+					return bConductScore - aConductScore
+				}
+
+				return a.team.localeCompare(b.team)
+			})
+
+			ranked.push(...ordered)
+		}
+
+		return ranked
+	}
+
 	const groupTeams = new Map<string, Set<string>>()
 	const standingsByGroup = new Map<string, Map<string, GroupStandingRow>>()
+	const groupResults = new Map<string, ParsedResult[]>()
 	const now = new Date()
 
 	for (const matchday of fixtureMatchdays) {
@@ -406,6 +545,9 @@ function renderGroupsTableMarkup(): string {
 			}
 			if (!standingsByGroup.has(groupName)) {
 				standingsByGroup.set(groupName, new Map<string, GroupStandingRow>())
+			}
+			if (!groupResults.has(groupName)) {
+				groupResults.set(groupName, [])
 			}
 
 			groupTeams.get(groupName)?.add(teams[0])
@@ -432,6 +574,7 @@ function renderGroupsTableMarkup(): string {
 			if (!parsedResult) {
 				continue
 			}
+			groupResults.get(groupName)?.push(parsedResult)
 
 			const homeRow = groupStandings.get(parsedResult.homeTeam)
 			const awayRow = groupStandings.get(parsedResult.awayTeam)
@@ -474,8 +617,11 @@ function renderGroupsTableMarkup(): string {
 		return '<p class="empty-state">No group data is available yet.</p>'
 	}
 
+	const mobile = isMobileViewport()
+
 	return sortedGroups
 		.map(([groupName, teams]) => {
+			const isCompact = mobile
 			const standings = standingsByGroup.get(groupName) ?? new Map<string, GroupStandingRow>()
 			for (const team of teams) {
 				if (!standings.has(team)) {
@@ -483,23 +629,10 @@ function renderGroupsTableMarkup(): string {
 				}
 			}
 
-			const sortedRows = Array.from(standings.values()).sort((a, b) => {
-				if (b.points !== a.points) {
-					return b.points - a.points
-				}
-
-				const goalDifferenceA = a.goalsFor - a.goalsAgainst
-				const goalDifferenceB = b.goalsFor - b.goalsAgainst
-				if (goalDifferenceB !== goalDifferenceA) {
-					return goalDifferenceB - goalDifferenceA
-				}
-
-				if (b.goalsFor !== a.goalsFor) {
-					return b.goalsFor - a.goalsFor
-				}
-
-				return a.team.localeCompare(b.team)
-			})
+			const sortedRows = rankRowsByCompetitionTiebreakers(
+				Array.from(standings.values()),
+				groupResults.get(groupName) ?? [],
+			)
 
 			const rows = sortedRows
 				.map(
@@ -535,7 +668,7 @@ function renderGroupsTableMarkup(): string {
 				<section class="fixture-matchday fixture-matchday--groups">
 					<h2>Standings - ${groupName}</h2>
 					<div class="history-table-wrap">
-						<table class="history-table groups-table">
+						<table class="history-table groups-table${isCompact ? ' groups-table--compact' : ''}">
 							<colgroup>
 								<col class="col-rank">
 								<col class="col-team">
@@ -745,6 +878,11 @@ function updateResults(): void {
 if (results && searchInput && countrySelect) {
 	searchInput.addEventListener('input', updateResults)
 	countrySelect.addEventListener('change', updateResults)
+	window.addEventListener('resize', () => {
+		if (activeFixtureView === 'groups') {
+			updateResults()
+		}
+	})
 	
 	// Set up view switching
 	document.querySelectorAll<HTMLButtonElement>('.fixtures-view-btn').forEach((button) => {

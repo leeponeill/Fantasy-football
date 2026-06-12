@@ -243,6 +243,10 @@ function sanitizeWCFixtureMatchdays(value) {
         round: typeof g.round === 'string' ? g.round : '',
         homeScore: typeof g.homeScore === 'string' ? g.homeScore : '',
         awayScore: typeof g.awayScore === 'string' ? g.awayScore : '',
+        homeYellowCards: Number.isFinite(g.homeYellowCards) ? Math.max(0, Math.floor(g.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(g.awayYellowCards) ? Math.max(0, Math.floor(g.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(g.homeRedCards) ? Math.max(0, Math.floor(g.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(g.awayRedCards) ? Math.max(0, Math.floor(g.awayRedCards)) : 0,
         scorers: Array.isArray(g.scorers)
           ? g.scorers
               .filter((entry) => entry && typeof entry === 'object')
@@ -264,6 +268,10 @@ function sanitizeWCFixtureMatchdays(value) {
         round: g.round,
         ...(g.homeScore !== '' ? { homeScore: g.homeScore } : {}),
         ...(g.awayScore !== '' ? { awayScore: g.awayScore } : {}),
+        ...(g.homeYellowCards > 0 ? { homeYellowCards: g.homeYellowCards } : {}),
+        ...(g.awayYellowCards > 0 ? { awayYellowCards: g.awayYellowCards } : {}),
+        ...(g.homeRedCards > 0 ? { homeRedCards: g.homeRedCards } : {}),
+        ...(g.awayRedCards > 0 ? { awayRedCards: g.awayRedCards } : {}),
         ...(g.scorers.length > 0 ? { scorers: g.scorers } : {}),
       }))
     if (games.length === 0) continue
@@ -1402,18 +1410,60 @@ function formatGoalMinuteLabel(event) {
   return base
 }
 
-function toGoalScorerRows(events, homeTeam, awayTeam) {
+function createEmptyConductCounts() {
+  return {
+    homeYellowCards: 0,
+    awayYellowCards: 0,
+    homeRedCards: 0,
+    awayRedCards: 0,
+  }
+}
+
+function toFixtureEventSummary(events, homeTeam, awayTeam) {
   if (!Array.isArray(events)) {
-    return []
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
   }
 
   const scorers = []
+  const conduct = createEmptyConductCounts()
   const homeToken = toTeamToken(homeTeam)
   const awayToken = toTeamToken(awayTeam)
 
   for (const event of events) {
     const eventType = getAsString(event?.event_type ?? event?.type).toLowerCase()
+    const eventDetail = getAsString(event?.detail).toLowerCase()
     if (!eventType.includes('goal')) {
+      const side = getAsString(event?.team_side).toLowerCase().trim()
+      const eventTeamName = getAsString(event?.team_name ?? event?.team).trim()
+      const eventTeamToken = toTeamToken(eventTeamName)
+
+      const isHomeSide =
+        side === 'home' ||
+        (eventTeamToken !== '' && eventTeamToken === homeToken)
+      const isAwaySide =
+        side === 'away' ||
+        (eventTeamToken !== '' && eventTeamToken === awayToken)
+
+      const isRedCard = eventType.includes('red') || eventDetail.includes('red') || eventDetail.includes('second yellow')
+      const isYellowCard = !isRedCard && (eventType.includes('yellow') || eventDetail.includes('yellow'))
+
+      if (isRedCard) {
+        if (isHomeSide) {
+          conduct.homeRedCards += 1
+        } else if (isAwaySide) {
+          conduct.awayRedCards += 1
+        }
+      } else if (isYellowCard) {
+        if (isHomeSide) {
+          conduct.homeYellowCards += 1
+        } else if (isAwaySide) {
+          conduct.awayYellowCards += 1
+        }
+      }
+
       continue
     }
 
@@ -1447,10 +1497,13 @@ function toGoalScorerRows(events, homeTeam, awayTeam) {
     })
   }
 
-  return scorers
+  return {
+    scorers,
+    conduct,
+  }
 }
 
-async function getApiFootballFixtureScorers(fixtureId, homeTeam, awayTeam, apiFootballKey) {
+async function getApiFootballFixtureEventSummary(fixtureId, homeTeam, awayTeam, apiFootballKey) {
   const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/events`, {
     headers: sportApiAuthHeaders(apiFootballKey),
   })
@@ -1461,7 +1514,7 @@ async function getApiFootballFixtureScorers(fixtureId, homeTeam, awayTeam, apiFo
       ? payload.data
       : []
 
-  return toGoalScorerRows(events, homeTeam, awayTeam)
+  return toFixtureEventSummary(events, homeTeam, awayTeam)
 }
 
 async function getApiFootballFixtureScore(fixtureId, apiFootballKey) {
@@ -2146,11 +2199,24 @@ async function handleApiRequest(request, response) {
 
           const nextScorers = Array.isArray(result.scorers) ? result.scorers : []
           const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+          const nextConduct = {
+            homeYellowCards: Number.isFinite(result.homeYellowCards) ? Math.max(0, Math.floor(result.homeYellowCards)) : 0,
+            awayYellowCards: Number.isFinite(result.awayYellowCards) ? Math.max(0, Math.floor(result.awayYellowCards)) : 0,
+            homeRedCards: Number.isFinite(result.homeRedCards) ? Math.max(0, Math.floor(result.homeRedCards)) : 0,
+            awayRedCards: Number.isFinite(result.awayRedCards) ? Math.max(0, Math.floor(result.awayRedCards)) : 0,
+          }
+          const currentConduct = {
+            homeYellowCards: Number.isFinite(game.homeYellowCards) ? Math.max(0, Math.floor(game.homeYellowCards)) : 0,
+            awayYellowCards: Number.isFinite(game.awayYellowCards) ? Math.max(0, Math.floor(game.awayYellowCards)) : 0,
+            homeRedCards: Number.isFinite(game.homeRedCards) ? Math.max(0, Math.floor(game.homeRedCards)) : 0,
+            awayRedCards: Number.isFinite(game.awayRedCards) ? Math.max(0, Math.floor(game.awayRedCards)) : 0,
+          }
 
           if (
             game.homeScore !== result.homeScore ||
             game.awayScore !== result.awayScore ||
-            JSON.stringify(currentScorers) !== JSON.stringify(nextScorers)
+            JSON.stringify(currentScorers) !== JSON.stringify(nextScorers) ||
+            JSON.stringify(currentConduct) !== JSON.stringify(nextConduct)
           ) {
             game.homeScore = result.homeScore
             game.awayScore = result.awayScore
@@ -2159,6 +2225,14 @@ async function handleApiRequest(request, response) {
             } else if ('scorers' in game) {
               delete game.scorers
             }
+            if (nextConduct.homeYellowCards > 0) game.homeYellowCards = nextConduct.homeYellowCards
+            else if ('homeYellowCards' in game) delete game.homeYellowCards
+            if (nextConduct.awayYellowCards > 0) game.awayYellowCards = nextConduct.awayYellowCards
+            else if ('awayYellowCards' in game) delete game.awayYellowCards
+            if (nextConduct.homeRedCards > 0) game.homeRedCards = nextConduct.homeRedCards
+            else if ('homeRedCards' in game) delete game.homeRedCards
+            if (nextConduct.awayRedCards > 0) game.awayRedCards = nextConduct.awayRedCards
+            else if ('awayRedCards' in game) delete game.awayRedCards
             wcScoresUpdated = true
           }
         }
@@ -2970,15 +3044,21 @@ async function getApiSportsFixtureScoreByGame(game, matchday, now) {
   }
 }
 
-async function getApiSportsFixtureScorersByGame(game, matchday, now) {
+async function getApiSportsFixtureEventSummaryByGame(game, matchday, now) {
   const apiSportsKey = getApiSportsKey()
   if (!apiSportsKey) {
-    return []
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
   }
 
   const fallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday, now)
   if (!fallbackMatch || !fallbackMatch.idApiFootball) {
-    return []
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
   }
 
   const payload = await fetchJson(
@@ -2991,36 +3071,7 @@ async function getApiSportsFixtureScorersByGame(game, matchday, now) {
   )
 
   const events = Array.isArray(payload?.response) ? payload.response : []
-  const scorers = []
-
-  for (const event of events) {
-    const type = getAsString(event?.type).toLowerCase()
-    const detail = getAsString(event?.detail).toLowerCase()
-    const isGoal = type.includes('goal') || detail.includes('goal')
-    if (!isGoal) {
-      continue
-    }
-
-    const player = getAsString(event?.player?.name)
-    if (!player) {
-      continue
-    }
-
-    const elapsed = Number.parseInt(getAsString(event?.time?.elapsed), 10)
-    const extra = Number.parseInt(getAsString(event?.time?.extra), 10)
-    let minute = ''
-    if (Number.isFinite(elapsed) && elapsed > 0) {
-      minute = Number.isFinite(extra) && extra > 0 ? `${elapsed}+${extra}` : String(elapsed)
-    }
-
-    scorers.push({
-      team: getAsString(event?.team?.name),
-      player,
-      minute,
-    })
-  }
-
-  return scorers
+  return toFixtureEventSummary(events, fallbackMatch.homeTeam, fallbackMatch.awayTeam)
 }
 
 async function getEspnWorldCupScoreboardByDate(dateKey) {
@@ -3282,17 +3333,21 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
   const bestMatch = serverSelectBestMatch(game, searchResults)
   if (!bestMatch) {
     let fallbackScorers = []
+    let fallbackConduct = createEmptyConductCounts()
     try {
       fallbackScorers = await getEspnFixtureScorersByGame(game, matchday, now)
     } catch {
       fallbackScorers = []
     }
 
-    if (fallbackScorers.length === 0) {
+    if (fallbackScorers.length === 0 && fallbackConduct.homeYellowCards + fallbackConduct.awayYellowCards + fallbackConduct.homeRedCards + fallbackConduct.awayRedCards === 0) {
       try {
-        fallbackScorers = await getApiSportsFixtureScorersByGame(game, matchday, now)
+        const fallbackSummary = await getApiSportsFixtureEventSummaryByGame(game, matchday, now)
+        fallbackScorers = fallbackSummary.scorers
+        fallbackConduct = fallbackSummary.conduct
       } catch {
         fallbackScorers = []
+        fallbackConduct = createEmptyConductCounts()
       }
     }
 
@@ -3300,6 +3355,10 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
       const resultWithScorers = {
         ...fallbackEspnResult,
         ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+        ...(fallbackConduct.homeYellowCards > 0 ? { homeYellowCards: fallbackConduct.homeYellowCards } : {}),
+        ...(fallbackConduct.awayYellowCards > 0 ? { awayYellowCards: fallbackConduct.awayYellowCards } : {}),
+        ...(fallbackConduct.homeRedCards > 0 ? { homeRedCards: fallbackConduct.homeRedCards } : {}),
+        ...(fallbackConduct.awayRedCards > 0 ? { awayRedCards: fallbackConduct.awayRedCards } : {}),
       }
       writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
       return resultWithScorers
@@ -3308,6 +3367,10 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
       const resultWithScorers = {
         ...fallbackApiSportsResult,
         ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+        ...(fallbackConduct.homeYellowCards > 0 ? { homeYellowCards: fallbackConduct.homeYellowCards } : {}),
+        ...(fallbackConduct.awayYellowCards > 0 ? { awayYellowCards: fallbackConduct.awayYellowCards } : {}),
+        ...(fallbackConduct.homeRedCards > 0 ? { homeRedCards: fallbackConduct.homeRedCards } : {}),
+        ...(fallbackConduct.awayRedCards > 0 ? { awayRedCards: fallbackConduct.awayRedCards } : {}),
       }
       writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
       return resultWithScorers
@@ -3317,6 +3380,7 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
 
   let score = null
   let scorers = []
+  let conduct = createEmptyConductCounts()
   if (bestMatch.idApiFootball && apiFootballKey) {
     try {
       score = await getApiFootballFixtureScore(bestMatch.idApiFootball, apiFootballKey)
@@ -3325,22 +3389,28 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
     }
 
     try {
-      scorers = await getApiFootballFixtureScorers(
+      const eventSummary = await getApiFootballFixtureEventSummary(
         bestMatch.idApiFootball,
         getAsString(bestMatch.homeTeam),
         getAsString(bestMatch.awayTeam),
         apiFootballKey,
       )
+      scorers = eventSummary.scorers
+      conduct = eventSummary.conduct
     } catch {
       scorers = []
+      conduct = createEmptyConductCounts()
     }
   }
 
-  if (scorers.length === 0) {
+  if (scorers.length === 0 && conduct.homeYellowCards + conduct.awayYellowCards + conduct.homeRedCards + conduct.awayRedCards === 0) {
     try {
-      scorers = await getApiSportsFixtureScorersByGame(game, matchday, now)
+      const fallbackSummary = await getApiSportsFixtureEventSummaryByGame(game, matchday, now)
+      scorers = fallbackSummary.scorers
+      conduct = fallbackSummary.conduct
     } catch {
       scorers = []
+      conduct = createEmptyConductCounts()
     }
   }
 
@@ -3377,6 +3447,10 @@ async function getFixtureResult(game, matchday, now, apiFootballKey) {
     homeScore,
     awayScore,
     ...(scorers.length > 0 ? { scorers } : {}),
+    ...(conduct.homeYellowCards > 0 ? { homeYellowCards: conduct.homeYellowCards } : {}),
+    ...(conduct.awayYellowCards > 0 ? { awayYellowCards: conduct.awayYellowCards } : {}),
+    ...(conduct.homeRedCards > 0 ? { homeRedCards: conduct.homeRedCards } : {}),
+    ...(conduct.awayRedCards > 0 ? { awayRedCards: conduct.awayRedCards } : {}),
   }
   writeFixtureResultCache(matchday, game, result, nowMs)
   return result
@@ -3404,6 +3478,10 @@ function readStoredFixtureResults(storage) {
         date: typeof item.date === 'string' ? item.date : '',
         homeScore: typeof item.homeScore === 'string' ? item.homeScore : '',
         awayScore: typeof item.awayScore === 'string' ? item.awayScore : '',
+        homeYellowCards: Number.isFinite(item.homeYellowCards) ? Math.max(0, Math.floor(item.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(item.awayYellowCards) ? Math.max(0, Math.floor(item.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(item.homeRedCards) ? Math.max(0, Math.floor(item.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(item.awayRedCards) ? Math.max(0, Math.floor(item.awayRedCards)) : 0,
         scorers: Array.isArray(item.scorers)
           ? item.scorers
               .filter((entry) => entry && typeof entry === 'object')
@@ -3482,12 +3560,36 @@ function applyStoredResultsToWCFixtureMatchdays(matchdays, storedResults) {
 
       const nextScorers = Array.isArray(storedResult.scorers) ? storedResult.scorers : []
       const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+      const nextConduct = {
+        homeYellowCards: Number.isFinite(storedResult.homeYellowCards) ? Math.max(0, Math.floor(storedResult.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(storedResult.awayYellowCards) ? Math.max(0, Math.floor(storedResult.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(storedResult.homeRedCards) ? Math.max(0, Math.floor(storedResult.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(storedResult.awayRedCards) ? Math.max(0, Math.floor(storedResult.awayRedCards)) : 0,
+      }
+      const currentConduct = {
+        homeYellowCards: Number.isFinite(game.homeYellowCards) ? Math.max(0, Math.floor(game.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(game.awayYellowCards) ? Math.max(0, Math.floor(game.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(game.homeRedCards) ? Math.max(0, Math.floor(game.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(game.awayRedCards) ? Math.max(0, Math.floor(game.awayRedCards)) : 0,
+      }
       if (JSON.stringify(currentScorers) !== JSON.stringify(nextScorers)) {
         if (nextScorers.length > 0) {
           game.scorers = nextScorers
         } else if ('scorers' in game) {
           delete game.scorers
         }
+        updated = true
+      }
+
+      if (JSON.stringify(currentConduct) !== JSON.stringify(nextConduct)) {
+        if (nextConduct.homeYellowCards > 0) game.homeYellowCards = nextConduct.homeYellowCards
+        else if ('homeYellowCards' in game) delete game.homeYellowCards
+        if (nextConduct.awayYellowCards > 0) game.awayYellowCards = nextConduct.awayYellowCards
+        else if ('awayYellowCards' in game) delete game.awayYellowCards
+        if (nextConduct.homeRedCards > 0) game.homeRedCards = nextConduct.homeRedCards
+        else if ('homeRedCards' in game) delete game.homeRedCards
+        if (nextConduct.awayRedCards > 0) game.awayRedCards = nextConduct.awayRedCards
+        else if ('awayRedCards' in game) delete game.awayRedCards
         updated = true
       }
     }
