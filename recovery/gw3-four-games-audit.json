@@ -1,0 +1,1142 @@
+[
+  {
+    "match": "Bosnia-Herzegovina vs Qatar",
+    "eventId": "5664450",
+    "changeCount": 32,
+    "changes": [
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Kerim Alajbegovic",
+        "canonicalPosition": "Forward",
+        "originalPoints": 6,
+        "recomputedPoints": 4,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 1",
+          "points 6 -> 4"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Hassan Al Haydos",
+        "canonicalPosition": "Forward",
+        "originalPoints": 6,
+        "recomputedPoints": 4,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 3",
+          "points 6 -> 4"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Mahmud Abunada",
+        "canonicalPosition": "Goalkeeper",
+        "originalPoints": 6,
+        "recomputedPoints": 9,
+        "reasons": [
+          "position Midfielder -> Goalkeeper",
+          "GC 0 -> 3",
+          "points 6 -> 9"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Ermin Mahmic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 5,
+        "recomputedPoints": 5,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Dennis Hadzikadunic",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "position Midfielder -> Defender",
+          "GC 0 -> 1",
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Ivan Basic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Nikola Katic",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Sead Kolasinac",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Stjepan Radeljic",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Boualem Khoukhi",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Edmílson Junior",
+        "canonicalPosition": "Forward",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 3",
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Issa Laye",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Pedro Miguel",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Sultan Al Brake",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Amar Memic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Benjamin Tahirovic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Dzenis Burnic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Ivan Sunjic",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Abdulaziz Hatem",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Jassem Gaber",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Karim Boudiaf",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Arjan Malić",
+        "canonicalPosition": "D",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Edin Dzeko",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Ermedin Demirovic",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Esmir Bajraktarevic",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Bosnia and Herzegovina",
+        "player": "Nikola Vasilj",
+        "canonicalPosition": "Goalkeeper",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Ahmed Al Ganehi",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Ahmed Alaa",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Ahmed Fathy",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Akram Afif",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Almoez Ali",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Qatar",
+        "player": "Mohammad Al Mannai",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "position M -> Midfielder",
+          "GC 0 -> 3"
+        ]
+      }
+    ]
+  },
+  {
+    "match": "Switzerland vs Canada",
+    "eventId": "5664451",
+    "changeCount": 31,
+    "changes": [
+      {
+        "team": "Switzerland",
+        "player": "Johan Manzambi",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 9,
+        "recomputedPoints": 8,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 9 -> 8"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Promise David",
+        "canonicalPosition": "Forward",
+        "originalPoints": 6,
+        "recomputedPoints": 4,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 2",
+          "points 6 -> 4"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Rubén Vargas",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 6,
+        "recomputedPoints": 5,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 6 -> 5"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Alistair Johnston",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Derek Cornelius",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Luc De Fougerolles",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Nathan Saliba",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Richie Laryea",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Breel Embolo",
+        "canonicalPosition": "Forward",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 1",
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Luca Jaquez",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Manuel Akanji",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Nico Elvedi",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Ricardo Rodríguez",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Silvan Widmer",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Ali Ahmed",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Jacob Shaffelburg",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Mathieu Choinière",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Stephen Eustaquio",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Christian Fassnacht",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Djibril Sow",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Michel Aebischer",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Remo Freuler",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Cyle Larin",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": -1,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 2",
+          "points 0 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Jonathan David",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Liam Millar",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": -1,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "GC 0 -> 2",
+          "points 0 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Maxime Crépeau",
+        "canonicalPosition": "Goalkeeper",
+        "originalPoints": 0,
+        "recomputedPoints": -1,
+        "reasons": [
+          "points 0 -> -1"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Tajon Buchanan",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2"
+        ]
+      },
+      {
+        "team": "Canada",
+        "player": "Tani Oluwaseyi",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 2"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Cedric Itten",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Dan Ndoye",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Switzerland",
+        "player": "Granit Xhaka",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 0,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 0 -> -1"
+        ]
+      }
+    ]
+  },
+  {
+    "match": "Czech Republic vs Mexico",
+    "eventId": "5664456",
+    "changeCount": 21,
+    "changes": [
+      {
+        "team": "Mexico",
+        "player": "Julián Quiñones",
+        "canonicalPosition": "Forward",
+        "originalPoints": 6,
+        "recomputedPoints": 4,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "points 6 -> 4"
+        ]
+      },
+      {
+        "team": "Mexico",
+        "player": "Mateo Chávez",
+        "canonicalPosition": "Defender",
+        "originalPoints": 6,
+        "recomputedPoints": 10,
+        "reasons": [
+          "position Midfielder -> Defender",
+          "points 6 -> 10"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Ladislav Krejcí",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Robin Hranác",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Tomás Holes",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Vladimír Coufal",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": -1,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 4 -> -1"
+        ]
+      },
+      {
+        "team": "Mexico",
+        "player": "Guillermo Ochoa",
+        "canonicalPosition": "Goalkeeper",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Mexico",
+        "player": "Jesús Gallardo",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Alexandr Sojka",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "David Doudera",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Denis Visinsky",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Lukás Cerv",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Lukás Provod",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Michal Sadílek",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Pavel Sulc",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Tomás Soucek",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Mexico",
+        "player": "Obed Vargas",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Adam Hlozek",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Matej Kovár",
+        "canonicalPosition": "Goalkeeper",
+        "originalPoints": 0,
+        "recomputedPoints": -1,
+        "reasons": [
+          "points 0 -> -1"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Patrik Schick",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      },
+      {
+        "team": "Czechia",
+        "player": "Tomás Chory",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 3"
+        ]
+      }
+    ]
+  },
+  {
+    "match": "South Africa vs South Korea",
+    "eventId": "5664457",
+    "changeCount": 19,
+    "changes": [
+      {
+        "team": "South Africa",
+        "player": "Thapelo Maseko",
+        "canonicalPosition": "Forward",
+        "originalPoints": 6,
+        "recomputedPoints": 4,
+        "reasons": [
+          "position Midfielder -> Forward",
+          "points 6 -> 4"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Kim Min-Jae",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Lee Gi-Hyuk",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Lee Han-Beom",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Lee Tae-Seok",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Seol Young-Woo",
+        "canonicalPosition": "Defender",
+        "originalPoints": 4,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 4 -> 0"
+        ]
+      },
+      {
+        "team": "South Africa",
+        "player": "Tshepang Moremi",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 4,
+        "recomputedPoints": 3,
+        "reasons": [
+          "points 4 -> 3"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Hwang In-Beom",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Jens Castrop",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Kim Jin-Gyu",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Lee Kang-In",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Paik Seung-Ho",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Park Jin-Seob",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "South Africa",
+        "player": "Iqraam Rayners",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "South Africa",
+        "player": "Jayden Adams",
+        "canonicalPosition": "Midfielder",
+        "originalPoints": 1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "points 1 -> 0"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Hwang Hee-Chan",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Oh Hyeon-Gyu",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Son Heung-Min",
+        "canonicalPosition": "Forward",
+        "originalPoints": 0,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1"
+        ]
+      },
+      {
+        "team": "Korea Republic",
+        "player": "Cho Gue-Sung",
+        "canonicalPosition": "Forward",
+        "originalPoints": -1,
+        "recomputedPoints": 0,
+        "reasons": [
+          "GC 0 -> 1",
+          "points -1 -> 0"
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,587 @@
+{
+  "capturedAt": "2026-06-26T10:43:59.089Z",
+  "originalCount": 29,
+  "entries": [
+    {
+      "matchday": 1,
+      "match": "Mexico vs South Africa",
+      "time": "8pm",
+      "country": "",
+      "date": "Thursday, June 11",
+      "homeScore": "2",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 1,
+      "awayRedCards": 2,
+      "scorers": [
+        {
+          "team": "Mexico",
+          "player": "J. Quiñones",
+          "minute": "9"
+        },
+        {
+          "team": "Mexico",
+          "player": "R. Jiménez",
+          "minute": "67"
+        }
+      ]
+    },
+    {
+      "matchday": 2,
+      "match": "Korea Republic vs Czechia",
+      "time": "3am",
+      "country": "",
+      "date": "Friday, June 12",
+      "homeScore": "2",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Czech Republic",
+          "player": "L. Krejčí",
+          "minute": "59"
+        },
+        {
+          "team": "South Korea",
+          "player": "Hwang In-Beom",
+          "minute": "67"
+        },
+        {
+          "team": "South Korea",
+          "player": "Oh Hyeon-Gyu",
+          "minute": "80"
+        }
+      ]
+    },
+    {
+      "matchday": 2,
+      "match": "Canada vs Bosnia and Herzegovina",
+      "time": "8pm",
+      "country": "",
+      "date": "Friday, June 12",
+      "homeScore": "1",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Bosnia-Herzegovina",
+          "player": "J. Lukić",
+          "minute": "21"
+        },
+        {
+          "team": "Canada",
+          "player": "C. Larin",
+          "minute": "78"
+        }
+      ]
+    },
+    {
+      "matchday": 3,
+      "match": "Brazil vs Morocco",
+      "time": "11pm",
+      "country": "",
+      "date": "Saturday, June 13",
+      "homeScore": "1",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 4,
+      "match": "Haiti vs Scotland",
+      "time": "2am",
+      "country": "",
+      "date": "Sunday, June 14",
+      "homeScore": "0",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 7,
+      "match": "Portugal vs Congo DR",
+      "time": "6pm",
+      "country": "",
+      "date": "Wednesday, June 17",
+      "homeScore": "1",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 7,
+      "match": "England vs Croatia",
+      "time": "9pm",
+      "country": "",
+      "date": "Wednesday, June 17",
+      "homeScore": "0",
+      "awayScore": "2",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 8,
+      "match": "Ghana vs Panama",
+      "time": "12am",
+      "country": "",
+      "date": "Thursday, June 18",
+      "homeScore": "0",
+      "awayScore": "2",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 8,
+      "match": "Uzbekistan vs Colombia",
+      "time": "3am",
+      "country": "",
+      "date": "Thursday, June 18",
+      "homeScore": "0",
+      "awayScore": "2",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 10,
+      "match": "Scotland vs Morocco",
+      "time": "11pm",
+      "country": "",
+      "date": "Friday, June 19",
+      "homeScore": "2",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 11,
+      "match": "Brazil vs Haiti",
+      "time": "1.30am",
+      "country": "",
+      "date": "Saturday, June 20",
+      "homeScore": "3",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 2,
+      "match": "England vs Ghana",
+      "time": "9pm",
+      "country": "",
+      "date": "Tuesday, June 23",
+      "homeScore": "0",
+      "awayScore": "0",
+      "homeYellowCards": 1,
+      "awayYellowCards": 1,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 16,
+      "match": "Switzerland vs Canada",
+      "time": "8pm",
+      "country": "",
+      "date": "Wednesday, June 24",
+      "homeScore": "2",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 16,
+      "match": "Bosnia and Herzegovina vs Qatar",
+      "time": "8pm",
+      "country": "",
+      "date": "Wednesday, June 24",
+      "homeScore": "3",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 16,
+      "match": "Scotland vs Brazil",
+      "time": "11pm",
+      "country": "",
+      "date": "Wednesday, June 24",
+      "homeScore": "0",
+      "awayScore": "3",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 16,
+      "match": "Morocco vs Haiti",
+      "time": "11pm",
+      "country": "",
+      "date": "Wednesday, June 24",
+      "homeScore": "4",
+      "awayScore": "2",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 17,
+      "match": "Czechia vs Mexico",
+      "time": "2am",
+      "country": "",
+      "date": "Thursday, June 25",
+      "homeScore": "0",
+      "awayScore": "3",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 17,
+      "match": "South Africa vs Korea Republic",
+      "time": "2am",
+      "country": "",
+      "date": "Thursday, June 25",
+      "homeScore": "1",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 9,
+      "match": "Colombia vs Ghana",
+      "time": "6pm",
+      "country": "",
+      "date": "Fri Jun 19",
+      "homeScore": "2",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 9,
+      "match": "Congo DR vs Bolivia",
+      "time": "9pm",
+      "country": "",
+      "date": "Fri Jun 19",
+      "homeScore": "1",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": []
+    },
+    {
+      "matchday": 17,
+      "match": "Curaçao vs Côte d'Ivoire",
+      "time": "9pm",
+      "country": "",
+      "date": "Thursday, June 25",
+      "homeScore": "0",
+      "awayScore": "2",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Ivory Coast",
+          "player": "N. Pépé",
+          "minute": "7"
+        },
+        {
+          "team": "Ivory Coast",
+          "player": "N. Pépé",
+          "minute": "64"
+        }
+      ]
+    },
+    {
+      "matchday": 17,
+      "match": "Ecuador vs Germany",
+      "time": "9pm",
+      "country": "",
+      "date": "Thursday, June 25",
+      "homeScore": "2",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Germany",
+          "player": "L. Sané",
+          "minute": "2"
+        },
+        {
+          "team": "Ecuador",
+          "player": "N. Angulo",
+          "minute": "9"
+        },
+        {
+          "team": "Ecuador",
+          "player": "G. Plata",
+          "minute": "77"
+        }
+      ]
+    },
+    {
+      "matchday": 18,
+      "match": "Japan vs Sweden",
+      "time": "12am",
+      "country": "",
+      "date": "Friday, June 26",
+      "homeScore": "1",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Japan",
+          "player": "D. Maeda",
+          "minute": "56"
+        },
+        {
+          "team": "Sweden",
+          "player": "A. Elanga",
+          "minute": "62"
+        }
+      ]
+    },
+    {
+      "matchday": 18,
+      "match": "Tunisia vs Netherlands",
+      "time": "12am",
+      "country": "",
+      "date": "Friday, June 26",
+      "homeScore": "1",
+      "awayScore": "3",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Netherlands",
+          "player": "E. Skhiri",
+          "minute": "3"
+        },
+        {
+          "team": "Netherlands",
+          "player": "B. Brobbey",
+          "minute": "7"
+        },
+        {
+          "team": "Tunisia",
+          "player": "H. Mastouri",
+          "minute": "54"
+        },
+        {
+          "team": "Netherlands",
+          "player": "J. van Hecke",
+          "minute": "62"
+        }
+      ]
+    },
+    {
+      "matchday": 18,
+      "match": "Türkiye vs USA",
+      "time": "3am",
+      "date": "Friday, June 26",
+      "homeScore": "3",
+      "awayScore": "2",
+      "scorers": [
+        {
+          "team": "USA",
+          "player": "Auston Trusty",
+          "minute": "3"
+        },
+        {
+          "team": "Türkiye",
+          "player": "Arda Güler",
+          "minute": "10"
+        },
+        {
+          "team": "Türkiye",
+          "player": "Baris Alper Yilmaz",
+          "minute": "31"
+        },
+        {
+          "team": "USA",
+          "player": "Sebastian Berhalter",
+          "minute": "49"
+        },
+        {
+          "team": "Türkiye",
+          "player": "Kaan Ayhan",
+          "minute": "90+8"
+        }
+      ]
+    },
+    {
+      "matchday": 18,
+      "match": "Paraguay vs Australia",
+      "time": "3am",
+      "date": "Friday, June 26",
+      "homeScore": "0",
+      "awayScore": "0"
+    },
+    {
+      "matchday": 3,
+      "match": "Qatar vs Switzerland",
+      "time": "8pm",
+      "country": "",
+      "date": "Saturday, June 13",
+      "homeScore": "1",
+      "awayScore": "1",
+      "homeYellowCards": 3,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 0,
+      "scorers": [
+        {
+          "team": "Switzerland",
+          "player": "B. Embolo",
+          "minute": "17"
+        },
+        {
+          "team": "Qatar",
+          "player": "M. Muheim",
+          "minute": "90"
+        }
+      ]
+    },
+    {
+      "matchday": 9,
+      "match": "Switzerland vs Bosnia and Herzegovina",
+      "time": "8pm",
+      "country": "",
+      "date": "Thursday, June 18",
+      "homeScore": "4",
+      "awayScore": "1",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 1,
+      "scorers": [
+        {
+          "team": "Switzerland",
+          "player": "J. Manzambi",
+          "minute": "74"
+        },
+        {
+          "team": "Switzerland",
+          "player": "R. Vargas",
+          "minute": "84"
+        },
+        {
+          "team": "Switzerland",
+          "player": "J. Manzambi",
+          "minute": "90"
+        },
+        {
+          "team": "Switzerland",
+          "player": "G. Xhaka",
+          "minute": "90"
+        },
+        {
+          "team": "Bosnia-Herzegovina",
+          "player": "E. Mahmić",
+          "minute": "90"
+        }
+      ]
+    },
+    {
+      "matchday": 9,
+      "match": "Canada vs Qatar",
+      "time": "11pm",
+      "country": "",
+      "date": "Thursday, June 18",
+      "homeScore": "6",
+      "awayScore": "0",
+      "homeYellowCards": 0,
+      "awayYellowCards": 0,
+      "homeRedCards": 0,
+      "awayRedCards": 2,
+      "scorers": [
+        {
+          "team": "Canada",
+          "player": "C. Larin",
+          "minute": "16"
+        },
+        {
+          "team": "Canada",
+          "player": "J. David",
+          "minute": "29"
+        },
+        {
+          "team": "Canada",
+          "player": "J. David",
+          "minute": "45"
+        },
+        {
+          "team": "Canada",
+          "player": "N. Saliba",
+          "minute": "64"
+        },
+        {
+          "team": "Canada",
+          "player": "J. David",
+          "minute": "90"
+        }
+      ]
+    }
+  ]
+}

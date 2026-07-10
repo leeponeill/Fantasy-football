@@ -1,0 +1,1049 @@
+{
+  "generatedFrom": "local score-and-roster correction",
+  "status": "uploaded-to-pi",
+  "sourceFile": "gw3-four-games-cleaned.json",
+  "matches": [
+    {
+      "match": "Bosnia-Herzegovina vs Qatar",
+      "eventId": "5664450",
+      "playerCount": 32,
+      "totalPoints": 71,
+      "players": [
+        {
+          "team": "Qatar",
+          "player": "Mahmud Abunada",
+          "position": "Goalkeeper",
+          "points": 11,
+          "minutes": 90,
+          "stats": "G:1 A:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Ermin Mahmic",
+          "position": "Midfielder",
+          "points": 7,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Kerim Alajbegovic",
+          "position": "Forward",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:1 A:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Hassan Al Haydos",
+          "position": "Forward",
+          "points": 3,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Dennis Hadzikadunic",
+          "position": "Defender",
+          "points": 5,
+          "minutes": 90,
+          "stats": "G:0 A:1"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Ivan Basic",
+          "position": "Midfielder",
+          "points": 5,
+          "minutes": 90,
+          "stats": "G:0 A:1 GC:0 S"
+        },
+        {
+          "team": "Qatar",
+          "player": "Edmílson Junior",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:1 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Amar Memic",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Arjan Malić",
+          "position": "D",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Benjamin Tahirovic",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Dzenis Burnic",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 8,
+          "stats": "G:0 A:0 GC"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Edin Dzeko",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 64,
+          "stats": "G:0 A:0 GC:0 S:"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Ermedin Demirovic",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Esmir Bajraktarevic",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Ivan Sunjic",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Nikola Katic",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 63,
+          "stats": "G:0 A:0 GC:0"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Nikola Vasilj",
+          "position": "Goalkeeper",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 G"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Sead Kolasinac",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC"
+        },
+        {
+          "team": "Bosnia and Herzegovina",
+          "player": "Stjepan Radeljic",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Abdulaziz Hatem",
+          "position": "Midfielder",
+          "points": -2,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Qatar",
+          "player": "Ahmed Al Ganehi",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 34,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Ahmed Alaa",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 11,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Ahmed Fathy",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:"
+        },
+        {
+          "team": "Qatar",
+          "player": "Akram Afif",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Almoez Ali",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 18,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Jassem Gaber",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:"
+        },
+        {
+          "team": "Qatar",
+          "player": "Karim Boudiaf",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 72,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Mohammad Al Mannai",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 11,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Boualem Khoukhi",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Issa Laye",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Pedro Miguel",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Qatar",
+          "player": "Sultan Al Brake",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        }
+      ]
+    },
+    {
+      "match": "Switzerland vs Canada",
+      "eventId": "5664451",
+      "playerCount": 32,
+      "totalPoints": 47,
+      "players": [
+        {
+          "team": "Switzerland",
+          "player": "Johan Manzambi",
+          "position": "Midfielder",
+          "points": 10,
+          "minutes": 90,
+          "stats": "G:1 A:1 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Rubén Vargas",
+          "position": "Midfielder",
+          "points": 4,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Canada",
+          "player": "Promise David",
+          "position": "Forward",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Nathan Saliba",
+          "position": "Midfielder",
+          "points": 5,
+          "minutes": 97,
+          "stats": "G:0 A:1 GC:0 S:0 YC"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Breel Embolo",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:1 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Gregor Kobel",
+          "position": "Goalkeeper",
+          "points": 4,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:1 S:6 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Ali Ahmed",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 58,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Jacob Shaffelburg",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 14,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Jonathan David",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Mathieu Choinière",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 58,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Stephen Eustaquio",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 39,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Tajon Buchanan",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 75,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Tani Oluwaseyi",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 39,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Cedric Itten",
+          "position": "Forward",
+          "points": -2,
+          "minutes": 12,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Christian Fassnacht",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 12,
+          "stats": "G:0 A:0 GC:0 S"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Dan Ndoye",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 17,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Djibril Sow",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 74,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Luca Jaquez",
+          "position": "Defender",
+          "points": -1,
+          "minutes": 74,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Manuel Akanji",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Michel Aebischer",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 23,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Nico Elvedi",
+          "position": "Defender",
+          "points": -1,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Remo Freuler",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Ricardo Rodríguez",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 Y"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Silvan Widmer",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 23,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Alistair Johnston",
+          "position": "Defender",
+          "points": -2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Canada",
+          "player": "Cyle Larin",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:1 RC:"
+        },
+        {
+          "team": "Canada",
+          "player": "Derek Cornelius",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Canada",
+          "player": "Liam Millar",
+          "position": "Forward",
+          "points": -2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:1 RC"
+        },
+        {
+          "team": "Canada",
+          "player": "Luc De Fougerolles",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Canada",
+          "player": "Maxime Crépeau",
+          "position": "Goalkeeper",
+          "points": -2,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:2 S:2 YC:0 RC"
+        },
+        {
+          "team": "Canada",
+          "player": "Richie Laryea",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 83,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Switzerland",
+          "player": "Granit Xhaka",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 97,
+          "stats": "G:0 A:0 GC:0 S:0 YC:1"
+        }
+      ]
+    },
+    {
+      "match": "Czech Republic vs Mexico",
+      "eventId": "5664456",
+      "playerCount": 32,
+      "totalPoints": 72,
+      "players": [
+        {
+          "team": "Mexico",
+          "player": "Mateo Chávez",
+          "position": "Defender",
+          "points": 12,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Jorge Sánchez",
+          "position": "Defender",
+          "points": 9,
+          "minutes": 90,
+          "stats": "G:0 A:1 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Álvaro Fidalgo",
+          "position": "Midfielder",
+          "points": 8,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "César Montes",
+          "position": "Defender",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Israel Reyes",
+          "position": "Defender",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Julián Quiñones",
+          "position": "Forward",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Luis Romo",
+          "position": "Midfielder",
+          "points": 6,
+          "minutes": 63,
+          "stats": "G:0 A:1 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Raúl Rangel",
+          "position": "Goalkeeper",
+          "points": 6,
+          "minutes": 78,
+          "stats": "G:0 A:0 GC:0 S:1 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Roberto Alvarado",
+          "position": "Forward",
+          "points": 5,
+          "minutes": 90,
+          "stats": "G:0 A:1 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Mexico",
+          "player": "Gilberto Mora",
+          "position": "Midfielder",
+          "points": 3,
+          "minutes": 72,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Czechia",
+          "player": "Adam Hlozek",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 64,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Alexandr Sojka",
+          "position": "Midfielder",
+          "points": -2,
+          "minutes": 10,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Czechia",
+          "player": "David Doudera",
+          "position": "Midfielder",
+          "points": -1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Czechia",
+          "player": "Denis Visinsky",
+          "position": "Midfielder",
+          "points": -2,
+          "minutes": 56,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Czechia",
+          "player": "Lukás Cerv",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 87,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Lukás Provod",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 34,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Czechia",
+          "player": "Michal Sadílek",
+          "position": "Midfielder",
+          "points": -1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Czechia",
+          "player": "Patrik Schick",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 26,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Pavel Sulc",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Tomás Chory",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 10,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Tomás Soucek",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 23,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Mexico",
+          "player": "Edson Álvarez",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:1 RC:"
+        },
+        {
+          "team": "Mexico",
+          "player": "Guillermo Martínez",
+          "position": "Forward",
+          "points": -1,
+          "minutes": 63,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Mexico",
+          "player": "Guillermo Ochoa",
+          "position": "Goalkeeper",
+          "points": -2,
+          "minutes": 12,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "Mexico",
+          "player": "Jesús Gallardo",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 12,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Obed Vargas",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 27,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Mexico",
+          "player": "Santiago Giménez",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 27,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:"
+        },
+        {
+          "team": "Czechia",
+          "player": "Ladislav Krejcí",
+          "position": "Defender",
+          "points": -2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        },
+        {
+          "team": "Czechia",
+          "player": "Matej Kovár",
+          "position": "Goalkeeper",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:3 S:2 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Robin Hranác",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Tomás Holes",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 64,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "Czechia",
+          "player": "Vladimír Coufal",
+          "position": "Defender",
+          "points": -2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC"
+        }
+      ]
+    },
+    {
+      "match": "South Africa vs South Korea",
+      "eventId": "5664457",
+      "playerCount": 30,
+      "totalPoints": 75,
+      "players": [
+        {
+          "team": "South Africa",
+          "player": "Ime Okon",
+          "position": "Defender",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0 RC:0"
+        },
+        {
+          "team": "South Africa",
+          "player": "Khuliso Mudau",
+          "position": "Defender",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "South Africa",
+          "player": "Mbekezeli Mbokazi",
+          "position": "Defender",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "South Africa",
+          "player": "Ronwen Williams",
+          "position": "Goalkeeper",
+          "points": 6,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:2"
+        },
+        {
+          "team": "South Africa",
+          "player": "Thapelo Maseko",
+          "position": "Forward",
+          "points": 3,
+          "minutes": 90,
+          "stats": "G:1 A:0 GC:0 S:0 YC:0 R"
+        },
+        {
+          "team": "South Africa",
+          "player": "Aubrey Modiba",
+          "position": "Defender",
+          "points": 5,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:1"
+        },
+        {
+          "team": "South Africa",
+          "player": "Tshepang Moremi",
+          "position": "Midfielder",
+          "points": 4,
+          "minutes": 28,
+          "stats": "G:0 A:1 GC:0 S:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Kim Seung-Gyu",
+          "position": "Goalkeeper",
+          "points": 3,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:1 S:3"
+        },
+        {
+          "team": "South Africa",
+          "player": "Sphephelo Sithole",
+          "position": "Midfielder",
+          "points": 3,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:"
+        },
+        {
+          "team": "South Africa",
+          "player": "Thalente Mbatha",
+          "position": "Midfielder",
+          "points": 3,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Cho Gue-Sung",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 16,
+          "stats": "G:0 A:0 GC:0 S:0 YC:"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Hwang Hee-Chan",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Hwang In-Beom",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Jens Castrop",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 Y"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Kim Jin-Gyu",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Kim Min-Jae",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 66,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Lee Gi-Hyuk",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Lee Han-Beom",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC:"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Lee Kang-In",
+          "position": "Midfielder",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Lee Tae-Seok",
+          "position": "Defender",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC:"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Oh Hyeon-Gyu",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 74,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Paik Seung-Ho",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Park Jin-Seob",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 24,
+          "stats": "G:0 A:0 GC:0 S:0"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Seol Young-Woo",
+          "position": "Defender",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 Y"
+        },
+        {
+          "team": "Korea Republic",
+          "player": "Son Heung-Min",
+          "position": "Forward",
+          "points": 1,
+          "minutes": 45,
+          "stats": "G:0 A:0 GC:0 S:0 YC:"
+        },
+        {
+          "team": "South Africa",
+          "player": "Evidence Makgopa",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 90,
+          "stats": "G:0 A:0 GC:0 S:0 YC"
+        },
+        {
+          "team": "South Africa",
+          "player": "Iqraam Rayners",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 15,
+          "stats": "G:0 A:0 GC:0 S:0 Y"
+        },
+        {
+          "team": "South Africa",
+          "player": "Jayden Adams",
+          "position": "Midfielder",
+          "points": 1,
+          "minutes": 10,
+          "stats": "G:0 A:0 GC:0 S:0 YC:"
+        },
+        {
+          "team": "South Africa",
+          "player": "Oswin Appollis",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 62,
+          "stats": "G:0 A:0 GC:0 S:0 YC:0"
+        },
+        {
+          "team": "South Africa",
+          "player": "Relebohile Mofokeng",
+          "position": "Forward",
+          "points": 2,
+          "minutes": 80,
+          "stats": "G:0 A:0 GC:0 S:0"
+        }
+      ]
+    }
+  ],
+  "totalPlayers": 126,
+  "totalPoints": 115
+}

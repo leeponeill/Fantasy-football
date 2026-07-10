@@ -1,0 +1,521 @@
+{
+  "eventId": "5664657",
+  "event": {
+    "name": "Mexico vs England",
+    "date": "2026-07-06",
+    "homeTeam": "Mexico",
+    "awayTeam": "England",
+    "homeScore": "2",
+    "awayScore": "3",
+    "status": "FT"
+  },
+  "fetchedRows": 57,
+  "matchedRows": 56,
+  "skippedRows": 1,
+  "appliedPlayers": [
+    {
+      "playerKey": "England::Jude Bellingham",
+      "team": "England",
+      "player": "Jude Bellingham",
+      "points": 12,
+      "sourceName": "J. Bellingham",
+      "sourceTeam": "England",
+      "minutes": 90
+    },
+    {
+      "playerKey": "England::Jude Bellingham",
+      "team": "England",
+      "player": "Jude Bellingham",
+      "points": 12,
+      "sourceName": "Jude Bellingham",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Harry Kane",
+      "team": "England",
+      "player": "Harry Kane",
+      "points": 8,
+      "sourceName": "Harry Kane",
+      "sourceTeam": "England",
+      "minutes": 90
+    },
+    {
+      "playerKey": "England::Harry Kane",
+      "team": "England",
+      "player": "Harry Kane",
+      "points": 6,
+      "sourceName": "H. Kane",
+      "sourceTeam": "England",
+      "minutes": 90
+    },
+    {
+      "playerKey": "Mexico::Julián Quiñones",
+      "team": "Mexico",
+      "player": "Julián Quiñones",
+      "points": 6,
+      "sourceName": "J. Quiñones",
+      "sourceTeam": "Mexico",
+      "minutes": 90
+    },
+    {
+      "playerKey": "Mexico::Julián Quiñones",
+      "team": "Mexico",
+      "player": "Julián Quiñones",
+      "points": 6,
+      "sourceName": "Julián Quiñones",
+      "sourceTeam": "Mexico",
+      "minutes": 81
+    },
+    {
+      "playerKey": "Mexico::Raúl Jiménez",
+      "team": "Mexico",
+      "player": "Raúl Jiménez",
+      "points": 6,
+      "sourceName": "R. Jiménez",
+      "sourceTeam": "Mexico",
+      "minutes": 90
+    },
+    {
+      "playerKey": "Mexico::Raúl Jiménez",
+      "team": "Mexico",
+      "player": "Raúl Jiménez",
+      "points": 6,
+      "sourceName": "Raúl Jiménez",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Bukayo Saka",
+      "team": "England",
+      "player": "Bukayo Saka",
+      "points": 4,
+      "sourceName": "Bukayo Saka",
+      "sourceTeam": "England",
+      "minutes": 57
+    },
+    {
+      "playerKey": "England::Anthony Gordon",
+      "team": "England",
+      "player": "Anthony Gordon",
+      "points": 2,
+      "sourceName": "Anthony Gordon",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Elliot Anderson",
+      "team": "England",
+      "player": "Elliot Anderson",
+      "points": 2,
+      "sourceName": "Elliot Anderson",
+      "sourceTeam": "England",
+      "minutes": 75
+    },
+    {
+      "playerKey": "England::Jordan Pickford",
+      "team": "England",
+      "player": "Jordan Pickford",
+      "points": 2,
+      "sourceName": "Jordan Pickford",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "Mexico::Érik Lira",
+      "team": "Mexico",
+      "player": "Érik Lira",
+      "points": 2,
+      "sourceName": "Erik Lira",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "Mexico::Gilberto Mora",
+      "team": "Mexico",
+      "player": "Gilberto Mora",
+      "points": 2,
+      "sourceName": "Gilberto Mora",
+      "sourceTeam": "Mexico",
+      "minutes": 61
+    },
+    {
+      "playerKey": "Mexico::Luis Romo",
+      "team": "Mexico",
+      "player": "Luis Romo",
+      "points": 2,
+      "sourceName": "Luis Romo",
+      "sourceTeam": "Mexico",
+      "minutes": 61
+    },
+    {
+      "playerKey": "Mexico::Roberto Alvarado",
+      "team": "Mexico",
+      "player": "Roberto Alvarado",
+      "points": 2,
+      "sourceName": "Roberto Alvarado",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Declan Rice",
+      "team": "England",
+      "player": "Declan Rice",
+      "points": 1,
+      "sourceName": "Declan Rice",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Ezri Konsa",
+      "team": "England",
+      "player": "Ezri Konsa",
+      "points": 1,
+      "sourceName": "Ezri Konsa",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Marc Guéhi",
+      "team": "England",
+      "player": "Marc Guéhi",
+      "points": 1,
+      "sourceName": "Marc Guéhi",
+      "sourceTeam": "England",
+      "minutes": 103
+    },
+    {
+      "playerKey": "England::Morgan Rogers",
+      "team": "England",
+      "player": "Morgan Rogers",
+      "points": 1,
+      "sourceName": "Morgan Rogers",
+      "sourceTeam": "England",
+      "minutes": 13
+    },
+    {
+      "playerKey": "Mexico::Álvaro Fidalgo",
+      "team": "Mexico",
+      "player": "Álvaro Fidalgo",
+      "points": 1,
+      "sourceName": "Álvaro Fidalgo",
+      "sourceTeam": "Mexico",
+      "minutes": 24
+    },
+    {
+      "playerKey": "Mexico::Brian Gutiérrez",
+      "team": "Mexico",
+      "player": "Brian Gutiérrez",
+      "points": 1,
+      "sourceName": "Brian Gutiérrez",
+      "sourceTeam": "Mexico",
+      "minutes": 42
+    },
+    {
+      "playerKey": "Mexico::Edson Álvarez",
+      "team": "Mexico",
+      "player": "Edson Álvarez",
+      "points": 1,
+      "sourceName": "Edson Álvarez",
+      "sourceTeam": "Mexico",
+      "minutes": 58
+    },
+    {
+      "playerKey": "Mexico::Guillermo Martínez",
+      "team": "Mexico",
+      "player": "Guillermo Martínez",
+      "points": 1,
+      "sourceName": "Guillermo Martínez",
+      "sourceTeam": "Mexico",
+      "minutes": 22
+    },
+    {
+      "playerKey": "Mexico::Jesús Gallardo",
+      "team": "Mexico",
+      "player": "Jesús Gallardo",
+      "points": 1,
+      "sourceName": "Jesús Gallardo",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "Mexico::Raúl Rangel",
+      "team": "Mexico",
+      "player": "Raúl Rangel",
+      "points": 1,
+      "sourceName": "Raúl Rangel",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "Mexico::Santiago Giménez",
+      "team": "Mexico",
+      "player": "Santiago Giménez",
+      "points": 1,
+      "sourceName": "Santiago Giménez",
+      "sourceTeam": "Mexico",
+      "minutes": 38
+    },
+    {
+      "playerKey": "England::Dan Burn",
+      "team": "England",
+      "player": "Dan Burn",
+      "points": 0,
+      "sourceName": "Dan Burn",
+      "sourceTeam": "England",
+      "minutes": 28
+    },
+    {
+      "playerKey": "England::Dean Henderson",
+      "team": "England",
+      "player": "Dean Henderson",
+      "points": 0,
+      "sourceName": "Dean Henderson",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Djed Spence",
+      "team": "England",
+      "player": "Djed Spence",
+      "points": 0,
+      "sourceName": "Djed Spence",
+      "sourceTeam": "England",
+      "minutes": 29
+    },
+    {
+      "playerKey": "England::Eberechi Eze",
+      "team": "England",
+      "player": "Eberechi Eze",
+      "points": 0,
+      "sourceName": "Eberechi Eze",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Ivan Toney",
+      "team": "England",
+      "player": "Ivan Toney",
+      "points": 0,
+      "sourceName": "Ivan Toney",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::James Trafford",
+      "team": "England",
+      "player": "James Trafford",
+      "points": 0,
+      "sourceName": "James Trafford",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::John Stones",
+      "team": "England",
+      "player": "John Stones",
+      "points": 0,
+      "sourceName": "John Stones",
+      "sourceTeam": "England",
+      "minutes": 46
+    },
+    {
+      "playerKey": "England::Kobbie Mainoo",
+      "team": "England",
+      "player": "Kobbie Mainoo",
+      "points": 0,
+      "sourceName": "Kobbie Mainoo",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Marcus Rashford",
+      "team": "England",
+      "player": "Marcus Rashford",
+      "points": 0,
+      "sourceName": "Marcus Rashford",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Nico O'Reilly",
+      "team": "England",
+      "player": "Nico O'Reilly",
+      "points": 0,
+      "sourceName": "Nico O'Reilly",
+      "sourceTeam": "England",
+      "minutes": 74
+    },
+    {
+      "playerKey": "England::Noni Madueke",
+      "team": "England",
+      "player": "Noni Madueke",
+      "points": 0,
+      "sourceName": "Noni Madueke",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Ollie Watkins",
+      "team": "England",
+      "player": "Ollie Watkins",
+      "points": 0,
+      "sourceName": "Ollie Watkins",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Reece James",
+      "team": "England",
+      "player": "Reece James",
+      "points": 0,
+      "sourceName": "Reece James",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Alexis Vega",
+      "team": "Mexico",
+      "player": "Alexis Vega",
+      "points": 0,
+      "sourceName": "Alexis Vega",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Armando González",
+      "team": "Mexico",
+      "player": "Armando González",
+      "points": 0,
+      "sourceName": "Armando González",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Carlos Acevedo",
+      "team": "Mexico",
+      "player": "Carlos Acevedo",
+      "points": 0,
+      "sourceName": "Carlos Acevedo",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::César Huerta",
+      "team": "Mexico",
+      "player": "César Huerta",
+      "points": 0,
+      "sourceName": "César Huerta",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::César Montes",
+      "team": "Mexico",
+      "player": "César Montes",
+      "points": 0,
+      "sourceName": "César Montes",
+      "sourceTeam": "Mexico",
+      "minutes": 45
+    },
+    {
+      "playerKey": "Mexico::Guillermo Ochoa",
+      "team": "Mexico",
+      "player": "Guillermo Ochoa",
+      "points": 0,
+      "sourceName": "Guillermo Ochoa",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Israel Reyes",
+      "team": "Mexico",
+      "player": "Israel Reyes",
+      "points": 0,
+      "sourceName": "Israel Reyes",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Johan Vásquez",
+      "team": "Mexico",
+      "player": "Johan Vásquez",
+      "points": 0,
+      "sourceName": "Johan Vásquez",
+      "sourceTeam": "Mexico",
+      "minutes": 103
+    },
+    {
+      "playerKey": "Mexico::Jorge Sánchez",
+      "team": "Mexico",
+      "player": "Jorge Sánchez",
+      "points": 0,
+      "sourceName": "Jorge Sánchez",
+      "sourceTeam": "Mexico",
+      "minutes": 79
+    },
+    {
+      "playerKey": "Mexico::Luis Chávez",
+      "team": "Mexico",
+      "player": "Luis Chávez",
+      "points": 0,
+      "sourceName": "Luis Chávez",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Mateo Chávez",
+      "team": "Mexico",
+      "player": "Mateo Chávez",
+      "points": 0,
+      "sourceName": "Mateo Chávez",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Obed Vargas",
+      "team": "Mexico",
+      "player": "Obed Vargas",
+      "points": 0,
+      "sourceName": "Obed Vargas",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "Mexico::Orbelín Pineda",
+      "team": "Mexico",
+      "player": "Orbelín Pineda",
+      "points": 0,
+      "sourceName": "Orbelín Pineda",
+      "sourceTeam": "Mexico",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Jordan Henderson",
+      "team": "England",
+      "player": "Jordan Henderson",
+      "points": -1,
+      "sourceName": "Jordan Henderson",
+      "sourceTeam": "England",
+      "minutes": 0
+    },
+    {
+      "playerKey": "England::Jarell Quansah",
+      "team": "England",
+      "player": "Jarell Quansah",
+      "points": -2,
+      "sourceName": "J. Quansah",
+      "sourceTeam": "England",
+      "minutes": 90
+    },
+    {
+      "playerKey": "England::Jarell Quansah",
+      "team": "England",
+      "player": "Jarell Quansah",
+      "points": -3,
+      "sourceName": "Jarell Quansah",
+      "sourceTeam": "England",
+      "minutes": 54
+    }
+  ]
+}

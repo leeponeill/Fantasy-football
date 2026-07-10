@@ -1,0 +1,5066 @@
+import { createServer as createHttpServer } from 'node:http'
+import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const dataDirectory = path.join(__dirname, 'data')
+const leagueStatePath = path.join(dataDirectory, 'league-state.json')
+const leagueBackupDirectory = path.join(__dirname, 'league_backup')
+const fixturesPath = path.join(dataDirectory, 'fixtures.json')
+const wcFixturesPath = path.join(dataDirectory, 'WCfixtures.json')
+const wcScorerBackfillCachePath = path.join(dataDirectory, 'wc-scorer-backfill-cache.json')
+const distDirectory = path.join(__dirname, 'dist')
+const envFilePath = path.join(__dirname, '.env')
+const teamStatePrefix = 'fantasy-football-my-team-state::'
+const usersStorageKey = 'fantasy-football-users'
+const draftModeStorageKey = 'fantasy-football-draft-mode'
+const benchModeStorageKey = 'fantasy-football-bench-mode'
+const draftOrderStorageKey = 'fantasy-football-draft-order'
+const draftNextIndexStorageKey = 'fantasy-football-draft-next-index'
+const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const playerPointsStorageKey = 'fantasy-football-player-points'
+const totalPointsStorageKey = 'fantasy-football-total-points'
+const transferRequestsStorageKey = 'fantasy-football-transfer-requests'
+const transferHistoryStorageKey = 'fantasy-football-transfer-history'
+const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
+const fixtureSignatureStorageKey = 'fantasy-football-fixtures-signature'
+const maxLeagueBackupFiles = 72
+
+function stripWrappingQuotes(value) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1)
+  }
+
+  return value
+}
+
+async function loadEnvFile() {
+  try {
+    const raw = await readFile(envFilePath, 'utf8')
+    const lines = raw.split(/\r?\n/)
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue
+      }
+
+      const separatorIndex = trimmed.indexOf('=')
+      if (separatorIndex <= 0) {
+        continue
+      }
+
+      const key = trimmed.slice(0, separatorIndex).trim()
+      const value = stripWrappingQuotes(trimmed.slice(separatorIndex + 1).trim())
+      if (!key || key in process.env) {
+        continue
+      }
+
+      process.env[key] = value
+    }
+  } catch {
+    // .env is optional.
+  }
+}
+
+function getApiFootballKey() {
+  return process.env.SPORTAPI_TOKEN
+    ?? process.env.SPORT_API_TOKEN
+    ?? process.env.SPORTAPI_BEARER_TOKEN
+    ?? process.env.APIFOOTBALL_API_KEY
+    ?? process.env.API_FOOTBALL_KEY
+    ?? process.env.APISPORTS_KEY
+    ?? ''
+}
+
+function getApiSportsKey() {
+  return process.env.APIFOOTBALL_API_KEY
+    ?? process.env.API_FOOTBALL_KEY
+    ?? process.env.APISPORTS_KEY
+    ?? ''
+}
+
+function parseArgs(argv) {
+  const args = {
+    host: '127.0.0.1',
+    port: 4173,
+    mode: 'production',
+  }
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index]
+    const nextValue = argv[index + 1]
+
+    if (token === '--host' && nextValue) {
+      args.host = nextValue
+      index += 1
+      continue
+    }
+
+    if (token === '--port' && nextValue) {
+      const parsedPort = Number.parseInt(nextValue, 10)
+      if (Number.isFinite(parsedPort)) {
+        args.port = parsedPort
+      }
+      index += 1
+      continue
+    }
+
+    if (token === '--mode' && nextValue) {
+      args.mode = nextValue === 'development' ? 'development' : 'production'
+      index += 1
+    }
+  }
+
+  return args
+}
+
+const positionLimits = {
+  'Goalkeeper': 1,
+  'Defender': 5,
+  'Midfielder': 5,
+  'Forward': 3,
+}
+
+function positionBucket(position) {
+  if (!position || typeof position !== 'string') {
+    return 'Forward'
+  }
+
+  const upper = position.toUpperCase()
+  if (upper.includes('GOAL')) {
+    return 'Goalkeeper'
+  }
+  if (upper.includes('DEF') || upper === 'D') {
+    return 'Defender'
+  }
+  if (upper.includes('MID') || upper === 'M') {
+    return 'Midfielder'
+  }
+  return 'Forward'
+}
+
+async function ensureDataFile() {
+  await mkdir(dataDirectory, { recursive: true })
+
+  try {
+    await stat(leagueStatePath)
+  } catch {
+    const initialState = {
+      storage: {},
+      updatedAt: new Date().toISOString(),
+    }
+    await writeFile(leagueStatePath, `${JSON.stringify(initialState, null, 2)}\n`, 'utf8')
+  }
+}
+
+function sanitizeStorage(storage) {
+  if (!storage || typeof storage !== 'object' || Array.isArray(storage)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(storage).filter(
+      ([key, value]) =>
+        typeof key === 'string' &&
+        key.startsWith('fantasy-football-') &&
+        key !== 'fantasy-football-current-user' &&
+        typeof value === 'string',
+    ),
+  )
+}
+
+function sanitizeFixtureMatchdays(value) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const validCountries = new Set(['Mexico', 'USA', 'Canada'])
+  const sanitized = []
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+
+    const matchdayRaw = item.matchday
+    const gamesRaw = item.games
+    if (!Number.isFinite(matchdayRaw) || !Array.isArray(gamesRaw)) {
+      continue
+    }
+
+    const games = gamesRaw
+      .filter((game) => game && typeof game === 'object')
+      .map((game) => ({
+        match: typeof game.match === 'string' ? game.match : '',
+        time: typeof game.time === 'string' ? game.time : '',
+        country: typeof game.country === 'string' && validCountries.has(game.country) ? game.country : '',
+        date: typeof game.date === 'string' ? game.date : '',
+      }))
+      .filter((game) => game.match && game.time && game.date)
+      .map((game) => ({
+        match: game.match,
+        time: game.time,
+        ...(game.country ? { country: game.country } : {}),
+        date: game.date,
+      }))
+
+    if (games.length === 0) {
+      continue
+    }
+
+    sanitized.push({
+      matchday: Number(matchdayRaw),
+      games,
+    })
+  }
+
+  return sanitized
+}
+
+async function readFixtureMatchdays() {
+  const raw = await readFile(fixturesPath, 'utf8')
+  const parsed = JSON.parse(raw)
+  return sanitizeFixtureMatchdays(parsed)
+}
+
+function sanitizeWCFixtureMatchdays(value) {
+  if (!Array.isArray(value)) return []
+  const sanitized = []
+  for (const [index, item] of value.entries()) {
+    if (!item || typeof item !== 'object') continue
+    const { matchday: matchdayRaw, games: gamesRaw, round } = item
+    if (!Array.isArray(gamesRaw)) continue
+    const parsedMatchday = Number.parseInt(String(matchdayRaw ?? ''), 10)
+    const matchday = Number.isFinite(parsedMatchday) ? parsedMatchday : index + 1
+    const games = gamesRaw
+      .filter((g) => g && typeof g === 'object')
+      .map((g) => ({
+        match: typeof g.match === 'string' ? g.match : '',
+        time: typeof g.time === 'string' ? g.time : '',
+        date: typeof g.date === 'string' ? g.date : '',
+        stadium: typeof g.stadium === 'string' ? g.stadium : '',
+        group: typeof g.group === 'string' ? g.group : '',
+        round: typeof g.round === 'string' ? g.round : '',
+        homeScore: typeof g.homeScore === 'string' ? g.homeScore : '',
+        awayScore: typeof g.awayScore === 'string' ? g.awayScore : '',
+        homeYellowCards: Number.isFinite(g.homeYellowCards) ? Math.max(0, Math.floor(g.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(g.awayYellowCards) ? Math.max(0, Math.floor(g.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(g.homeRedCards) ? Math.max(0, Math.floor(g.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(g.awayRedCards) ? Math.max(0, Math.floor(g.awayRedCards)) : 0,
+        scorers: Array.isArray(g.scorers)
+          ? g.scorers
+              .filter((entry) => entry && typeof entry === 'object')
+              .map((entry) => ({
+                team: typeof entry.team === 'string' ? entry.team : '',
+                player: typeof entry.player === 'string' ? entry.player : '',
+                minute: typeof entry.minute === 'string' ? entry.minute : '',
+              }))
+              .filter((entry) => entry.player !== '')
+          : [],
+      }))
+      .filter((g) => g.match && g.time && g.date)
+      .map((g) => ({
+        match: g.match,
+        time: g.time,
+        date: g.date,
+        stadium: g.stadium,
+        group: g.group,
+        round: g.round,
+        ...(g.homeScore !== '' ? { homeScore: g.homeScore } : {}),
+        ...(g.awayScore !== '' ? { awayScore: g.awayScore } : {}),
+        ...(g.homeYellowCards > 0 ? { homeYellowCards: g.homeYellowCards } : {}),
+        ...(g.awayYellowCards > 0 ? { awayYellowCards: g.awayYellowCards } : {}),
+        ...(g.homeRedCards > 0 ? { homeRedCards: g.homeRedCards } : {}),
+        ...(g.awayRedCards > 0 ? { awayRedCards: g.awayRedCards } : {}),
+        ...(g.scorers.length > 0 ? { scorers: g.scorers } : {}),
+      }))
+    if (games.length === 0) continue
+    sanitized.push({
+      matchday,
+      round: typeof round === 'string' ? round : '',
+      games,
+    })
+  }
+  return sanitized
+}
+
+async function readWCFixtureMatchdays() {
+  const raw = await readFile(wcFixturesPath, 'utf8')
+  const parsed = JSON.parse(raw)
+  return sanitizeWCFixtureMatchdays(parsed)
+}
+
+async function readLeagueState() {
+  await ensureDataFile()
+
+  try {
+    const raw = await readFile(leagueStatePath, 'utf8')
+    const parsed = JSON.parse(raw)
+    return {
+      storage: sanitizeStorage(parsed.storage),
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+    }
+  } catch {
+    return {
+      storage: {},
+      updatedAt: new Date().toISOString(),
+    }
+  }
+}
+
+async function writeLeagueState(storage) {
+  const nextState = {
+    storage: sanitizeStorage(storage),
+    updatedAt: new Date().toISOString(),
+  }
+
+  await ensureDataFile()
+  await writeFile(leagueStatePath, `${JSON.stringify(nextState, null, 2)}\n`, 'utf8')
+  return nextState
+}
+
+function getRegisteredUsernames(storage) {
+  const raw = storage[usersStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    const usernames = []
+    for (const entry of parsed) {
+      const username = typeof entry?.username === 'string' ? entry.username.trim() : ''
+      if (username.length > 0) {
+        usernames.push(username)
+      }
+    }
+
+    return usernames
+  } catch {
+    return []
+  }
+}
+
+function getGlobalMatchday(storage) {
+  const raw = storage[globalMatchdayStorageKey]
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1
+}
+
+function parsePointsMap(rawValue) {
+  if (typeof rawValue !== 'string') {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([key, value]) => typeof key === 'string' && typeof value === 'number' && Number.isFinite(value),
+      ),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function parseTransferPointEvents(rawValue) {
+  if (!Array.isArray(rawValue)) {
+    return []
+  }
+
+  return rawValue
+    .filter((item) => {
+      if (!item || typeof item !== 'object') {
+        return false
+      }
+
+      const candidate = item
+      return (
+        typeof candidate.playerKey === 'string' &&
+        (candidate.direction === 'in' || candidate.direction === 'out') &&
+        typeof candidate.matchday === 'number' &&
+        Number.isFinite(candidate.matchday) &&
+        typeof candidate.at === 'string' &&
+        typeof candidate.points === 'number' &&
+        Number.isFinite(candidate.points)
+      )
+    })
+    .map((event) => ({
+      playerKey: event.playerKey,
+      direction: event.direction,
+      matchday: event.matchday,
+      at: event.at,
+      points: event.points,
+    }))
+}
+
+function toTimestamp(value) {
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function getPlayerCurrentMatchdayPoints(
+  playerKey,
+  currentlyOwnedKeys,
+  currentMatchday,
+  events,
+  getCurrentPointsByKey,
+) {
+  const currentPoints = getCurrentPointsByKey(playerKey)
+  const playerEvents = events
+    .filter((event) => event.matchday === currentMatchday && event.playerKey === playerKey)
+    .sort((a, b) => {
+      const timestampDelta = toTimestamp(a.at) - toTimestamp(b.at)
+      if (timestampDelta !== 0) {
+        return timestampDelta
+      }
+
+      if (a.direction === b.direction) {
+        return 0
+      }
+
+      return a.direction === 'in' ? -1 : 1
+    })
+
+  const isCurrentlyOwned = currentlyOwnedKeys.has(playerKey)
+  if (playerEvents.length === 0) {
+    return isCurrentlyOwned ? currentPoints : 0
+  }
+
+  let owned = playerEvents[0].direction === 'out'
+  let baseline = 0
+  let earned = 0
+
+  for (const event of playerEvents) {
+    if (event.direction === 'in') {
+      owned = true
+      baseline = event.points
+      continue
+    }
+
+    if (owned) {
+      earned += event.points - baseline
+    }
+
+    owned = false
+  }
+
+  if (owned && isCurrentlyOwned) {
+    earned += currentPoints - baseline
+  }
+
+  return earned
+}
+
+function getTransferAwareMatchdayPoints(selectedPlayerKeys, currentMatchday, events, getCurrentPointsByKey) {
+  const currentlyOwnedKeys = new Set(selectedPlayerKeys)
+  const relevantPlayerKeys = new Set(selectedPlayerKeys)
+
+  for (const event of events) {
+    if (event.matchday === currentMatchday) {
+      relevantPlayerKeys.add(event.playerKey)
+    }
+  }
+
+  let points = 0
+  for (const playerKey of relevantPlayerKeys) {
+    points += getPlayerCurrentMatchdayPoints(
+      playerKey,
+      currentlyOwnedKeys,
+      currentMatchday,
+      events,
+      getCurrentPointsByKey,
+    )
+  }
+
+  return points
+}
+
+function getTransferAwarePlayerCurrentPoints(playerKey, selectedPlayerKeys, currentMatchday, events, getCurrentPointsByKey) {
+  return getPlayerCurrentMatchdayPoints(
+    playerKey,
+    new Set(selectedPlayerKeys),
+    currentMatchday,
+    events,
+    getCurrentPointsByKey,
+  )
+}
+
+function hasNonZeroPoints(pointsMap) {
+  return Object.values(pointsMap).some((value) => typeof value === 'number' && Number.isFinite(value) && value !== 0)
+}
+
+function applyMatchdayAdvanceRollover(_previousStorage, nextStorage) {
+  const previousMatchday = getGlobalMatchday(_previousStorage)
+  const nextMatchday = getGlobalMatchday(nextStorage)
+
+  if (nextMatchday <= previousMatchday) {
+    return nextStorage
+  }
+
+  const previousPlayerPointsMap = parsePointsMap(_previousStorage[playerPointsStorageKey])
+  const nextPlayerPointsMap = parsePointsMap(nextStorage[playerPointsStorageKey])
+  const pointsForCarry = hasNonZeroPoints(previousPlayerPointsMap) ? previousPlayerPointsMap : nextPlayerPointsMap
+
+  const nextStorageWithCarry = { ...nextStorage }
+
+  if (Object.keys(pointsForCarry).length > 0) {
+    for (const [storageKey, rawValue] of Object.entries(nextStorageWithCarry)) {
+      if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+        continue
+      }
+
+      try {
+        const state = JSON.parse(rawValue)
+        if (!state || typeof state !== 'object' || Array.isArray(state)) {
+          continue
+        }
+
+        const selectedKeys = Array.isArray(state.selectedPlayerKeys)
+          ? state.selectedPlayerKeys.filter((value) => typeof value === 'string')
+          : []
+
+        const stateCurrentMatchdayRaw = Number.parseInt(String(state.currentMatchday ?? ''), 10)
+        const stateCurrentMatchday = Number.isFinite(stateCurrentMatchdayRaw)
+          ? Math.max(0, stateCurrentMatchdayRaw)
+          : previousMatchday
+
+        // Already advanced by the client path; never carry a second time.
+        if (stateCurrentMatchday >= nextMatchday) {
+          continue
+        }
+
+        const existingCaptainBonus = Number.isFinite(state.captainBonusTotal)
+          ? Math.max(0, Number(state.captainBonusTotal))
+          : 0
+        const existingOwnedPointsTotal = Number.isFinite(state.ownedPointsTotal)
+          ? Math.max(0, Number(state.ownedPointsTotal))
+          : 0
+        const transferPointEvents = parseTransferPointEvents(state.transferPointEvents)
+        const savedCaptainKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
+
+        const getCurrentPointsByPlayerKey = (playerKey) => Number(pointsForCarry[playerKey] ?? 0)
+        const playerPointsThisMatchday = Math.max(
+          0,
+          getTransferAwareMatchdayPoints(
+            selectedKeys,
+            stateCurrentMatchday,
+            transferPointEvents,
+            getCurrentPointsByPlayerKey,
+          ),
+        )
+
+        let captainBonusThisMatchday = 0
+        if (savedCaptainKey && selectedKeys.includes(savedCaptainKey)) {
+          captainBonusThisMatchday = getTransferAwarePlayerCurrentPoints(
+            savedCaptainKey,
+            selectedKeys,
+            stateCurrentMatchday,
+            transferPointEvents,
+            getCurrentPointsByPlayerKey,
+          )
+        }
+
+        const nextState = {
+          ...state,
+          currentMatchday: nextMatchday,
+          transfersUsedThisMatchday: 0,
+          captainChangesThisMatchday: 0,
+          captainBonusTotal: existingCaptainBonus + captainBonusThisMatchday,
+          ownedPointsTotal: existingOwnedPointsTotal + playerPointsThisMatchday,
+        }
+
+        nextStorageWithCarry[storageKey] = JSON.stringify(nextState)
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return {
+    ...nextStorageWithCarry,
+    [playerPointsStorageKey]: JSON.stringify({}),
+  }
+}
+
+function parseSelectedPlayerKeys(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object') {
+      return []
+    }
+
+    return Array.isArray(parsed.selectedPlayerKeys)
+      ? parsed.selectedPlayerKeys.filter((value) => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function parseBenchPlayerKeys(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object') {
+      return []
+    }
+
+    return Array.isArray(parsed.benchPlayerKeys)
+      ? parsed.benchPlayerKeys.filter((value) => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function getTeamPlayerCounts(storage) {
+  const counts = new Map()
+
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    const username = storageKey.slice(teamStatePrefix.length)
+    counts.set(username, parseSelectedPlayerKeys(rawValue).length)
+  }
+
+  return counts
+}
+
+function areAllTeamsEmpty(storage) {
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    if (parseSelectedPlayerKeys(rawValue).length > 0) {
+      return false
+    }
+
+    if (parseBenchPlayerKeys(rawValue).length > 0) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function getBenchModeStatus(storage) {
+  return {
+    enabled: storage[benchModeStorageKey] !== 'false',
+    canToggle: areAllTeamsEmpty(storage),
+  }
+}
+
+function normalizeDraftOrder(rawOrder, validUsernames) {
+  const canonicalByLower = new Map(validUsernames.map((username) => [username.toLowerCase(), username]))
+  const seen = new Set()
+  const order = []
+
+  for (const entry of rawOrder) {
+    if (typeof entry !== 'string') {
+      continue
+    }
+
+    const normalized = entry.trim().toLowerCase()
+    if (!normalized || seen.has(normalized) || !canonicalByLower.has(normalized)) {
+      continue
+    }
+
+    seen.add(normalized)
+    order.push(canonicalByLower.get(normalized))
+  }
+
+  return order
+}
+
+function getDraftOrder(storage, validUsernames) {
+  const raw = storage[draftOrderStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return normalizeDraftOrder(parsed, validUsernames)
+  } catch {
+    return []
+  }
+}
+
+function getNextEligibleDraftIndex(order, counts, startIndex) {
+  if (order.length === 0) {
+    return -1
+  }
+
+  for (let offset = 0; offset < order.length; offset += 1) {
+    const index = (startIndex + offset) % order.length
+    const username = order[index]
+    const playerCount = counts.get(username) ?? 0
+    if (playerCount < 11) {
+      return index
+    }
+  }
+
+  return -1
+}
+
+function getDraftStatus(storage) {
+  const enabled = storage[draftModeStorageKey] === 'true'
+  const usernames = getRegisteredUsernames(storage)
+  const order = getDraftOrder(storage, usernames)
+  const playerCounts = getTeamPlayerCounts(storage)
+  const matchday = getGlobalMatchday(storage)
+  const canEnable = matchday === 1 && areAllTeamsEmpty(storage)
+
+  const rawNextIndex = Number.parseInt(storage[draftNextIndexStorageKey] ?? '0', 10)
+  const startIndex = Number.isFinite(rawNextIndex) && rawNextIndex >= 0 ? rawNextIndex : 0
+  const currentIndex = getNextEligibleDraftIndex(order, playerCounts, startIndex)
+
+  return {
+    enabled,
+    canEnable,
+    order,
+    complete: order.length > 0 && currentIndex === -1,
+    currentTurn: currentIndex === -1 ? null : order[currentIndex],
+    currentIndex,
+    matchday,
+    playerCounts,
+  }
+}
+
+function getUserTeamState(rawValue) {
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+    }
+
+    const remainingBudgetRaw = parsed.remainingBudget
+    const remainingBudget = Number.isFinite(remainingBudgetRaw) ? Number(remainingBudgetRaw) : 100
+
+    return {
+      base: parsed,
+      selectedPlayerKeys: Array.isArray(parsed.selectedPlayerKeys)
+        ? parsed.selectedPlayerKeys.filter((value) => typeof value === 'string')
+        : [],
+      remainingBudget: Math.max(0, Number(remainingBudget.toFixed(1))),
+    }
+  } catch {
+    return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+  }
+}
+
+function readTransferRequests(storage) {
+  const raw = storage[transferRequestsStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        id: typeof item.id === 'string' ? item.id : '',
+        playerKey: typeof item.playerKey === 'string' ? item.playerKey : '',
+        playerName: typeof item.playerName === 'string' ? item.playerName : '',
+        marketPrice: Number.isFinite(item.marketPrice) ? Number(item.marketPrice) : 0,
+        position: typeof item.position === 'string' ? item.position : '',
+        fromUser: typeof item.fromUser === 'string' ? item.fromUser : '',
+        toUser: typeof item.toUser === 'string' ? item.toUser : '',
+        offeredPrice: Number.isFinite(item.offeredPrice) ? Number(item.offeredPrice) : 0,
+        status: typeof item.status === 'string' ? item.status : 'pending',
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+        resolvedAt: typeof item.resolvedAt === 'string' ? item.resolvedAt : '',
+      }))
+      .filter((item) => item.id && item.playerKey && item.fromUser && item.toUser)
+  } catch {
+    return []
+  }
+}
+
+function getPlayerOwner(storage, playerKey) {
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    const selectedPlayerKeys = parseSelectedPlayerKeys(rawValue)
+    if (selectedPlayerKeys.includes(playerKey)) {
+      return storageKey.slice(teamStatePrefix.length)
+    }
+  }
+
+  return null
+}
+
+function buildTransferHistoryMatchdayLookup(storage) {
+  const lookup = new Map()
+
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue)
+      const events = Array.isArray(parsed?.transferPointEvents) ? parsed.transferPointEvents : []
+      const user = storageKey.slice(teamStatePrefix.length)
+
+      for (const event of events) {
+        const playerKey = typeof event?.playerKey === 'string' ? event.playerKey : ''
+        const createdAt = typeof event?.at === 'string' ? event.at : ''
+        const rawMatchday = Number(event?.matchday)
+        const matchday = Number.isFinite(rawMatchday) ? rawMatchday : null
+        const type = event?.direction === 'in'
+          ? 'market-buy'
+          : event?.direction === 'out'
+            ? 'market-sell'
+            : ''
+
+        if (!playerKey || !createdAt || !type || matchday === null) {
+          continue
+        }
+
+        lookup.set(`${user}\n${type}\n${playerKey}\n${createdAt}`, matchday)
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return lookup
+}
+
+function readTransferHistory(storage) {
+  const raw = storage[transferHistoryStorageKey]
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    const matchdayLookup = buildTransferHistoryMatchdayLookup(storage)
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => {
+        const type = typeof item.type === 'string' ? item.type : 'unknown'
+        const buyerUser = typeof item.buyerUser === 'string' ? item.buyerUser : ''
+        const sellerUser = typeof item.sellerUser === 'string' ? item.sellerUser : ''
+        const playerKey = typeof item.playerKey === 'string' ? item.playerKey : ''
+        const createdAt = typeof item.createdAt === 'string' ? item.createdAt : ''
+        const lookupUser = type === 'market-buy' ? buyerUser : type === 'market-sell' ? sellerUser : ''
+        const lookupKey = `${lookupUser}\n${type}\n${playerKey}\n${createdAt}`
+        const rawMatchday = Number(item.matchday)
+        const matchday = Number.isFinite(rawMatchday)
+          ? rawMatchday
+          : matchdayLookup.get(lookupKey) ?? null
+
+        return {
+          id: typeof item.id === 'string' ? item.id : '',
+          playerKey,
+          playerName: typeof item.playerName === 'string' ? item.playerName : '',
+          buyerUser,
+          sellerUser,
+          marketPrice: Number.isFinite(item.marketPrice) ? Number(item.marketPrice) : 0,
+          salePrice: Number.isFinite(item.salePrice) ? Number(item.salePrice) : 0,
+          type,
+          matchday,
+          createdAt,
+        }
+      })
+      .filter((item) => item.id && item.playerKey && item.createdAt)
+  } catch {
+    return []
+  }
+}
+
+async function readJsonBody(request) {
+  const chunks = []
+
+  for await (const chunk of request) {
+    chunks.push(chunk)
+  }
+
+  const rawBody = Buffer.concat(chunks).toString('utf8').trim()
+  if (!rawBody) {
+    return {}
+  }
+
+  return JSON.parse(rawBody)
+}
+
+function sendJson(response, statusCode, payload) {
+  response.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+  })
+  response.end(JSON.stringify(payload))
+}
+
+function sendPlainText(response, statusCode, payload) {
+  response.writeHead(statusCode, {
+    'Content-Type': 'text/plain; charset=utf-8',
+  })
+  response.end(payload)
+}
+
+function getAsString(value) {
+  return typeof value === 'string' ? value : ''
+}
+
+function getAsIdString(value) {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value))
+  }
+
+  return ''
+}
+
+function getAsNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return 0
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers ?? {}),
+    },
+  })
+
+  if (!response.ok) {
+    let bodyText = ''
+    try {
+      bodyText = await response.text()
+    } catch (e) {
+      bodyText = '[unable to read response body]'
+    }
+    const errorMsg = `API request failed with status ${response.status} from ${url}. Response: ${bodyText.slice(0, 500)}`
+    console.error(`[auto-scan] ${errorMsg}`)
+    throw new Error(errorMsg)
+  }
+
+  const bodyText = await response.text()
+  const trimmed = bodyText.trim()
+
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    // Some upstream endpoints prepend warnings/HTML before JSON.
+    const objectStart = trimmed.indexOf('{')
+    const arrayStart = trimmed.indexOf('[')
+    const candidateStart =
+      objectStart < 0 ? arrayStart : arrayStart < 0 ? objectStart : Math.min(objectStart, arrayStart)
+
+    if (candidateStart >= 0) {
+      const candidate = trimmed.slice(candidateStart)
+      try {
+        return JSON.parse(candidate)
+      } catch {
+        // Fall through to error below.
+      }
+    }
+
+    const parseError = `API response was not valid JSON from ${url}. Response: ${trimmed.slice(0, 500)}`
+    console.error(`[auto-scan] ${parseError}`)
+    throw new Error(parseError)
+  }
+}
+
+await loadEnvFile()
+
+const sportApiBaseUrl = process.env.SPORTAPI_BASE_URL?.trim() || 'https://sportapi.ai/api'
+const sportApiFixtureDateCache = new Map()
+
+// Expand abbreviated team names to the full names used by SportAPI fixtures.
+const fixtureTeamExpansions = {
+  "Nott'm Forest": 'Nottingham Forest',
+  'Man Utd': 'Manchester United',
+  'Man City': 'Manchester City',
+  Spurs: 'Tottenham',
+}
+
+const serverTeamAliases = {
+  mex: 'mexico',
+  rsa: 'southafrica',
+  kor: 'southkorea',
+  cze: 'czechia',
+  can: 'canada',
+  bih: 'bosniaandherzegovina',
+  par: 'paraguay',
+  qat: 'qatar',
+  sui: 'switzerland',
+  bra: 'brazil',
+  mar: 'morocco',
+  hai: 'haiti',
+  sco: 'scotland',
+  aus: 'australia',
+  tur: 'turkiye',
+  ger: 'germany',
+  cuw: 'curacao',
+  ned: 'netherlands',
+  jpn: 'japan',
+  civ: 'cotedivoire',
+  ecu: 'ecuador',
+  swe: 'sweden',
+  tun: 'tunisia',
+  esp: 'spain',
+  cpv: 'caboverde',
+  bel: 'belgium',
+  egy: 'egypt',
+  ksa: 'saudiarabia',
+  uru: 'uruguay',
+  irn: 'iran',
+  nzl: 'newzealand',
+  fra: 'france',
+  sen: 'senegal',
+  irq: 'iraq',
+  nor: 'norway',
+  arg: 'argentina',
+  alg: 'algeria',
+  aut: 'austria',
+  jor: 'jordan',
+  por: 'portugal',
+  cod: 'congodr',
+  eng: 'england',
+  cro: 'croatia',
+  gha: 'ghana',
+  pan: 'panama',
+  uzb: 'uzbekistan',
+  col: 'colombia',
+  manutd: 'manchesterunited',
+  manchesterutd: 'manchesterunited',
+  manchesterunited: 'manchesterunited',
+  mancity: 'manchestercity',
+  manchestercity: 'manchestercity',
+  spurs: 'tottenham',
+  tottenham: 'tottenham',
+  tottenhamhotspur: 'tottenham',
+  nottmforest: 'nottinghamforest',
+  nottinghamforest: 'nottinghamforest',
+  afcbournemouth: 'bournemouth',
+  leedsunited: 'leeds',
+  brightonhovealbion: 'brighton',
+  brightonandhovealbion: 'brighton',
+  westhamunited: 'westham',
+  newcastleunited: 'newcastle',
+  wolverhamptonwanderers: 'wolves',
+  korearepublic: 'southkorea',
+  republicofkorea: 'southkorea',
+  southkorea: 'southkorea',
+  czechrepublic: 'czechia',
+  czecrepublic: 'czechia',
+  // WC 2026 — common API/broadcast spellings → canonical fixture token
+  iriran: 'iran',
+  islamicrepublicofiran: 'iran',
+  turkey: 'turkiye',
+  turquie: 'turkiye',
+  ivorycoast: 'cotedivoire',
+  coteivoire: 'cotedivoire',
+  capeverde: 'caboverde',
+  drcongo: 'congodr',
+  democraticrepublicofcongo: 'congodr',
+  democraticrepublicofthecongo: 'congodr',
+  republicofthecongo: 'congodr',
+  bosniaherzegovina: 'bosniaandherzegovina',
+  bosniaandherzegovia: 'bosniaandherzegovina',
+  bosnia: 'bosniaandherzegovina',
+  unitedstates: 'usa',
+  unitedstatesofamerica: 'usa',
+  us: 'usa',
+  canadanationalteam: 'canada',
+  bosniaherzigovina: 'bosniaandherzegovina',
+  bosniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzigovina: 'bosniaandherzegovina',
+  bozniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzegovina: 'bosniaandherzegovina',
+  bozniaandherzegovina: 'bosniaandherzegovina',
+  boznia: 'bosniaandherzegovina',
+  arsenalfc: 'arsenal',
+  burnleyfc: 'burnley',
+  crystalpalacefc: 'crystalpalace',
+  liverpoolfc: 'liverpool',
+  evertonfc: 'everton',
+}
+
+function normalizeAliasToken(raw, aliases) {
+  const withoutNationalTeam = raw.endsWith('nationalteam')
+    ? raw.slice(0, -'nationalteam'.length)
+    : raw
+  const withoutMensSuffix = withoutNationalTeam.endsWith('mens')
+    ? withoutNationalTeam.slice(0, -'mens'.length)
+    : withoutNationalTeam
+  const withoutWomensSuffix = withoutMensSuffix.endsWith('womens')
+    ? withoutMensSuffix.slice(0, -'womens'.length)
+    : withoutMensSuffix
+
+  return aliases[raw] ?? aliases[withoutNationalTeam] ?? aliases[withoutMensSuffix] ?? aliases[withoutWomensSuffix] ?? withoutWomensSuffix
+}
+
+function expandTeamNameForSearch(name) {
+  return fixtureTeamExpansions[name] ?? name
+}
+
+function expandFixtureQueryForSearch(matchString) {
+  if (!matchString.includes(' vs ')) return matchString
+  const [home, away] = matchString.split(' vs ')
+  return `${expandTeamNameForSearch(home.trim())} vs ${expandTeamNameForSearch(away.trim())}`
+}
+
+function sportApiAuthHeaders(token) {
+  if (!token) {
+    return {}
+  }
+
+  return {
+    'X-Api-Key': token,
+    Authorization: `Bearer ${token}`,
+  }
+}
+
+function formatDateYYYYMMDD(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function formatDateYYYYMMDDCompact(date) {
+  return formatDateYYYYMMDD(date).replace(/-/g, '')
+}
+
+function getDateCandidatesAroundNow(daysBack, daysAhead) {
+  const now = new Date()
+  const dates = []
+
+  for (let offset = -daysBack; offset <= daysAhead; offset += 1) {
+    const date = new Date(now)
+    date.setDate(now.getDate() + offset)
+    dates.push(formatDateYYYYMMDD(date))
+  }
+
+  return dates
+}
+
+function getDateCandidatesAroundDate(date, daysBack, daysAhead) {
+  const dates = []
+
+  for (let offset = -daysBack; offset <= daysAhead; offset += 1) {
+    const value = new Date(date)
+    value.setDate(date.getDate() + offset)
+    dates.push(formatDateYYYYMMDD(value))
+  }
+
+  return dates
+}
+
+function toTeamToken(value) {
+  const base = getAsString(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+  const raw = base.startsWith('afc') && base.length > 3
+    ? base.slice(3)
+    : base.endsWith('fc') && base.length > 2
+      ? base.slice(0, -2)
+      : base
+
+  return normalizeAliasToken(raw, serverTeamAliases)
+}
+
+function getSportFixtureValue(fixture, keys, fallback = '') {
+  for (const key of keys) {
+    const value = key.split('.').reduce((acc, part) => (acc && typeof acc === 'object' ? acc[part] : undefined), fixture)
+    const text = getAsString(value)
+    if (text) {
+      return text
+    }
+  }
+
+  return fallback
+}
+
+function mapSportFixture(fixture) {
+  const homeTeam = getSportFixtureValue(fixture, ['home_team', 'homeTeam', 'home.name', 'teams.home.name'])
+  const awayTeam = getSportFixtureValue(fixture, ['away_team', 'awayTeam', 'away.name', 'teams.away.name'])
+  const homeScore = normalizeApiFootballScore(
+    fixture?.home_score
+      ?? fixture?.score?.home
+      ?? fixture?.scores?.home
+      ?? fixture?.goals?.home,
+  )
+  const awayScore = normalizeApiFootballScore(
+    fixture?.away_score
+      ?? fixture?.score?.away
+      ?? fixture?.scores?.away
+      ?? fixture?.goals?.away,
+  )
+
+  const id = getAsString(
+    fixture?.id
+      ?? fixture?.fixture_id
+      ?? fixture?.fixture?.id,
+  )
+    || getAsIdString(
+    fixture?.id
+      ?? fixture?.fixture_id
+      ?? fixture?.fixture?.id,
+  )
+
+  return {
+    idEvent: id,
+    idApiFootball: id,
+    name: `${homeTeam} vs ${awayTeam}`,
+    date: getSportFixtureValue(fixture, ['date', 'match_date', 'fixture.date', 'fixture_date']),
+    league: getSportFixtureValue(fixture, ['league_name', 'league.name', 'competition.name']),
+    season: getSportFixtureValue(fixture, ['season', 'league.season'], ''),
+    homeTeam,
+    awayTeam,
+    homeScore: homeScore ?? '',
+    awayScore: awayScore ?? '',
+    status: getSportFixtureValue(fixture, ['status', 'fixture.status.short', 'fixture.status.long']),
+  }
+}
+
+function isFinishedFixture(match) {
+  const status = getAsString(match.status).toUpperCase()
+  if (status === 'FT' || status === 'AET' || status === 'PEN') {
+    return true
+  }
+
+  if (status.includes('FINISHED')) {
+    return true
+  }
+
+  return match.homeScore !== '' && match.awayScore !== ''
+}
+
+async function getSportApiFixturesByDate(date, token) {
+  const cached = sportApiFixtureDateCache.get(date)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.fixtures
+  }
+
+  const hasToken = !!token
+  console.log(`[auto-scan] Fetching SportAPI fixtures for ${date} (token available: ${hasToken})`)
+  
+  try {
+    const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/date/${encodeURIComponent(date)}`, {
+      headers: sportApiAuthHeaders(token),
+    })
+
+    const fixtures = Array.isArray(payload?.fixtures)
+      ? payload.fixtures
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    console.log(`[auto-scan] Successfully fetched ${fixtures.length} fixtures for ${date}`)
+    sportApiFixtureDateCache.set(date, {
+      fixtures,
+      expiresAt: nowMs + 5 * 60 * 1000,
+    })
+    return fixtures
+  } catch (err) {
+    console.error(`[auto-scan] getSportApiFixturesByDate(${date}) error:`, err.message)
+    throw err
+  }
+}
+
+async function searchFinishedSoccerEvents(query, options = {}) {
+  const token = getApiFootballKey()
+  const expandedQuery = expandFixtureQueryForSearch(query)
+  const [rawHome, rawAway] = expandedQuery.includes(' vs ')
+    ? expandedQuery.split(' vs ')
+    : [expandedQuery, '']
+  const expectedHome = toTeamToken(rawHome)
+  const expectedAway = toTeamToken(rawAway)
+
+  const dateHintCandidate = options && options.dateHint instanceof Date ? options.dateHint : null
+  const hasDateHint = Boolean(dateHintCandidate) && !Number.isNaN(dateHintCandidate.getTime())
+  const dates = hasDateHint
+    ? getDateCandidatesAroundDate(dateHintCandidate, 1, 1)
+    : getDateCandidatesAroundNow(14, 1)
+  const mappedMatches = []
+  let fetchedAnyDate = false
+
+  for (const date of dates) {
+    try {
+      const fixtures = await getSportApiFixturesByDate(date, token)
+      fetchedAnyDate = true
+      for (const fixture of fixtures) {
+        const mapped = mapSportFixture(fixture)
+        if (!mapped.idEvent || !mapped.homeTeam || !mapped.awayTeam) {
+          continue
+        }
+
+        if (!isFinishedFixture(mapped)) {
+          continue
+        }
+
+        if (expectedAway) {
+          const homeToken = toTeamToken(mapped.homeTeam)
+          const awayToken = toTeamToken(mapped.awayTeam)
+          const strict = homeToken === expectedHome && awayToken === expectedAway
+          const swapped = homeToken === expectedAway && awayToken === expectedHome
+          if (!strict && !swapped) {
+            continue
+          }
+        } else if (!mapped.name.toLowerCase().includes(expandedQuery.toLowerCase())) {
+          continue
+        }
+
+        mappedMatches.push(mapped)
+      }
+    } catch (err) {
+      if (!token) {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}): No API token available`)
+      } else {
+        console.error(`[auto-scan] searchFinishedSoccerEvents (${query}) failed for date ${date}:`, err.message)
+      }
+      continue
+    }
+  }
+
+  if (!fetchedAnyDate) {
+    throw new Error('Unable to query SportAPI fixtures by date.')
+  }
+
+  const seen = new Set()
+  const unique = []
+  for (const match of mappedMatches) {
+    if (seen.has(match.idEvent)) {
+      continue
+    }
+
+    seen.add(match.idEvent)
+    unique.push(match)
+  }
+
+  return unique
+}
+
+async function getEventById(eventId) {
+  const token = getApiFootballKey()
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(eventId)}`, {
+    headers: sportApiAuthHeaders(token),
+  })
+
+  const fixture = payload?.fixture ?? payload?.data?.fixture ?? payload?.data ?? payload
+  if (!fixture || typeof fixture !== 'object') {
+    return null
+  }
+
+  const mapped = mapSportFixture(fixture)
+  return mapped.idEvent ? mapped : null
+}
+
+async function getApiFootballPlayerStats(fixtureId, apiFootballKey) {
+  const authHeaders = sportApiAuthHeaders(apiFootballKey)
+  const fixtureResponse = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}`, {
+    headers: authHeaders,
+  })
+
+  let events = []
+  try {
+    const eventsResponse = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/events`, {
+      headers: authHeaders,
+    })
+    events = Array.isArray(eventsResponse?.events)
+      ? eventsResponse.events
+      : Array.isArray(eventsResponse?.data)
+        ? eventsResponse.data
+        : []
+  } catch {
+    events = []
+  }
+
+  const fixture = fixtureResponse?.fixture ?? fixtureResponse?.data?.fixture ?? fixtureResponse?.data ?? fixtureResponse
+  const homeTeam = getSportFixtureValue(fixture, ['home_team', 'home.name', 'teams.home.name'])
+  const awayTeam = getSportFixtureValue(fixture, ['away_team', 'away.name', 'teams.away.name'])
+  const fixtureDate = getSportFixtureValue(fixture, ['date', 'match_date', 'fixture.date', 'fixture_date'])
+
+  console.log(`[auto-import] Processing SportAPI fixture: ${homeTeam} vs ${awayTeam} on ${fixtureDate}`)
+
+  const rowsByKey = new Map()
+  const { players: serverPlayers } = await getServerPlayers()
+
+  function upsertRow(playerName, teamName, patch = {}) {
+    const cleanName = getAsString(playerName)
+    if (!cleanName) {
+      return
+    }
+
+    const cleanTeam = getAsString(teamName)
+    const key = `${cleanTeam}::${cleanName}`
+    const current = rowsByKey.get(key) ?? {
+      playerName: cleanName,
+      teamName: cleanTeam,
+      apiPosition: 'Midfielder',
+      minutesPlayed: 0,
+      goalsScored: 0,
+      assists: 0,
+      goalsConceded: 0,
+      penaltyShootoutGoalsConceded: 0,
+      shotSaves: 0,
+      yellowCards: 0,
+      redCards: 0,
+      penaltyMisses: 0,
+      penaltySaves: 0,
+      defensiveContributions: 0,
+    }
+
+    rowsByKey.set(key, {
+      ...current,
+      ...patch,
+    })
+  }
+
+  const maybePlayerLists = [
+    fixture?.players,
+    fixture?.home_players,
+    fixture?.away_players,
+    fixture?.lineups?.home?.players,
+    fixture?.lineups?.away?.players,
+    fixtureResponse?.players,
+    fixtureResponse?.squad,
+  ]
+
+  for (const list of maybePlayerLists) {
+    if (!Array.isArray(list)) {
+      continue
+    }
+
+    for (const entry of list) {
+      if (!entry || typeof entry !== 'object') {
+        continue
+      }
+
+      const stats = entry.stats ?? entry.statistics ?? {}
+      const teamName = getAsString(entry.team_name ?? entry?.team?.name)
+      const playerName = getAsString(entry.full_name ?? entry.player_name ?? entry.name ?? entry?.player?.name)
+      if (!playerName) {
+        continue
+      }
+
+      const tackles = getAsNumber(stats.tackles ?? stats.total_tackles)
+      const blocks = getAsNumber(stats.blocks)
+      const interceptions = getAsNumber(stats.interceptions)
+      const rawRow = {
+        playerName,
+        teamName,
+        apiPosition: getAsString(entry.position ?? stats.position) || 'Midfielder',
+        minutesPlayed: getAsNumber(entry.minutes ?? stats.minutes),
+        goalsScored: getAsNumber(entry.goals ?? stats.goals ?? stats.goals_scored),
+        assists: getAsNumber(entry.assists ?? stats.assists),
+        goalsConceded: getAsNumber(entry.goals_conceded ?? stats.goals_conceded),
+        penaltyShootoutGoalsConceded: 0,
+        shotSaves: getAsNumber(entry.saves ?? stats.saves),
+        yellowCards: getAsNumber(entry.yellow_cards ?? stats.yellow_cards),
+        redCards: getAsNumber(entry.red_cards ?? stats.red_cards),
+        penaltyMisses: getAsNumber(entry.penalty_missed ?? stats.penalty_missed),
+        penaltySaves: getAsNumber(entry.penalty_saved ?? stats.penalty_saved),
+        defensiveContributions: tackles + blocks + interceptions,
+      }
+      const matchedPlayer = serverFindPlayer(serverPlayers, rawRow) ?? serverFindPlayerGlobally(serverPlayers, rawRow)
+
+      upsertRow(playerName, matchedPlayer?.team ?? teamName, {
+        apiPosition: matchedPlayer?.position ?? rawRow.apiPosition,
+        minutesPlayed: rawRow.minutesPlayed,
+        goalsScored: rawRow.goalsScored,
+        assists: rawRow.assists,
+        goalsConceded: rawRow.goalsConceded,
+        penaltyShootoutGoalsConceded: rawRow.penaltyShootoutGoalsConceded,
+        shotSaves: rawRow.shotSaves,
+        yellowCards: rawRow.yellowCards,
+        redCards: rawRow.redCards,
+        penaltyMisses: rawRow.penaltyMisses,
+        penaltySaves: rawRow.penaltySaves,
+        defensiveContributions: rawRow.defensiveContributions,
+      })
+    }
+  }
+
+  // If we still don't have lineup stats, try to fetch lineups directly
+  if (rowsByKey.size === 0) {
+    try {
+      const lineupsResponse = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/lineups`, {
+        headers: authHeaders,
+      })
+      const lineups = Array.isArray(lineupsResponse?.lineups)
+        ? lineupsResponse.lineups
+        : Array.isArray(lineupsResponse?.data)
+          ? lineupsResponse.data
+          : []
+      
+      for (const lineup of lineups) {
+        const teamName = getAsString(lineup?.team?.name ?? lineup?.team_name)
+        const players = Array.isArray(lineup?.startXI) ? lineup.startXI : []
+        
+        for (const playerEntry of players) {
+          const player = playerEntry?.player ?? playerEntry
+          const playerName = getAsString(player?.name)
+          if (!playerName || !teamName) continue
+
+          const matchedPlayer = serverFindPlayer(serverPlayers, {
+            playerName,
+            teamName,
+            apiPosition: getAsString(player?.pos ?? player?.position) || 'Midfielder',
+            minutesPlayed: 90,
+            goalsScored: 0,
+            assists: 0,
+            goalsConceded: 0,
+            penaltyShootoutGoalsConceded: 0,
+            shotSaves: 0,
+            yellowCards: 0,
+            redCards: 0,
+            penaltyMisses: 0,
+            penaltySaves: 0,
+            defensiveContributions: 0,
+          }) ?? serverFindPlayerGlobally(serverPlayers, {
+            playerName,
+            teamName,
+            apiPosition: getAsString(player?.pos ?? player?.position) || 'Midfielder',
+            minutesPlayed: 90,
+            goalsScored: 0,
+            assists: 0,
+            goalsConceded: 0,
+            penaltyShootoutGoalsConceded: 0,
+            shotSaves: 0,
+            yellowCards: 0,
+            redCards: 0,
+            penaltyMisses: 0,
+            penaltySaves: 0,
+            defensiveContributions: 0,
+          })
+          
+          upsertRow(playerName, matchedPlayer?.team ?? teamName, {
+            apiPosition: matchedPlayer?.position ?? (getAsString(player?.pos ?? player?.position) || 'Midfielder'),
+            minutesPlayed: 90,
+          })
+        }
+      }
+      console.log(`[auto-import] Fetched ${rowsByKey.size} players from lineups endpoint`)
+    } catch (err) {
+      console.log(`[auto-import] Failed to fetch lineups: ${err.message}`)
+    }
+  }
+
+  if (rowsByKey.size === 0) {
+    const appliedEventStatKeys = new Set()
+    const markStatApplied = (statType, teamName, playerName, minuteLabel) => {
+      const key = [
+        statType,
+        toTeamToken(teamName),
+        serverToToken(playerName),
+        minuteLabel,
+      ].join('::')
+
+      if (appliedEventStatKeys.has(key)) {
+        return false
+      }
+
+      appliedEventStatKeys.add(key)
+      return true
+    }
+
+    for (const event of events) {
+      const eventType = getAsString(event?.event_type ?? event?.type).toLowerCase()
+      const eventDetail = getAsString(event?.detail).toLowerCase()
+      const playerName = getAsString(event?.player_name ?? event?.player)
+      const assistName = getAsString(event?.assist_name)
+      const substitutionOutName = getAsString(event?.extra_info)
+      const minuteRaw = getAsString(event?.minute).trim()
+      const extraMinuteRaw = getAsString(event?.extra_minute ?? event?.extraMinute).trim()
+      const minuteMatch = minuteRaw.match(/^(\d{1,3})/)
+      const eventMinute = minuteMatch ? Number.parseInt(minuteMatch[1], 10) : null
+      const minuteLabel = formatGoalMinuteLabel({ minute: minuteRaw, extra_minute: extraMinuteRaw }) || minuteRaw || '0'
+      const teamSide = getAsString(event?.team_side).toLowerCase()
+      const teamName = teamSide === 'away' ? awayTeam : homeTeam
+
+      if (!playerName || !teamName) {
+        continue
+      }
+
+      if (eventType.includes('substitution')) {
+        const subInMinutes = Number.isFinite(eventMinute) ? Math.max(1, 90 - Number(eventMinute)) : 1
+        upsertRow(playerName, teamName, { minutesPlayed: subInMinutes })
+
+        if (substitutionOutName) {
+          const subOutMinutes = Number.isFinite(eventMinute)
+            ? Math.max(1, Math.min(120, Number(eventMinute)))
+            : 60
+          upsertRow(substitutionOutName, teamName, { minutesPlayed: subOutMinutes })
+        }
+      } else {
+        upsertRow(playerName, teamName, { minutesPlayed: 90 })
+      }
+
+      const row = rowsByKey.get(`${teamName}::${playerName}`)
+      if (!row) {
+        continue
+      }
+
+      if (eventType.includes('goal') && !eventDetail.includes('own goal') && markStatApplied('goal', teamName, playerName, minuteLabel)) {
+        row.goalsScored += 1
+      }
+      if ((eventType === 'assist' || eventType.includes('assist')) && markStatApplied('assist', teamName, playerName, minuteLabel)) {
+        row.assists += 1
+      }
+      if (eventType.includes('yellow') && markStatApplied('yellow', teamName, playerName, minuteLabel)) {
+        row.yellowCards += 1
+      }
+      if (eventType.includes('red') && markStatApplied('red', teamName, playerName, minuteLabel)) {
+        row.redCards += 1
+      }
+      if ((eventType.includes('penalty_missed') || eventType.includes('penalty missed')) && markStatApplied('penalty_missed', teamName, playerName, minuteLabel)) {
+        row.penaltyMisses += 1
+      }
+      if ((eventType.includes('penalty_saved') || eventType.includes('penalty saved')) && markStatApplied('penalty_saved', teamName, playerName, minuteLabel)) {
+        row.penaltySaves += 1
+      }
+
+      if (assistName) {
+        upsertRow(assistName, teamName, { minutesPlayed: 90 })
+        const assistRow = rowsByKey.get(`${teamName}::${assistName}`)
+        if (assistRow && markStatApplied('assist', teamName, assistName, minuteLabel)) {
+          assistRow.assists += 1
+        }
+      }
+    }
+  }
+
+  // Hybrid mode: if API-Football key is available, augment with full per-player fixture stats.
+  // This greatly improves coverage beyond event-only players from SportAPI.
+  const apiSportsKey = getApiSportsKey()
+  if (apiSportsKey && homeTeam && awayTeam && fixtureDate) {
+    try {
+      console.log(`[auto-import] Attempting API-Sports augmentation for ${homeTeam} vs ${awayTeam}`)
+      const apiSportsFixtureId = await resolveApiSportsFixtureId(homeTeam, awayTeam, fixtureDate, apiSportsKey)
+      if (apiSportsFixtureId) {
+        console.log(`[auto-import] Fetching full player stats from API-Sports fixture ${apiSportsFixtureId}`)
+        const fullRows = await getApiSportsPlayerStats(apiSportsFixtureId, apiSportsKey)
+        console.log(`[auto-import] Got ${fullRows.length} players from API-Sports`)
+        for (const row of fullRows) {
+          const rowKey = `${row.teamName}::${row.playerName}`
+          const existingRow = rowsByKey.get(rowKey)
+
+          if (!existingRow) {
+            upsertRow(row.playerName, row.teamName, {
+              apiPosition: row.apiPosition,
+              minutesPlayed: row.minutesPlayed,
+              goalsScored: row.goalsScored,
+              assists: row.assists,
+              goalsConceded: row.goalsConceded,
+              penaltyShootoutGoalsConceded: row.penaltyShootoutGoalsConceded ?? 0,
+              shotSaves: row.shotSaves,
+              yellowCards: row.yellowCards,
+              redCards: row.redCards,
+              penaltyMisses: row.penaltyMisses,
+              penaltySaves: row.penaltySaves,
+              defensiveContributions: row.defensiveContributions,
+            })
+            continue
+          }
+
+          upsertRow(row.playerName, row.teamName, {
+            apiPosition: existingRow.apiPosition || row.apiPosition,
+            minutesPlayed: Math.max(existingRow.minutesPlayed, row.minutesPlayed),
+            defensiveContributions: Math.max(existingRow.defensiveContributions, row.defensiveContributions),
+          })
+        }
+        console.log(`[auto-import] Total players after API-Sports: ${rowsByKey.size}`)
+      } else {
+        console.log(`[auto-import] No API-Sports fixture ID found for augmentation`)
+      }
+    } catch (err) {
+      console.log(`[auto-import] API-Sports augmentation failed: ${err.message}`)
+    }
+  }
+
+  return Array.from(rowsByKey.values())
+}
+
+async function resolveApiSportsFixtureId(homeTeam, awayTeam, date, apiSportsKey) {
+  const expectedHome = toTeamToken(homeTeam)
+  const expectedAway = toTeamToken(awayTeam)
+
+  function findInEvents(events) {
+    return events.find((event) => {
+      const eventDate = getAsString(event?.dateEvent)
+      const home = toTeamToken(event?.strHomeTeam)
+      const away = toTeamToken(event?.strAwayTeam)
+      const strict = home === expectedHome && away === expectedAway
+      const swapped = home === expectedAway && away === expectedHome
+      return eventDate === date && (strict || swapped)
+    })
+  }
+
+  // Try name-based search first (strips AFC prefix for better matching)
+  const cleanHome = homeTeam.replace(/^AFC\s+/i, '')
+  const cleanAway = awayTeam.replace(/^AFC\s+/i, '')
+  const query = encodeURIComponent(`${cleanHome} vs ${cleanAway}`)
+  const payload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${query}`)
+  const searchEvents = Array.isArray(payload?.event) ? payload.event : []
+  const matchedByName = findInEvents(searchEvents)
+  if (matchedByName) {
+    return getAsString(matchedByName.idAPIfootball)
+  }
+
+  // Fallback: search by date using the PL league ID (4328)
+  if (date) {
+    const datePayload = await fetchJson(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${encodeURIComponent(date)}&l=4328`)
+    const dateEvents = Array.isArray(datePayload?.events) ? datePayload.events : []
+    const matchedByDate = findInEvents(dateEvents)
+    if (matchedByDate) {
+      return getAsString(matchedByDate.idAPIfootball)
+    }
+  }
+
+  // For international tournaments (WC 2026, etc.), try direct API-Sports search if key available
+  if (apiSportsKey && date) {
+    try {
+      return await searchApiSportsFixtureByTeamAndDate(homeTeam, awayTeam, date, apiSportsKey)
+    } catch {
+      // Fall through to return empty string
+    }
+  }
+
+  return ''
+}
+
+async function searchApiSportsFixtureByTeamAndDate(homeTeam, awayTeam, date, apiSportsKey) {
+  // Try to find the fixture by searching all fixtures on the given date
+  // API-Sports endpoint: /fixtures?date={date}
+  // This works for international tournaments like World Cup without needing league/season
+  
+  // Normalize date to YYYY-MM-DD format
+  let normalizedDate = date
+  if (date && typeof date === 'string') {
+    // If date is ISO datetime (YYYY-MM-DDTHH:MM:SS), extract just the date part
+    const isoMatch = date.match(/^(\d{4}-\d{2}-\d{2})/)
+    if (isoMatch) {
+      normalizedDate = isoMatch[1]
+    }
+  }
+
+  if (!normalizedDate) {
+    return ''
+  }
+
+  try {
+    const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(normalizedDate)}`, {
+      headers: {
+        'x-apisports-key': apiSportsKey,
+      },
+    })
+
+    const fixtures = Array.isArray(payload?.response) ? payload.response : []
+    const expectedHome = toTeamToken(homeTeam)
+    const expectedAway = toTeamToken(awayTeam)
+
+    // Search for exact match or reversed match
+    for (const fixture of fixtures) {
+      const fixtureHome = toTeamToken(getAsString(fixture?.teams?.home?.name))
+      const fixtureAway = toTeamToken(getAsString(fixture?.teams?.away?.name))
+
+      if ((fixtureHome === expectedHome && fixtureAway === expectedAway) ||
+          (fixtureHome === expectedAway && fixtureAway === expectedHome)) {
+        const fixtureId = getAsNumber(fixture?.fixture?.id)
+        if (Number.isFinite(fixtureId)) {
+          console.log(`[auto-scan] Found API-Sports fixture ${fixtureId} for ${homeTeam} vs ${awayTeam} on ${normalizedDate}`)
+          return String(fixtureId)
+        }
+      }
+    }
+    console.log(`[auto-scan] No API-Sports fixture found for ${homeTeam} vs ${awayTeam} on ${normalizedDate} (${fixtures.length} fixtures on that date)`)
+  } catch (err) {
+    console.log(`[auto-scan] Failed to search API-Sports by date: ${err.message}`)
+  }
+
+  return ''
+}
+
+async function getApiSportsPlayerStats(fixtureId, apiSportsKey) {
+  const encodedFixtureId = encodeURIComponent(fixtureId)
+  const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures/players?fixture=${encodedFixtureId}`, {
+    headers: {
+      'x-apisports-key': apiSportsKey,
+    },
+  })
+
+  const teams = Array.isArray(payload?.response) ? payload.response : []
+  const { players: serverPlayers } = await getServerPlayers()
+  const rows = []
+
+  for (const teamEntry of teams) {
+    const teamName = getAsString(teamEntry?.team?.name)
+    const players = Array.isArray(teamEntry?.players) ? teamEntry.players : []
+
+    for (const playerEntry of players) {
+      const statistics = Array.isArray(playerEntry?.statistics) ? playerEntry.statistics[0] : null
+      if (!statistics) {
+        continue
+      }
+
+      const tackles = statistics.tackles ?? {}
+      const goals = statistics.goals ?? {}
+      const cards = statistics.cards ?? {}
+      const penalty = statistics.penalty ?? {}
+      const games = statistics.games ?? {}
+      const rawRow = {
+        playerName: getAsString(playerEntry?.player?.name),
+        teamName,
+        apiPosition: getAsString(games.position),
+        minutesPlayed: getAsNumber(games.minutes),
+        goalsScored: getAsNumber(goals.total),
+        assists: getAsNumber(goals.assists),
+        goalsConceded: getAsNumber(goals.conceded),
+        penaltyShootoutGoalsConceded: 0,
+        shotSaves: getAsNumber(goals.saves),
+        yellowCards: getAsNumber(cards.yellow),
+        redCards: getAsNumber(cards.red),
+        penaltyMisses: getAsNumber(penalty.missed),
+        penaltySaves: getAsNumber(penalty.saved),
+        defensiveContributions:
+          getAsNumber(tackles.total) + getAsNumber(tackles.blocks) + getAsNumber(tackles.interceptions),
+      }
+      const matchedPlayer = serverFindPlayer(serverPlayers, rawRow)
+
+      rows.push({
+        ...rawRow,
+        teamName: matchedPlayer?.team ?? rawRow.teamName,
+        apiPosition: matchedPlayer?.position ?? rawRow.apiPosition,
+      })
+    }
+  }
+
+  return rows
+}
+
+function normalizeApiFootballScore(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value))
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isFinite(parsed)) {
+      return String(parsed)
+    }
+  }
+
+  return null
+}
+
+function formatGoalMinuteLabel(event) {
+  const minuteRaw = getAsString(event?.minute).trim()
+  const extraRaw = getAsString(event?.extra_minute ?? event?.extraMinute).trim()
+  const minuteMatch = minuteRaw.match(/^(\d{1,3})/)
+  if (!minuteMatch) {
+    return ''
+  }
+
+  const base = minuteMatch[1]
+  const extraMatch = extraRaw.match(/^(\d{1,2})$/)
+  if (extraMatch) {
+    return `${base}+${extraMatch[1]}`
+  }
+
+  const minutePlusMatch = minuteRaw.match(/^(\d{1,3})\s*\+\s*(\d{1,2})/)
+  if (minutePlusMatch) {
+    return `${minutePlusMatch[1]}+${minutePlusMatch[2]}`
+  }
+
+  return base
+}
+
+function createEmptyConductCounts() {
+  return {
+    homeYellowCards: 0,
+    awayYellowCards: 0,
+    homeRedCards: 0,
+    awayRedCards: 0,
+  }
+}
+
+function toFixtureEventSummary(events, homeTeam, awayTeam) {
+  if (!Array.isArray(events)) {
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
+  }
+
+  const scorers = []
+  const conduct = createEmptyConductCounts()
+  const homeToken = toTeamToken(homeTeam)
+  const awayToken = toTeamToken(awayTeam)
+
+  for (const event of events) {
+    const eventType = getAsString(event?.event_type ?? event?.type).toLowerCase()
+    const eventDetail = getAsString(event?.detail).toLowerCase()
+    if (!eventType.includes('goal')) {
+      const side = getAsString(event?.team_side).toLowerCase().trim()
+      const eventTeamName = getAsString(event?.team_name ?? event?.team).trim()
+      const eventTeamToken = toTeamToken(eventTeamName)
+
+      const isHomeSide =
+        side === 'home' ||
+        (eventTeamToken !== '' && eventTeamToken === homeToken)
+      const isAwaySide =
+        side === 'away' ||
+        (eventTeamToken !== '' && eventTeamToken === awayToken)
+
+      const isRedCard = eventType.includes('red') || eventDetail.includes('red') || eventDetail.includes('second yellow')
+      const isYellowCard = !isRedCard && (eventType.includes('yellow') || eventDetail.includes('yellow'))
+
+      if (isRedCard) {
+        if (isHomeSide) {
+          conduct.homeRedCards += 1
+        } else if (isAwaySide) {
+          conduct.awayRedCards += 1
+        }
+      } else if (isYellowCard) {
+        if (isHomeSide) {
+          conduct.homeYellowCards += 1
+        } else if (isAwaySide) {
+          conduct.awayYellowCards += 1
+        }
+      }
+
+      continue
+    }
+
+    const player = getAsString(event?.player_name ?? event?.player).trim()
+    if (!player) {
+      continue
+    }
+
+    const minute = formatGoalMinuteLabel(event)
+    const side = getAsString(event?.team_side).toLowerCase().trim()
+    const eventTeamName = getAsString(event?.team_name ?? event?.team).trim()
+    const eventTeamToken = toTeamToken(eventTeamName)
+
+    let team = ''
+    if (side === 'home') {
+      team = homeTeam
+    } else if (side === 'away') {
+      team = awayTeam
+    } else if (eventTeamToken && eventTeamToken === homeToken) {
+      team = homeTeam
+    } else if (eventTeamToken && eventTeamToken === awayToken) {
+      team = awayTeam
+    } else if (eventTeamName) {
+      team = eventTeamName
+    }
+
+    scorers.push({
+      team,
+      player,
+      minute,
+    })
+  }
+
+  return {
+    scorers,
+    conduct,
+  }
+}
+
+async function getApiFootballFixtureEventSummary(fixtureId, homeTeam, awayTeam, apiFootballKey) {
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}/events`, {
+    headers: sportApiAuthHeaders(apiFootballKey),
+  })
+
+  const events = Array.isArray(payload?.events)
+    ? payload.events
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : []
+
+  return toFixtureEventSummary(events, homeTeam, awayTeam)
+}
+
+async function getApiFootballFixtureScore(fixtureId, apiFootballKey) {
+  const payload = await fetchJson(`${sportApiBaseUrl}/fixtures/${encodeURIComponent(fixtureId)}`, {
+    headers: sportApiAuthHeaders(apiFootballKey),
+  })
+
+  const fixture = payload?.fixture ?? payload?.data?.fixture ?? payload?.data ?? payload
+  if (!fixture || typeof fixture !== 'object') {
+    return null
+  }
+
+  const homeScore = normalizeApiFootballScore(
+    fixture?.home_score
+      ?? fixture?.score?.home
+      ?? fixture?.scores?.home
+      ?? fixture?.goals?.home,
+  )
+  const awayScore = normalizeApiFootballScore(
+    fixture?.away_score
+      ?? fixture?.score?.away
+      ?? fixture?.scores?.away
+      ?? fixture?.goals?.away,
+  )
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  return {
+    homeScore,
+    awayScore,
+  }
+}
+
+async function handleApiRequest(request, response) {
+  const url = new URL(request.url ?? '/', 'http://localhost')
+
+  if (request.method === 'GET' && url.pathname === '/api/draft-mode') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      sendJson(response, 200, {
+        enabled: draft.enabled,
+        canEnable: draft.canEnable,
+        order: draft.order,
+        currentTurn: draft.currentTurn,
+        complete: draft.complete,
+        matchday: draft.matchday,
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read draft mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/bench-mode') {
+    try {
+      const state = await readLeagueState()
+      const benchMode = getBenchModeStatus(state.storage)
+      sendJson(response, 200, benchMode)
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read bench mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/bench-mode') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can change bench mode.' })
+        return true
+      }
+
+      const enabled = body.enabled === true
+      const state = await readLeagueState()
+      const benchMode = getBenchModeStatus(state.storage)
+      if (!benchMode.canToggle) {
+        sendJson(response, 409, { error: 'Cannot change bench mode while users have players selected.' })
+        return true
+      }
+
+      const nextStorage = { ...state.storage, [benchModeStorageKey]: enabled ? 'true' : 'false' }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { enabled })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to update bench mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-mode') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can change draft mode.' })
+        return true
+      }
+      const enabling = body.enabled === true
+      const state = await readLeagueState()
+
+      const matchday = getGlobalMatchday(state.storage)
+      if (matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft mode can only be changed before matchday 1 starts.' })
+        return true
+      }
+
+      if (enabling) {
+        if (!areAllTeamsEmpty(state.storage)) {
+          sendJson(response, 409, { error: 'Cannot enable draft mode while users have players selected.' })
+          return true
+        }
+      }
+
+      const nextStorage = { ...state.storage, [draftModeStorageKey]: enabling ? 'true' : 'false' }
+      if (!enabling) {
+        delete nextStorage[draftOrderStorageKey]
+        delete nextStorage[draftNextIndexStorageKey]
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { enabled: enabling })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to update draft mode.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-order') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can set draft order.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Enable draft mode first.' })
+        return true
+      }
+      if (draft.matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft can only be configured before matchday 1 starts.' })
+        return true
+      }
+      if (!areAllTeamsEmpty(state.storage)) {
+        sendJson(response, 409, { error: 'All users must have empty teams before setting draft order.' })
+        return true
+      }
+
+      const usernames = getRegisteredUsernames(state.storage)
+      if (usernames.length < 2) {
+        sendJson(response, 409, { error: 'At least two registered users are required for draft mode.' })
+        return true
+      }
+
+      const rawOrder = Array.isArray(body.order)
+        ? body.order
+        : typeof body.order === 'string'
+          ? body.order.split(',')
+          : []
+      const order = normalizeDraftOrder(rawOrder, usernames)
+
+      if (order.length !== usernames.length) {
+        sendJson(response, 400, { error: 'Draft order must include each registered user exactly once.' })
+        return true
+      }
+
+      const nextStorage = {
+        ...state.storage,
+        [draftOrderStorageKey]: JSON.stringify(order),
+        [draftNextIndexStorageKey]: '0',
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { order, currentTurn: order[0] })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to save draft order.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/draft-pick') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Draft mode is not enabled.' })
+        return true
+      }
+      if (draft.matchday !== 1) {
+        sendJson(response, 409, { error: 'Draft picks are only allowed before matchday 1 starts.' })
+        return true
+      }
+      if (draft.complete || !draft.currentTurn || draft.currentIndex < 0) {
+        sendJson(response, 409, { error: 'Draft is complete or not configured yet.' })
+        return true
+      }
+
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      if (!user || !playerKey) {
+        sendJson(response, 400, { error: 'user and playerKey are required.' })
+        return true
+      }
+      if (user.toLowerCase() !== draft.currentTurn.toLowerCase()) {
+        sendJson(response, 409, { error: `It is ${draft.currentTurn}'s turn.` })
+        return true
+      }
+
+      for (const [storageKey, rawValue] of Object.entries(state.storage)) {
+        if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+          continue
+        }
+        const pickedKeys = parseSelectedPlayerKeys(rawValue)
+        if (pickedKeys.includes(playerKey)) {
+          sendJson(response, 409, { error: 'That player has already been drafted.' })
+          return true
+        }
+      }
+
+      const userStorageKey = `${teamStatePrefix}${draft.currentTurn}`
+      const currentUserState = getUserTeamState(state.storage[userStorageKey] ?? '{}')
+      if (currentUserState.selectedPlayerKeys.length >= 11) {
+        sendJson(response, 409, { error: 'Current turn user already has 11 players.' })
+        return true
+      }
+
+      const nextUserKeys = [...currentUserState.selectedPlayerKeys, playerKey]
+      const nextStorage = {
+        ...state.storage,
+        [userStorageKey]: JSON.stringify({
+          ...currentUserState.base,
+          selectedPlayerKeys: nextUserKeys,
+        }),
+      }
+
+      const nextCounts = getTeamPlayerCounts(nextStorage)
+      const nextIndex = getNextEligibleDraftIndex(draft.order, nextCounts, draft.currentIndex + 1)
+      nextStorage[draftNextIndexStorageKey] = String(nextIndex < 0 ? 0 : nextIndex)
+
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, {
+        complete: nextIndex < 0,
+        currentTurn: nextIndex < 0 ? null : draft.order[nextIndex],
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to save draft pick.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/player-transfer-requests') {
+    const user = (url.searchParams.get('user') ?? '').trim()
+    if (!user) {
+      sendJson(response, 400, { error: 'user is required.' })
+      return true
+    }
+
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 200, { incoming: [], outgoing: [] })
+        return true
+      }
+      const requests = readTransferRequests(state.storage)
+      const incoming = requests.filter((item) => item.toUser.toLowerCase() === user.toLowerCase())
+      const outgoing = requests.filter((item) => item.fromUser.toLowerCase() === user.toLowerCase())
+      sendJson(response, 200, { incoming, outgoing })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read transfer requests.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/transfer-history') {
+    try {
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      const sales = readTransferHistory(state.storage)
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      sendJson(response, 200, { sales, draftEnabled: draft.enabled })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read transfer history.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/transfer-history') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const eventType = typeof body.type === 'string' ? body.type.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      const playerName = typeof body.playerName === 'string' ? body.playerName.trim() : ''
+      const marketPriceRaw = Number(body.marketPrice)
+      const salePriceRaw = Number(body.salePrice)
+      const marketPrice = Number.isFinite(marketPriceRaw) ? Number(marketPriceRaw.toFixed(1)) : Number.NaN
+      const salePrice = Number.isFinite(salePriceRaw) ? Number(salePriceRaw.toFixed(1)) : Number.NaN
+
+      if (!user || !playerKey || !playerName || !Number.isFinite(marketPrice) || !Number.isFinite(salePrice)) {
+        sendJson(response, 400, { error: 'Invalid transfer history payload.' })
+        return true
+      }
+
+      if (eventType !== 'market-buy' && eventType !== 'market-sell') {
+        sendJson(response, 400, { error: 'Invalid transfer history type.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const sales = readTransferHistory(state.storage)
+      const matchday = getGlobalMatchday(state.storage)
+      const nextSale = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        playerKey,
+        playerName,
+        buyerUser: eventType === 'market-buy' ? user : 'Open Market',
+        sellerUser: eventType === 'market-sell' ? user : 'Open Market',
+        marketPrice,
+        salePrice,
+        type: eventType,
+        matchday,
+        createdAt: new Date().toISOString(),
+      }
+
+      const nextStorage = {
+        ...state.storage,
+        [transferHistoryStorageKey]: JSON.stringify([...sales, nextSale]),
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { sale: nextSale })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to write transfer history.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/player-transfer-requests') {
+    try {
+      const body = await readJsonBody(request)
+      const fromUser = typeof body.user === 'string' ? body.user.trim() : ''
+      const playerKey = typeof body.playerKey === 'string' ? body.playerKey.trim() : ''
+      const playerName = typeof body.playerName === 'string' ? body.playerName.trim() : ''
+      const position = typeof body.position === 'string' ? body.position.trim() : ''
+      const marketPriceRaw = Number(body.marketPrice)
+      const marketPrice = Number.isFinite(marketPriceRaw) ? Number(marketPriceRaw.toFixed(1)) : Number.NaN
+      const offeredPriceRaw = Number(body.offeredPrice)
+      const offeredPrice = Number.isFinite(offeredPriceRaw) ? Number(offeredPriceRaw.toFixed(1)) : Number.NaN
+      if (!fromUser || !playerKey || !playerName || !position || !Number.isFinite(marketPrice) || !Number.isFinite(offeredPrice) || offeredPrice < 0) {
+        sendJson(response, 400, { error: 'user, playerKey, playerName, position, marketPrice and a valid offeredPrice are required.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Transfer requests require draft mode to be enabled.' })
+        return true
+      }
+      if (draft.matchday === 1 && !draft.complete) {
+        sendJson(response, 409, { error: 'Transfer requests are only available after the draft is complete.' })
+        return true
+      }
+
+      const owner = getPlayerOwner(state.storage, playerKey)
+      if (!owner) {
+        sendJson(response, 404, { error: 'Player is not currently owned.' })
+        return true
+      }
+      if (owner.toLowerCase() === fromUser.toLowerCase()) {
+        sendJson(response, 409, { error: 'You already own that player.' })
+        return true
+      }
+
+      const requests = readTransferRequests(state.storage)
+      const hasPending = requests.some(
+        (item) =>
+          item.status === 'pending' &&
+          item.playerKey === playerKey &&
+          item.fromUser.toLowerCase() === fromUser.toLowerCase() &&
+          item.toUser.toLowerCase() === owner.toLowerCase(),
+      )
+      if (hasPending) {
+        sendJson(response, 409, { error: 'A request for this player is already pending.' })
+        return true
+      }
+
+      const nextRequest = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        playerKey,
+        playerName,
+        marketPrice,
+        position,
+        fromUser,
+        toUser: owner,
+        offeredPrice,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      }
+      const nextStorage = {
+        ...state.storage,
+        [transferRequestsStorageKey]: JSON.stringify([...requests, nextRequest]),
+      }
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { request: nextRequest })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to create transfer request.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/player-transfer-requests/respond') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim() : ''
+      const requestId = typeof body.requestId === 'string' ? body.requestId.trim() : ''
+      const decision = typeof body.decision === 'string' ? body.decision.trim().toLowerCase() : ''
+
+      if (!user || !requestId || (decision !== 'accept' && decision !== 'deny')) {
+        sendJson(response, 400, { error: 'user, requestId and decision (accept|deny) are required.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const draft = getDraftStatus(state.storage)
+      if (!draft.enabled) {
+        sendJson(response, 409, { error: 'Transfer responses require draft mode to be enabled.' })
+        return true
+      }
+      const requests = readTransferRequests(state.storage)
+      const requestIndex = requests.findIndex((item) => item.id === requestId)
+      if (requestIndex < 0) {
+        sendJson(response, 404, { error: 'Transfer request not found.' })
+        return true
+      }
+
+      const targetRequest = requests[requestIndex]
+      if (targetRequest.toUser.toLowerCase() !== user.toLowerCase()) {
+        sendJson(response, 403, { error: 'Only the current owner can respond to this request.' })
+        return true
+      }
+      if (targetRequest.status !== 'pending') {
+        sendJson(response, 409, { error: 'This request has already been processed.' })
+        return true
+      }
+
+      const now = new Date().toISOString()
+      const nextStorage = { ...state.storage }
+
+      if (decision === 'accept') {
+        const ownerStorageKey = `${teamStatePrefix}${targetRequest.toUser}`
+        const requesterStorageKey = `${teamStatePrefix}${targetRequest.fromUser}`
+        const ownerState = getUserTeamState(state.storage[ownerStorageKey] ?? '{}')
+        const requesterState = getUserTeamState(state.storage[requesterStorageKey] ?? '{}')
+
+        if (!ownerState.selectedPlayerKeys.includes(targetRequest.playerKey)) {
+          sendJson(response, 409, { error: 'Owner no longer has this player.' })
+          return true
+        }
+        if (requesterState.selectedPlayerKeys.includes(targetRequest.playerKey)) {
+          sendJson(response, 409, { error: 'Requester already has this player.' })
+          return true
+        }
+        if (requesterState.selectedPlayerKeys.length >= 11) {
+          sendJson(response, 409, { error: 'Requester already has 11 players.' })
+          return true
+        }
+        if (requesterState.remainingBudget < targetRequest.offeredPrice) {
+          sendJson(response, 409, { error: 'Requester does not have enough budget for this offer.' })
+          return true
+        }
+
+        const nextOwnerBudget = Number((ownerState.remainingBudget + targetRequest.offeredPrice).toFixed(1))
+        const nextRequesterBudget = Number((requesterState.remainingBudget - targetRequest.offeredPrice).toFixed(1))
+
+        nextStorage[ownerStorageKey] = JSON.stringify({
+          ...ownerState.base,
+          selectedPlayerKeys: ownerState.selectedPlayerKeys.filter((key) => key !== targetRequest.playerKey),
+          remainingBudget: nextOwnerBudget,
+        })
+        nextStorage[requesterStorageKey] = JSON.stringify({
+          ...requesterState.base,
+          selectedPlayerKeys: [...requesterState.selectedPlayerKeys, targetRequest.playerKey],
+          remainingBudget: Math.max(0, nextRequesterBudget),
+        })
+
+        const sales = readTransferHistory(state.storage)
+        const nextSale = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          playerKey: targetRequest.playerKey,
+          playerName: targetRequest.playerName ?? targetRequest.playerKey,
+          buyerUser: targetRequest.fromUser,
+          sellerUser: targetRequest.toUser,
+          marketPrice: Number.isFinite(targetRequest.marketPrice)
+            ? Number(targetRequest.marketPrice)
+            : Number(targetRequest.offeredPrice ?? 0),
+          salePrice: Number(targetRequest.offeredPrice ?? 0),
+          type: 'user-transfer',
+          matchday: getGlobalMatchday(state.storage),
+          createdAt: now,
+        }
+        nextStorage[transferHistoryStorageKey] = JSON.stringify([...sales, nextSale])
+      }
+
+      const nextRequests = [...requests]
+      nextRequests[requestIndex] = {
+        ...targetRequest,
+        status: decision === 'accept' ? 'accepted' : 'denied',
+        resolvedAt: now,
+      }
+      nextStorage[transferRequestsStorageKey] = JSON.stringify(nextRequests)
+
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { ok: true })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to respond to transfer request.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/claimed-players') {
+    const requestingUser = (url.searchParams.get('user') ?? '').trim()
+    try {
+      const state = await readLeagueState()
+      if (state.storage[draftModeStorageKey] !== 'true') {
+        sendJson(response, 200, { claimed: {} })
+        return true
+      }
+      // Map of playerKey -> username for all players claimed by other users
+      const claimed = {}
+      for (const [storageKey, rawValue] of Object.entries(state.storage)) {
+        if (!storageKey.startsWith(teamStatePrefix)) continue
+        const owner = storageKey.slice(teamStatePrefix.length)
+        if (owner === requestingUser) continue
+        try {
+          const teamState = JSON.parse(rawValue)
+          if (!Array.isArray(teamState.selectedPlayerKeys)) continue
+          for (const playerKey of teamState.selectedPlayerKeys) {
+            if (typeof playerKey === 'string') {
+              claimed[playerKey] = owner
+            }
+          }
+        } catch { /* skip malformed entries */ }
+      }
+      sendJson(response, 200, { claimed })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read claimed players.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/fixtures') {
+    try {
+      const matchdays = await readFixtureMatchdays()
+      const state = await readLeagueState()
+      await syncStoredFixtureResultsWithFixtureFile(state, matchdays)
+      sendJson(response, 200, { matchdays })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read fixtures file.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/wc-fixtures') {
+    try {
+      const matchdays = await readWCFixtureMatchdays()
+      const state = await readLeagueState()
+      const storedResults = readStoredFixtureResults(state.storage)
+      const updatedFromStoredResults = applyStoredResultsToWCFixtureMatchdays(matchdays, storedResults)
+      const updatedFromEspnScorers = await backfillMissingWcScorers(matchdays, new Date())
+      if (updatedFromStoredResults || updatedFromEspnScorers) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(matchdays, null, 2)}\n`, 'utf8')
+      }
+      sendJson(response, 200, { matchdays })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read WC fixtures file.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/fixtures/results') {
+    try {
+      const state = await readLeagueState()
+      const results = readStoredFixtureResults(state.storage)
+      sendJson(response, 200, { results })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to read fixture results.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/fixtures/check-scores') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can check scores.' })
+        return true
+      }
+
+      const apiFootballKey = getApiFootballKey()
+      if (!apiFootballKey) {
+        sendJson(response, 422, {
+          error: 'Score checking requires SPORTAPI_TOKEN (or SPORT_API_TOKEN/SPORTAPI_BEARER_TOKEN) on the server.',
+        })
+        return true
+      }
+
+      const fixtureMatchdays = await readWCFixtureMatchdays()
+      const state = await readLeagueState()
+      const existingResults = readStoredFixtureResults(state.storage)
+      const resultByKey = new Map(existingResults.map((result) => [fixtureResultIdentityKey(result), result]))
+      const now = new Date()
+
+      let added = 0
+      let scanned = 0
+      for (const matchday of fixtureMatchdays) {
+        for (const game of matchday.games) {
+          if (!isFixtureDueForScoreCheck(game, now)) {
+            continue
+          }
+
+          const identityKey = `${matchday.matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
+          scanned += 1
+          try {
+            const result = await getFixtureResult(game, matchday.matchday, now, apiFootballKey)
+            if (!result) {
+              continue
+            }
+
+            const existing = resultByKey.get(identityKey)
+            const existingScorers = Array.isArray(existing?.scorers) ? existing.scorers : []
+            const nextScorers = Array.isArray(result.scorers) ? result.scorers : []
+            const shouldUpdate =
+              !existing ||
+              existing.homeScore !== result.homeScore ||
+              existing.awayScore !== result.awayScore ||
+              JSON.stringify(existingScorers) !== JSON.stringify(nextScorers)
+
+            if (shouldUpdate) {
+              resultByKey.set(identityKey, result)
+              if (!existing) {
+                added += 1
+              }
+            }
+          } catch {
+            continue
+          }
+        }
+      }
+
+      const nextResults = Array.from(resultByKey.values())
+      const nextStorage = {
+        ...state.storage,
+        [fixtureResultsStorageKey]: JSON.stringify(nextResults),
+      }
+      await writeLeagueState(nextStorage)
+
+      // Keep WC fixture scorelines in sync with imported results so the Fixtures page shows latest scores.
+      let wcScoresUpdated = false
+      for (const matchday of fixtureMatchdays) {
+        for (const game of matchday.games) {
+          const identityKey = `${matchday.matchday}|${game.date}|${game.time}||${game.match}`
+          const result = resultByKey.get(identityKey)
+          if (!result) {
+            continue
+          }
+
+          const nextScorers = Array.isArray(result.scorers) ? result.scorers : []
+          const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+          const nextConduct = {
+            homeYellowCards: Number.isFinite(result.homeYellowCards) ? Math.max(0, Math.floor(result.homeYellowCards)) : 0,
+            awayYellowCards: Number.isFinite(result.awayYellowCards) ? Math.max(0, Math.floor(result.awayYellowCards)) : 0,
+            homeRedCards: Number.isFinite(result.homeRedCards) ? Math.max(0, Math.floor(result.homeRedCards)) : 0,
+            awayRedCards: Number.isFinite(result.awayRedCards) ? Math.max(0, Math.floor(result.awayRedCards)) : 0,
+          }
+          const currentConduct = {
+            homeYellowCards: Number.isFinite(game.homeYellowCards) ? Math.max(0, Math.floor(game.homeYellowCards)) : 0,
+            awayYellowCards: Number.isFinite(game.awayYellowCards) ? Math.max(0, Math.floor(game.awayYellowCards)) : 0,
+            homeRedCards: Number.isFinite(game.homeRedCards) ? Math.max(0, Math.floor(game.homeRedCards)) : 0,
+            awayRedCards: Number.isFinite(game.awayRedCards) ? Math.max(0, Math.floor(game.awayRedCards)) : 0,
+          }
+
+          if (
+            game.homeScore !== result.homeScore ||
+            game.awayScore !== result.awayScore ||
+            JSON.stringify(currentScorers) !== JSON.stringify(nextScorers) ||
+            JSON.stringify(currentConduct) !== JSON.stringify(nextConduct)
+          ) {
+            game.homeScore = result.homeScore
+            game.awayScore = result.awayScore
+            if (nextScorers.length > 0) {
+              game.scorers = nextScorers
+            } else if ('scorers' in game) {
+              delete game.scorers
+            }
+            if (nextConduct.homeYellowCards > 0) game.homeYellowCards = nextConduct.homeYellowCards
+            else if ('homeYellowCards' in game) delete game.homeYellowCards
+            if (nextConduct.awayYellowCards > 0) game.awayYellowCards = nextConduct.awayYellowCards
+            else if ('awayYellowCards' in game) delete game.awayYellowCards
+            if (nextConduct.homeRedCards > 0) game.homeRedCards = nextConduct.homeRedCards
+            else if ('homeRedCards' in game) delete game.homeRedCards
+            if (nextConduct.awayRedCards > 0) game.awayRedCards = nextConduct.awayRedCards
+            else if ('awayRedCards' in game) delete game.awayRedCards
+            wcScoresUpdated = true
+          }
+        }
+      }
+
+      if (wcScoresUpdated) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(fixtureMatchdays, null, 2)}\n`, 'utf8')
+      }
+
+      sendJson(response, 200, {
+        added,
+        scanned,
+        total: nextResults.length,
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to check fixture scores.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/rescan-fixtures') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can trigger a rescan.' })
+        return true
+      }
+
+      const state = await readLeagueState()
+      const nextStorage = { ...state.storage }
+      delete nextStorage[serverAutoImportedIdsKey]
+      delete nextStorage[serverAutoImportedFixtureIdsKey]
+      delete nextStorage[serverAutoScannedFixtureKeys]
+      delete nextStorage[serverPlayerPointsKey]
+      await writeLeagueState(nextStorage)
+
+      const summary = await serverScanDueFixturesAndImport()
+
+      sendJson(response, 200, {
+        ok: true,
+        message: 'Auto-scan history cleared. Rescan completed.',
+        summary,
+      })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to trigger rescan.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/backup-now') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can trigger a backup.' })
+        return true
+      }
+
+      const file = await backupLeagueStateManualWithEpoch()
+      sendJson(response, 200, { ok: true, file })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to create backup right now.' })
+    }
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/set-global-matchday') {
+    try {
+      const body = await readJsonBody(request)
+      const user = typeof body.user === 'string' ? body.user.trim().toLowerCase() : ''
+      if (user !== 'lee') {
+        sendJson(response, 403, { error: 'Only lee can set gameweek.' })
+        return true
+      }
+
+      const parsedMatchday = Number.parseInt(String(body.matchday ?? ''), 10)
+      if (!Number.isFinite(parsedMatchday) || parsedMatchday < 0) {
+        sendJson(response, 400, { error: 'matchday must be a number >= 0.' })
+        return true
+      }
+
+      const safeMatchday = Math.max(0, Math.floor(parsedMatchday))
+      const state = await readLeagueState()
+      const nextStorage = applyMatchdayAdvanceRollover(state.storage, {
+        ...state.storage,
+        [globalMatchdayStorageKey]: String(safeMatchday),
+      })
+
+      await writeLeagueState(nextStorage)
+      sendJson(response, 200, { ok: true, matchday: safeMatchday })
+    } catch {
+      sendJson(response, 500, { error: 'Unable to set gameweek right now.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/league-state') {
+    const state = await readLeagueState()
+    sendJson(response, 200, state)
+    return true
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/league-storage/batch') {
+    try {
+      const currentState = await readLeagueState()
+      const body = await readJsonBody(request)
+      const setEntries = sanitizeStorage(body.set)
+      const removeKeys = Array.isArray(body.remove)
+        ? body.remove.filter(
+            (key) =>
+              typeof key === 'string' &&
+              key.startsWith('fantasy-football-') &&
+              key !== 'fantasy-football-current-user',
+          )
+        : []
+
+      const nextStorage = {
+        ...currentState.storage,
+        ...setEntries,
+      }
+
+      for (const key of removeKeys) {
+        delete nextStorage[key]
+      }
+
+      const nextStorageWithRollover = applyMatchdayAdvanceRollover(currentState.storage, nextStorage)
+      const nextState = await writeLeagueState(nextStorageWithRollover)
+      sendJson(response, 200, nextState)
+    } catch {
+      sendJson(response, 400, { error: 'Invalid shared storage request.' })
+    }
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/match-stats/search') {
+    const query = (url.searchParams.get('query') ?? '').trim()
+    if (query.length < 3) {
+      sendJson(response, 400, { error: 'Query must be at least 3 characters.' })
+      return true
+    }
+
+    try {
+      const matches = await searchFinishedSoccerEvents(query)
+      sendJson(response, 200, { matches })
+    } catch {
+      sendJson(response, 502, { error: 'Unable to search matches right now.' })
+    }
+
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/match-stats/players') {
+    const eventId = (url.searchParams.get('eventId') ?? '').trim()
+    if (!eventId) {
+      sendJson(response, 400, { error: 'eventId is required.' })
+      return true
+    }
+
+    try {
+      const event = await getEventById(eventId)
+      if (!event) {
+        sendJson(response, 404, { error: 'Match not found.' })
+        return true
+      }
+
+      if (!event.idApiFootball) {
+        sendJson(response, 422, {
+          error: 'No player-stat provider ID is available for this match.',
+          event,
+        })
+        return true
+      }
+
+      const apiFootballKey = getApiFootballKey()
+      if (!apiFootballKey) {
+        sendJson(response, 422, {
+          error:
+            'Player-stat auto import requires SPORTAPI_TOKEN (or SPORT_API_TOKEN/SPORTAPI_BEARER_TOKEN) on the host server.',
+          event,
+        })
+        return true
+      }
+
+      const players = await getApiFootballPlayerStats(event.idApiFootball, apiFootballKey)
+      sendJson(response, 200, {
+        event,
+        players,
+      })
+    } catch {
+      sendJson(response, 502, { error: 'Unable to fetch player stats for this match.' })
+    }
+
+    return true
+  }
+
+  return false
+}
+
+function getContentType(filePath) {
+  const extension = path.extname(filePath).toLowerCase()
+
+  if (extension === '.html') return 'text/html; charset=utf-8'
+  if (extension === '.js') return 'text/javascript; charset=utf-8'
+  if (extension === '.css') return 'text/css; charset=utf-8'
+  if (extension === '.json') return 'application/json; charset=utf-8'
+  if (extension === '.svg') return 'image/svg+xml'
+  if (extension === '.png') return 'image/png'
+  if (extension === '.jpg' || extension === '.jpeg') return 'image/jpeg'
+  if (extension === '.webp') return 'image/webp'
+  if (extension === '.ico') return 'image/x-icon'
+  if (extension === '.txt') return 'text/plain; charset=utf-8'
+
+  return 'application/octet-stream'
+}
+
+function formatDateForBackupFile(date) {
+  const year = String(date.getFullYear())
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}-${hours}-${minutes}-${seconds}`
+}
+
+function getMsUntilNextHour(fromDate = new Date()) {
+  const nextHour = new Date(fromDate)
+  nextHour.setMinutes(0, 0, 0)
+  nextHour.setHours(nextHour.getHours() + 1)
+  return nextHour.getTime() - fromDate.getTime()
+}
+
+async function backupLeagueStateWithDateStamp() {
+  await ensureDataFile()
+  await mkdir(leagueBackupDirectory, { recursive: true })
+
+  const dateStamp = formatDateForBackupFile(new Date())
+  const backupFileName = await buildUniqueBackupFileName(`league-state-${dateStamp}`)
+  const backupFilePath = path.join(leagueBackupDirectory, backupFileName)
+
+  await copyFile(leagueStatePath, backupFilePath)
+  await pruneOldLeagueBackups()
+  console.log(`[backup] Saved ${backupFileName}`)
+  return backupFileName
+}
+
+async function backupLeagueStateManualWithEpoch() {
+  await ensureDataFile()
+  await mkdir(leagueBackupDirectory, { recursive: true })
+
+  const epoch = Date.now()
+  const backupFileName = await buildUniqueBackupFileName(`backup-manual-epoc-${epoch}`)
+  const backupFilePath = path.join(leagueBackupDirectory, backupFileName)
+
+  await copyFile(leagueStatePath, backupFilePath)
+  await pruneOldLeagueBackups()
+  console.log(`[backup] Saved ${backupFileName}`)
+  return backupFileName
+}
+
+async function pruneOldLeagueBackups() {
+  const entries = await readdir(leagueBackupDirectory, { withFileTypes: true })
+  const backupFiles = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .map((entry) => entry.name)
+
+  if (backupFiles.length <= maxLeagueBackupFiles) {
+    return
+  }
+
+  const filesWithMtime = await Promise.all(
+    backupFiles.map(async (name) => {
+      const filePath = path.join(leagueBackupDirectory, name)
+      const fileStat = await stat(filePath)
+      return {
+        name,
+        filePath,
+        mtimeMs: fileStat.mtimeMs,
+      }
+    }),
+  )
+
+  filesWithMtime.sort((a, b) => b.mtimeMs - a.mtimeMs)
+  const toDelete = filesWithMtime.slice(maxLeagueBackupFiles)
+  await Promise.all(toDelete.map((entry) => unlink(entry.filePath)))
+
+  if (toDelete.length > 0) {
+    console.log(`[backup] Pruned ${toDelete.length} old backup files (keeping latest ${maxLeagueBackupFiles})`)
+  }
+}
+
+async function buildUniqueBackupFileName(baseName) {
+  let attempt = 0
+
+  while (true) {
+    const suffix = attempt === 0 ? '' : `-${attempt}`
+    const candidate = `${baseName}${suffix}.json`
+    const candidatePath = path.join(leagueBackupDirectory, candidate)
+
+    try {
+      await stat(candidatePath)
+      attempt += 1
+    } catch {
+      return candidate
+    }
+  }
+}
+
+function scheduleLeagueStateHourlyBackups() {
+  const delayMs = getMsUntilNextHour()
+  console.log(`[backup] Next league-state backup in ${Math.round(delayMs / 60000)} min`)
+
+  setTimeout(() => {
+    void backupLeagueStateWithDateStamp()
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        console.error(`[backup] Failed to write league-state backup: ${message}`)
+      })
+      .finally(() => {
+        scheduleLeagueStateHourlyBackups()
+      })
+  }, delayMs)
+}
+
+async function serveStaticFile(request, response) {
+  const requestUrl = new URL(request.url ?? '/', 'http://localhost')
+  const normalizedPath = decodeURIComponent(requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname)
+  const filePath = path.join(distDirectory, normalizedPath)
+
+  if (!filePath.startsWith(distDirectory)) {
+    sendPlainText(response, 403, 'Forbidden')
+    return
+  }
+
+  try {
+    const fileStats = await stat(filePath)
+    if (!fileStats.isFile()) {
+      sendPlainText(response, 404, 'Not found')
+      return
+    }
+
+    response.writeHead(200, {
+      'Content-Type': getContentType(filePath),
+    })
+    createReadStream(filePath).pipe(response)
+  } catch {
+    sendPlainText(response, 404, 'Not found')
+  }
+}
+
+async function createDevelopmentServer(host, port) {
+  const { createServer } = await import('vite')
+  const vite = await createServer({
+    server: {
+      middlewareMode: true,
+      host,
+      port,
+      allowedHosts: true,
+    },
+    appType: 'mpa',
+  })
+
+  const server = createHttpServer(async (request, response) => {
+    if (await handleApiRequest(request, response)) {
+      return
+    }
+
+    vite.middlewares(request, response, () => {
+      sendPlainText(response, 404, 'Not found')
+    })
+  })
+
+  return { server, vite }
+}
+
+async function createProductionServer() {
+  await ensureDataFile()
+
+  const server = createHttpServer(async (request, response) => {
+    if (await handleApiRequest(request, response)) {
+      return
+    }
+
+    await serveStaticFile(request, response)
+  })
+
+  return { server }
+}
+
+// ========== SERVER-SIDE FIXTURE AUTO-SCANNER ==========
+
+const teamsFilePath = path.join(__dirname, 'teams.txt')
+const serverAutoImportedIdsKey = 'fantasy-football-auto-imported-event-ids'
+const serverAutoImportedFixtureIdsKey = 'fantasy-football-auto-imported-fixture-ids'
+const serverAutoScannedFixtureKeys = 'fantasy-football-auto-scanned-fixture-keys'
+const serverPlayerPointsKey = 'fantasy-football-player-points'
+const serverMatchingVersionKey = 'fantasy-football-matching-version'
+// Bump this string whenever the player/team matching logic changes so the server
+// automatically clears the import cache and re-processes all fixtures on next start.
+const serverMatchingVersion = '5'
+const serverAutoScanDelayMs = 3 * 60 * 60 * 1000 // 3 hours
+const serverAutoScanRetryDelayMs = 30 * 60 * 1000 // 30 minutes
+const serverAutoScanRetryWindowMs = 3 * 60 * 60 * 1000 // stop retrying 3h after first unresolved request
+const serverSchedulerMaxDelayMs = 2_147_000_000
+const serverFixtureRetryTimers = new Map()
+const serverFixtureRetryFirstRequestMs = new Map()
+
+// ---- Player data parsing (mirrors teamsData.ts) ----
+
+const serverSquadLineRegex = /^(Goalkeepers|Defenders|Midfielders|Forwards|Midfielders\s*&\s*forwards)\s*:/i
+
+function serverNormalizePosition(position) {
+  const n = position.trim().toLowerCase()
+  if (n.includes('goalkeeper')) return 'Goalkeeper'
+  if (n.includes('defender')) return 'Defender'
+  if (n.includes('forwards') || n.includes('forwad') || n.includes('forward')) return 'Forward'
+  if (n.includes('midfielders') && n.includes('forwards')) return 'Midfielder/Forward'
+  if (n.includes('midfielder')) return 'Midfielder'
+  return 'Player'
+}
+
+function serverIsLikelyTeamLine(line) {
+  if (!line || line.includes(':')) return false
+  if (line.startsWith('FIFA World Cup')) return false
+  const lower = line.toLowerCase()
+  if (lower === 'all' || lower === 'exclusive' || lower === 'highlights') return false
+  if (lower.includes('spain win gold') || lower.includes('duration time')) return false
+  if (line.length > 70) return false
+  return /^[A-Za-z0-9\u00C0-\u024F''&.\-\s()]+$/.test(line)
+}
+
+function serverParseTeamLine(line) {
+  const m = line.match(/^(.*?)\s*\(([^)]+)\)\s*$/)
+  if (m) return { name: m[1].trim(), status: m[2].toLowerCase().includes('final') ? 'final' : 'preliminary' }
+  return { name: line.trim(), status: 'preliminary' }
+}
+
+function serverNormalizePlayerName(raw) {
+  return raw.replace(/\s*\([^)]*\)/g, '').replace(/^[^A-Za-z0-9\u00C0-\u024F]+/, '').trim()
+}
+
+function serverParsePlayerToken(token) {
+  const priceMatch = token.match(/\[(\d+(?:\.\d+)?)\]\s*$/)
+  if (priceMatch) {
+    const price = parseFloat(priceMatch[1])
+    token = token.slice(0, token.lastIndexOf('[')).trimEnd()
+    return { name: serverNormalizePlayerName(token), price }
+  }
+  return { name: serverNormalizePlayerName(token), price: undefined }
+}
+
+function serverParseTeamsFromText(rawText) {
+  const teams = []
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim())
+  let currentTeam = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line) continue
+
+    if (serverIsLikelyTeamLine(line)) {
+      const lookAhead = lines.slice(i + 1, i + 6).join(' ')
+      if (!/Goalkeepers\s*:/.test(lookAhead)) continue
+      const { name, status } = serverParseTeamLine(line)
+      currentTeam = { name, status, players: [] }
+      teams.push(currentTeam)
+      continue
+    }
+
+    if (!currentTeam || !serverSquadLineRegex.test(line)) continue
+
+    const positionPart = line.split(':')[0]?.trim() ?? ''
+    const position = serverNormalizePosition(positionPart)
+    const playersPart = line.split(':').slice(1).join(':').trim()
+    if (!playersPart) continue
+
+    for (const token of playersPart.split(',').map((t) => t.trim()).filter(Boolean)) {
+      const { name } = serverParsePlayerToken(token)
+      if (name && !currentTeam.players.some((p) => p.name === name)) {
+        currentTeam.players.push({ name, position })
+      }
+    }
+  }
+
+  return teams
+}
+
+let cachedServerPlayers = null
+
+async function getServerPlayers() {
+  if (cachedServerPlayers) return { players: cachedServerPlayers }
+  const rawText = await readFile(teamsFilePath, 'utf8')
+  const teams = serverParseTeamsFromText(rawText)
+  cachedServerPlayers = teams.flatMap((team) => team.players.map((p) => ({ name: p.name, position: p.position, team: team.name })))
+  return { players: cachedServerPlayers }
+}
+
+// ---- Team/player name tokenisation (mirrors stats.ts) ----
+
+function serverToToken(value) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+const serverAutoScanTeamAliases = {
+  unitedstates: 'usa',
+  us: 'usa',
+  mex: 'mexico',
+  rsa: 'southafrica',
+  kor: 'southkorea',
+  cze: 'czechia',
+  can: 'canada',
+  canadanationalteam: 'canada',
+  bih: 'bosniaandherzegovina',
+  bosniaherzigovina: 'bosniaandherzegovina',
+  bosniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzigovina: 'bosniaandherzegovina',
+  bozniaandherzigovina: 'bosniaandherzegovina',
+  bozniaherzegovina: 'bosniaandherzegovina',
+  bozniaandherzegovina: 'bosniaandherzegovina',
+  boznia: 'bosniaandherzegovina',
+  par: 'paraguay',
+  qat: 'qatar',
+  sui: 'switzerland',
+  bra: 'brazil',
+  mar: 'morocco',
+  hai: 'haiti',
+  sco: 'scotland',
+  aus: 'australia',
+  tur: 'turkiye',
+  ger: 'germany',
+  cuw: 'curacao',
+  ned: 'netherlands',
+  jpn: 'japan',
+  civ: 'cotedivoire',
+  ecu: 'ecuador',
+  swe: 'sweden',
+  tun: 'tunisia',
+  esp: 'spain',
+  cpv: 'caboverde',
+  bel: 'belgium',
+  egy: 'egypt',
+  ksa: 'saudiarabia',
+  uru: 'uruguay',
+  irn: 'iran',
+  nzl: 'newzealand',
+  fra: 'france',
+  sen: 'senegal',
+  irq: 'iraq',
+  nor: 'norway',
+  arg: 'argentina',
+  alg: 'algeria',
+  aut: 'austria',
+  jor: 'jordan',
+  por: 'portugal',
+  cod: 'congodr',
+  eng: 'england',
+  cro: 'croatia',
+  gha: 'ghana',
+  pan: 'panama',
+  uzb: 'uzbekistan',
+  col: 'colombia',
+  korearepublic: 'southkorea',
+  republicofkorea: 'southkorea',
+  czechrepublic: 'czechia',
+  czecrepublic: 'czechia',
+  czecrepublic: 'czechia',
+  // Canonical team names → themselves (identity mappings for teams from teams.txt)
+  canada: 'canada',
+  mexico: 'mexico',
+  southafrica: 'southafrica',
+  southkorea: 'southkorea',
+  czechia: 'czechia',
+  bosniaandherzegovina: 'bosniaandherzegovina',
+  paraguay: 'paraguay',
+  qatar: 'qatar',
+  switzerland: 'switzerland',
+  brazil: 'brazil',
+  morocco: 'morocco',
+  haiti: 'haiti',
+  scotland: 'scotland',
+  australia: 'australia',
+  turkiye: 'turkiye',
+  germany: 'germany',
+  curacao: 'curacao',
+  netherlands: 'netherlands',
+  japan: 'japan',
+  cotedivoire: 'cotedivoire',
+  ecuador: 'ecuador',
+  sweden: 'sweden',
+  tunisia: 'tunisia',
+  spain: 'spain',
+  caboverde: 'caboverde',
+  belgium: 'belgium',
+  egypt: 'egypt',
+  saudiarabia: 'saudiarabia',
+  uruguay: 'uruguay',
+  iran: 'iran',
+  newzealand: 'newzealand',
+  france: 'france',
+  senegal: 'senegal',
+  iraq: 'iraq',
+  norway: 'norway',
+  argentina: 'argentina',
+  algeria: 'algeria',
+  austria: 'austria',
+  jordan: 'jordan',
+  portugal: 'portugal',
+  congodr: 'congodr',
+  england: 'england',
+  croatia: 'croatia',
+  ghana: 'ghana',
+  panama: 'panama',
+  uzbekistan: 'uzbekistan',
+  colombia: 'colombia',
+  // WC 2026 — common API/broadcast spellings → canonical player-team token
+  iriran: 'iran',
+  islamicrepublicofiran: 'iran',
+  turkey: 'turkiye',
+  turquie: 'turkiye',
+  ivorycoast: 'cotedivoire',
+  coteivoire: 'cotedivoire',
+  capeverde: 'caboverde',
+  drcongo: 'congodr',
+  democraticrepublicofcongo: 'congodr',
+  democraticrepublicofthecongo: 'congodr',
+  republicofthecongo: 'congodr',
+  bosniaherzegovina: 'bosniaandherzegovina',
+  bosniaandherzegovia: 'bosniaandherzegovina',
+  bosnia: 'bosniaandherzegovina',
+  // Premier League — map full API names to the abbreviated tokens used in teams.txt
+  manchestercity: 'mancity',
+  manchesterunited: 'manutd',
+  manchesterutd: 'manutd',
+  tottenham: 'spurs',
+  tottenhamhotspur: 'spurs',
+  nottinghamforest: 'nottmforest',
+  afcbournemouth: 'bournemouth',
+  westhamunited: 'westham',
+  newcastleunited: 'newcastle',
+  wolverhamptonwanderers: 'wolves',
+  brightonhovealbion: 'brighton',
+  leedsunited: 'leeds',
+  arsenalfc: 'arsenal',
+  burnleyfc: 'burnley',
+  crystalpalacefc: 'crystalpalace',
+  liverpoolfc: 'liverpool',
+  evertonfc: 'everton',
+  sunderlandafc: 'sunderland',
+  brentfordfc: 'brentford',
+  fulhamfc: 'fulham',
+  astonvilla: 'astonvilla',
+}
+
+function serverNormalizeTeamToken(teamName) {
+  const token = serverToToken(teamName)
+  return normalizeAliasToken(token, serverAutoScanTeamAliases)
+}
+
+function serverPlayerLastWordToken(name) {
+  const words = name.trim().split(/\s+/)
+  return serverToToken(words[words.length - 1])
+}
+
+// Maps API-returned player name tokens to canonical tokens used in teams.txt.
+// Needed when an API uses a different name order or spelling (e.g. Korean names
+// returned as "Given-name Surname" but stored as "Surname Given-name").
+const serverPlayerNameAliases = {
+  // Korea Republic — API returns Given-name Surname, teams.txt uses Surname Given-name
+  hanbeomlee: 'leehanbeom',
+  gihyuklee: 'leegihyuk',
+  youngwooseol: 'seolyoungwoo',
+  seunghopaik: 'paikseungho',
+  kanginlee: 'leekangin',
+  jaesunglee: 'leejaesung',
+  jisungeom: 'eomjisung',
+  hyeongyuoh: 'ohhyeongyu',
+  jingyukim: 'kimjingyu',
+  jinseobpark: 'parkjinseob',
+  wijecho: 'chowije',
+  donggyeonglee: 'leedonggyeong',
+  junhobae: 'baejunho',
+  guesungcho: 'choguesung',
+}
+
+function serverFindPlayer(players, row) {
+  const teamToken = serverNormalizeTeamToken(row.teamName)
+  const rawNameToken = serverToToken(row.playerName)
+  const nameToken = serverPlayerNameAliases[rawNameToken] ?? rawNameToken
+
+  // 1. Strict: exact team + exact name
+  const strict = players.find(
+    (p) => serverNormalizeTeamToken(p.team) === teamToken && serverToToken(p.name) === nameToken,
+  )
+  if (strict) return strict
+
+  // 2. Exact name, unique globally
+  const byName = players.filter((p) => serverToToken(p.name) === nameToken)
+  if (byName.length === 1) return byName[0]
+
+  // 3. Exact name on same team
+  const byNameAndTeam = byName.find((p) => serverNormalizeTeamToken(p.team) === teamToken)
+  if (byNameAndTeam) return byNameAndTeam
+
+  // 3a/3b. Reversed name order — handles APIs that return "Given-name Surname" when
+  //        teams.txt stores "Surname Given-name" (Korean, Japanese, etc.) and vice-versa.
+  //        "Han-Beom Lee" → try "Lee Han-Beom"; "Sano Kaishu" → try "Kaishu Sano".
+  const nameParts = row.playerName.trim().split(/\s+/)
+  if (nameParts.length >= 2) {
+    const reversedName = [nameParts[nameParts.length - 1], ...nameParts.slice(0, -1)].join(' ')
+    const reversedToken = serverToToken(reversedName)
+    if (reversedToken !== nameToken) {
+      const byReversedTeam = players.filter(
+        (p) => serverNormalizeTeamToken(p.team) === teamToken && serverToToken(p.name) === reversedToken,
+      )
+      if (byReversedTeam.length === 1) return byReversedTeam[0]
+      const byReversedAll = players.filter((p) => serverToToken(p.name) === reversedToken)
+      if (byReversedAll.length === 1) return byReversedAll[0]
+    }
+  }
+
+  const byTeam = players.filter((p) => serverNormalizeTeamToken(p.team) === teamToken)
+
+  // 4. Last-word match on same team — handles "Haaland" matching "Erling Haaland",
+  //    "De Bruyne" matching "Kevin De Bruyne", etc.
+  const lastWord = serverPlayerLastWordToken(row.playerName)
+  if (lastWord.length >= 4) {
+    const byLastWord = byTeam.filter((p) => serverPlayerLastWordToken(p.name) === lastWord)
+    if (byLastWord.length === 1) return byLastWord[0]
+  }
+
+  // 5. Suffix/prefix token match on same team — handles API returning a single-word short name
+  //    like "Ederson" that is a prefix of "Ederson Santana de Moraes", or a long name that
+  //    ends with a short teams.txt name like "haaland" being a suffix of "erlinghaaland".
+  if (nameToken.length >= 5) {
+    const partialTeam = byTeam.filter((p) => {
+      const pt = serverToToken(p.name)
+      return pt !== nameToken && (pt.endsWith(nameToken) || nameToken.endsWith(pt) || pt.startsWith(nameToken) || nameToken.startsWith(pt))
+    })
+    if (partialTeam.length === 1) return partialTeam[0]
+  }
+
+  // 6. Last-word match globally if unique
+  if (lastWord.length >= 4) {
+    const byLastWordAll = players.filter((p) => serverPlayerLastWordToken(p.name) === lastWord)
+    if (byLastWordAll.length === 1) return byLastWordAll[0]
+  }
+
+  // 7. Suffix/prefix match globally if unique
+  if (nameToken.length >= 5) {
+    const partialAll = players.filter((p) => {
+      const pt = serverToToken(p.name)
+      return pt !== nameToken && (pt.endsWith(nameToken) || nameToken.endsWith(pt) || pt.startsWith(nameToken) || nameToken.startsWith(pt))
+    })
+    if (partialAll.length === 1) return partialAll[0]
+  }
+
+  return null
+}
+
+function serverFindPlayerGlobally(players, row) {
+  const rawNameToken = serverToToken(row.playerName)
+  const nameToken = serverPlayerNameAliases[rawNameToken] ?? rawNameToken
+
+  const exact = players.find((p) => serverToToken(p.name) === nameToken)
+  if (exact) return exact
+
+  const byName = players.filter((p) => serverToToken(p.name) === nameToken)
+  if (byName.length === 1) return byName[0]
+
+  const nameParts = row.playerName.trim().split(/\s+/)
+  if (nameParts.length >= 2) {
+    const reversedName = [nameParts[nameParts.length - 1], ...nameParts.slice(0, -1)].join(' ')
+    const reversedToken = serverToToken(reversedName)
+    if (reversedToken !== nameToken) {
+      const byReversed = players.filter((p) => serverToToken(p.name) === reversedToken)
+      if (byReversed.length === 1) return byReversed[0]
+    }
+  }
+
+  const lastWord = serverPlayerLastWordToken(row.playerName)
+  if (lastWord.length >= 4) {
+    const byLastWord = players.filter((p) => serverPlayerLastWordToken(p.name) === lastWord)
+    if (byLastWord.length === 1) return byLastWord[0]
+  }
+
+  if (nameToken.length >= 5) {
+    const partial = players.filter((p) => {
+      const pt = serverToToken(p.name)
+      return pt !== nameToken && (pt.endsWith(nameToken) || nameToken.endsWith(pt) || pt.startsWith(nameToken) || nameToken.startsWith(pt))
+    })
+    if (partial.length === 1) return partial[0]
+  }
+
+  return null
+}
+
+// ---- Points calculation (mirrors pointsCalculator.ts) ----
+
+function serverGetGoalPoints(position, goals) {
+  if (goals === 0) return 0
+  const pts = { Goalkeeper: 10, Defender: 6, Midfielder: 5, Forward: 4 }
+  return goals * (pts[position] ?? 0)
+}
+
+function serverGetCleanSheetPoints(position) {
+  if (position === 'Goalkeeper' || position === 'Defender') return 4
+  if (position === 'Midfielder') return 1
+  return 0
+}
+
+function serverGetDefensePoints(position, contributions) {
+  if (position === 'Defender' && contributions >= 10) return 2
+  if ((position === 'Midfielder' || position === 'Forward') && contributions >= 12) return 2
+  return 0
+}
+
+function serverCalculatePlayerPoints(perf) {
+  let points = 0
+  const playingTimePoints = perf.minutesPlayed >= 60 ? 2 : perf.minutesPlayed > 0 ? 1 : 0
+  points += playingTimePoints
+  points += serverGetGoalPoints(perf.position, perf.goalsScored)
+  points += perf.assists * 3
+  if (perf.cleanSheet && perf.minutesPlayed >= 60) points += serverGetCleanSheetPoints(perf.position)
+  if (perf.position === 'Goalkeeper') points += Math.floor(perf.shotSaves / 3)
+  points += serverGetDefensePoints(perf.position, perf.defensiveContributions)
+  points += perf.penaltySaves * 5
+  points += perf.penaltyMisses * -2
+  if (perf.position === 'Goalkeeper' || perf.position === 'Defender') {
+    const regularGoalsConceded = Math.max(0, perf.goalsConceded - perf.penaltyShootoutGoalsConceded)
+    points += Math.floor(regularGoalsConceded / 2) * -1
+  }
+  points += perf.yellowCards * -1
+  points += perf.redCards * -3
+  return points
+}
+
+function serverGetPositionType(player) {
+  if (player.position === 'Goalkeeper') return 'Goalkeeper'
+  if (player.position === 'Defender') return 'Defender'
+  if (player.position === 'Forward') return 'Forward'
+  return 'Midfielder'
+}
+
+function serverCalculateImportedRows(players, importedRows, fixture = {}) {
+  const calculated = []
+  let skipped = 0
+  // Determine team's goals conceded from fixture result
+  const getTeamGoalsConceded = (teamName) => {
+    if (!fixture.homeTeam || !fixture.awayTeam) return 0
+    const homeTeamToken = toTeamToken(fixture.homeTeam)
+    const awayTeamToken = toTeamToken(fixture.awayTeam)
+    const playerTeamToken = toTeamToken(teamName)
+    const homeScore = Math.max(0, Math.floor(fixture.homeScore || 0))
+    const awayScore = Math.max(0, Math.floor(fixture.awayScore || 0))
+    if (playerTeamToken === homeTeamToken) return awayScore
+    if (playerTeamToken === awayTeamToken) return homeScore
+    return 0
+  }
+  for (const row of importedRows) {
+    const matched = serverFindPlayer(players, row)
+    if (!matched) { skipped++; console.log(`[auto-scan] Skipped unmatched player: "${row.playerName}" (${row.teamName})`); continue }
+    const minutesPlayed = Math.max(0, Math.floor(row.minutesPlayed))
+    const teamGoalsConceded = getTeamGoalsConceded(row.teamName)
+    const goalsConcededForPlayer = minutesPlayed > 0 ? teamGoalsConceded : 0
+    const perf = {
+      position: serverGetPositionType(matched),
+      minutesPlayed,
+      goalsScored: Math.max(0, Math.floor(row.goalsScored)),
+      assists: Math.max(0, Math.floor(row.assists)),
+      cleanSheet: teamGoalsConceded === 0 && minutesPlayed >= 60,
+      shotSaves: Math.max(0, Math.floor(row.shotSaves)),
+      defensiveContributions: Math.max(0, Math.floor(row.defensiveContributions)),
+      penaltySaves: Math.max(0, Math.floor(row.penaltySaves)),
+      penaltyMisses: Math.max(0, Math.floor(row.penaltyMisses)),
+      goalsConceded: goalsConcededForPlayer,
+      penaltyShootoutGoalsConceded: Math.max(0, Math.floor(row.penaltyShootoutGoalsConceded ?? 0)),
+      yellowCards: Math.max(0, Math.floor(row.yellowCards)),
+      redCards: Math.max(0, Math.floor(row.redCards)),
+    }
+    calculated.push({ player: matched, points: serverCalculatePlayerPoints(perf) })
+  }
+  return { calculated, skipped }
+}
+
+// ---- Fixture time/team parsing (mirrors stats.ts) ----
+
+function serverParseFixtureKickoff(game, now) {
+  const dateWithoutWeekday = game.date.includes(',') ? game.date.split(',').slice(1).join(',').trim() : game.date.trim()
+  const dateMatch = dateWithoutWeekday.match(/^([A-Za-z]+)\s+(\d{1,2})$/)
+  if (!dateMatch) return null
+  const timeMatch = game.time.trim().toLowerCase().match(/^(\d{1,2})(?:\.(\d{1,2}))?(am|pm)$/)
+  if (!timeMatch) return null
+  const months = ['january','february','march','april','may','june','july','august','september','october','november','december']
+  const monthIndex = months.indexOf(dateMatch[1].toLowerCase())
+  const day = Number.parseInt(dateMatch[2], 10)
+  if (monthIndex < 0 || !Number.isFinite(day)) return null
+  const hour12 = Number.parseInt(timeMatch[1], 10)
+  const minute = Number.parseInt(timeMatch[2] ?? '0', 10)
+  if (!Number.isFinite(hour12) || !Number.isFinite(minute)) return null
+  let hour24 = hour12 % 12
+  if (timeMatch[3] === 'pm') hour24 += 12
+  const currentYear = now.getFullYear()
+  const kickoff = new Date(currentYear, monthIndex, day, hour24, minute, 0, 0)
+  const halfYearMs = 180 * 24 * 60 * 60 * 1000
+  if (kickoff.getTime() - now.getTime() > halfYearMs) kickoff.setFullYear(currentYear - 1)
+  else if (now.getTime() - kickoff.getTime() > halfYearMs) kickoff.setFullYear(currentYear + 1)
+  return kickoff
+}
+
+function serverExtractFixtureTeams(game) {
+  if (!game.match.includes(' vs ')) return null
+  const [home, away] = game.match.split(' vs ')
+  const homeTeam = home.trim()
+  const awayTeam = away.trim()
+  if (!homeTeam || !awayTeam) return null
+  // Skip knockout-round placeholders like "Group A Winner" / "Match 1 Winner"
+  const placeholderPattern = /winner|runner.?up|match\s+\d/i
+  if (placeholderPattern.test(homeTeam) || placeholderPattern.test(awayTeam)) return null
+  return [homeTeam, awayTeam]
+}
+
+function serverSelectBestMatch(game, matches) {
+  if (!game.match.includes(' vs ')) return matches[0] ?? null
+  const [home, away] = game.match.split(' vs ')
+  const expectedHome = serverNormalizeTeamToken(home.trim())
+  const expectedAway = serverNormalizeTeamToken(away.trim())
+  return (
+    matches.find((m) => serverNormalizeTeamToken(m.homeTeam) === expectedHome && serverNormalizeTeamToken(m.awayTeam) === expectedAway) ??
+    matches.find((m) => serverNormalizeTeamToken(m.homeTeam) === expectedAway && serverNormalizeTeamToken(m.awayTeam) === expectedHome) ??
+    matches[0] ?? null
+  )
+}
+
+const fixtureResultCache = new Map()
+const fixtureResultCacheTtlMs = 15 * 60 * 1000
+const apiSportsFixtureDateCache = new Map()
+const espnScoreboardDateCache = new Map()
+const wcScorerBackfillMissingRetryMs = 12 * 60 * 60 * 1000
+
+function getFixtureResultCacheKey(matchday, game) {
+  return `${matchday}|${game.date}|${game.time}|${game.country ?? ''}|${game.match}`
+}
+
+function readFixtureResultCache(matchday, game, nowMs) {
+  const key = getFixtureResultCacheKey(matchday, game)
+  const cached = fixtureResultCache.get(key)
+  if (!cached || typeof cached !== 'object') {
+    return null
+  }
+
+  if (typeof cached.expiresAt !== 'number' || cached.expiresAt < nowMs) {
+    fixtureResultCache.delete(key)
+    return null
+  }
+
+  return cached.value ?? null
+}
+
+function writeFixtureResultCache(matchday, game, value, nowMs) {
+  const key = getFixtureResultCacheKey(matchday, game)
+  fixtureResultCache.set(key, {
+    value,
+    expiresAt: nowMs + fixtureResultCacheTtlMs,
+  })
+}
+
+function normalizeScorerEntries(value) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => ({
+      team: typeof entry.team === 'string' ? entry.team : '',
+      player: typeof entry.player === 'string' ? entry.player : '',
+      minute: typeof entry.minute === 'string' ? entry.minute : '',
+    }))
+    .filter((entry) => entry.player !== '')
+}
+
+function sanitizeWcScorerBackfillCache(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const sanitized = {}
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof key !== 'string' || !entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      continue
+    }
+
+    const status = entry.status === 'found' ? 'found' : 'missing'
+    const checkedAt = typeof entry.checkedAt === 'string' ? entry.checkedAt : ''
+    const scorers = normalizeScorerEntries(entry.scorers)
+    sanitized[key] = {
+      status,
+      checkedAt,
+      scorers: status === 'found' ? scorers : [],
+    }
+  }
+
+  return sanitized
+}
+
+async function readWcScorerBackfillCache() {
+  await mkdir(dataDirectory, { recursive: true })
+
+  try {
+    const raw = await readFile(wcScorerBackfillCachePath, 'utf8')
+    const parsed = JSON.parse(raw)
+    return sanitizeWcScorerBackfillCache(parsed)
+  } catch {
+    return {}
+  }
+}
+
+async function writeWcScorerBackfillCache(cache) {
+  const sanitized = sanitizeWcScorerBackfillCache(cache)
+  await mkdir(dataDirectory, { recursive: true })
+  await writeFile(wcScorerBackfillCachePath, `${JSON.stringify(sanitized, null, 2)}\n`, 'utf8')
+}
+
+function readCachedWcScorerBackfillResult(cache, key, nowMs) {
+  const entry = cache[key]
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
+
+  const checkedAtMs = Date.parse(entry.checkedAt)
+  const hasFreshMissingResult = Number.isFinite(checkedAtMs)
+    && nowMs - checkedAtMs < wcScorerBackfillMissingRetryMs
+
+  if (entry.status === 'found') {
+    return normalizeScorerEntries(entry.scorers)
+  }
+
+  if (entry.status === 'missing' && hasFreshMissingResult) {
+    return []
+  }
+
+  return null
+}
+
+function writeCachedWcScorerBackfillResult(cache, key, scorers, nowIsoString) {
+  const normalizedScorers = normalizeScorerEntries(scorers)
+  cache[key] = {
+    status: normalizedScorers.length > 0 ? 'found' : 'missing',
+    checkedAt: nowIsoString,
+    scorers: normalizedScorers,
+  }
+}
+
+async function getApiSportsFixturesByDate(date, apiSportsKey) {
+  const cached = apiSportsFixtureDateCache.get(date)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.fixtures
+  }
+
+  const payload = await fetchJson(`https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(date)}`, {
+    headers: {
+      'x-apisports-key': apiSportsKey,
+    },
+  })
+
+  const fixtures = Array.isArray(payload?.response) ? payload.response : []
+  apiSportsFixtureDateCache.set(date, {
+    fixtures,
+    expiresAt: nowMs + 5 * 60 * 1000,
+  })
+  return fixtures
+}
+
+async function getApiSportsFallbackMatchByGame(game, matchday, now) {
+  const apiSportsKey = getApiSportsKey()
+  if (!apiSportsKey) {
+    return null
+  }
+
+  const teams = serverExtractFixtureTeams(game)
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!teams || !kickoff) {
+    return null
+  }
+
+  const fixtureDate = formatDateYYYYMMDD(kickoff)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  const fixtures = await getApiSportsFixturesByDate(fixtureDate, apiSportsKey)
+
+  const matched = fixtures.find((fixture) => {
+    const leagueName = getAsString(fixture?.league?.name).toLowerCase()
+    const homeName = getAsString(fixture?.teams?.home?.name)
+    const awayName = getAsString(fixture?.teams?.away?.name)
+    const isWorldCupLeague = leagueName.includes('world cup')
+    return (
+      isWorldCupLeague &&
+      toTeamToken(homeName) === expectedHome &&
+      toTeamToken(awayName) === expectedAway
+    )
+  })
+
+  if (!matched) {
+    return null
+  }
+
+  const fixtureId = getAsIdString(matched?.fixture?.id)
+  const homeTeam = getAsString(matched?.teams?.home?.name)
+  const awayTeam = getAsString(matched?.teams?.away?.name)
+  if (!fixtureId || !homeTeam || !awayTeam) {
+    return null
+  }
+
+  return {
+    idEvent: `api-sports:${fixtureId}`,
+    idApiFootball: fixtureId,
+    name: `${homeTeam} vs ${awayTeam}`,
+    date: game.date,
+    league: getAsString(matched?.league?.name),
+    season: getAsString(matched?.league?.season),
+    homeTeam,
+    awayTeam,
+    homeScore: normalizeApiFootballScore(matched?.goals?.home ?? matched?.score?.fulltime?.home) ?? '',
+    awayScore: normalizeApiFootballScore(matched?.goals?.away ?? matched?.score?.fulltime?.away) ?? '',
+    status: getAsString(matched?.fixture?.status?.short ?? matched?.fixture?.status?.long),
+  }
+}
+
+async function getApiSportsFixtureScoreByGame(game, matchday, now) {
+  const fallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday, now)
+  if (!fallbackMatch) {
+    return null
+  }
+  const homeScore = fallbackMatch.homeScore || null
+  const awayScore = fallbackMatch.awayScore || null
+  if (homeScore === null || awayScore === null) {
+    return null
+  }
+
+  return {
+    matchday,
+    match: game.match,
+    time: game.time,
+    date: game.date,
+    homeScore,
+    awayScore,
+  }
+}
+
+async function getApiSportsFixtureEventSummaryByGame(game, matchday, now) {
+  const apiSportsKey = getApiSportsKey()
+  if (!apiSportsKey) {
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
+  }
+
+  const fallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday, now)
+  if (!fallbackMatch || !fallbackMatch.idApiFootball) {
+    return {
+      scorers: [],
+      conduct: createEmptyConductCounts(),
+    }
+  }
+
+  const payload = await fetchJson(
+    `https://v3.football.api-sports.io/fixtures/events?fixture=${encodeURIComponent(fallbackMatch.idApiFootball)}`,
+    {
+      headers: {
+        'x-apisports-key': apiSportsKey,
+      },
+    },
+  )
+
+  const events = Array.isArray(payload?.response) ? payload.response : []
+  return toFixtureEventSummary(events, fallbackMatch.homeTeam, fallbackMatch.awayTeam)
+}
+
+async function getEspnWorldCupScoreboardByDate(dateKey) {
+  const cached = espnScoreboardDateCache.get(dateKey)
+  const nowMs = Date.now()
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.events
+  }
+
+  const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${encodeURIComponent(dateKey)}`
+  const payload = await fetchJson(url)
+  const events = Array.isArray(payload?.events) ? payload.events : []
+  espnScoreboardDateCache.set(dateKey, {
+    events,
+    expiresAt: nowMs + 5 * 60 * 1000,
+  })
+  return events
+}
+
+function extractEspnScorerNameFromText(text) {
+  const value = getAsString(text)
+  const pattern = /\.\s*([^()]+?)\s*\(([^)]+)\)/
+  const match = value.match(pattern)
+  return match ? match[1].trim() : ''
+}
+
+async function getEspnFixtureScorersByGame(game, matchday, now) {
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return []
+  }
+
+  const kickoff = serverParseFixtureKickoff(game, now)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  if (!kickoff) {
+    return []
+  }
+
+  const dateCandidates = [
+    formatDateYYYYMMDDCompact(kickoff),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() - 24 * 60 * 60 * 1000)),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() + 24 * 60 * 60 * 1000)),
+  ]
+
+  const seenDates = new Set()
+  for (const dateKey of dateCandidates) {
+    if (seenDates.has(dateKey)) {
+      continue
+    }
+    seenDates.add(dateKey)
+
+    const events = await getEspnWorldCupScoreboardByDate(dateKey)
+    for (const event of events) {
+      const competition = Array.isArray(event?.competitions) ? event.competitions[0] : null
+      const competitors = Array.isArray(competition?.competitors) ? competition.competitors : []
+      const home = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'home')
+      const away = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'away')
+      if (!home || !away) {
+        continue
+      }
+
+      const homeTeam = getAsString(home?.team?.displayName)
+      const awayTeam = getAsString(away?.team?.displayName)
+      const homeToken = toTeamToken(homeTeam)
+      const awayToken = toTeamToken(awayTeam)
+      const strict = homeToken === expectedHome && awayToken === expectedAway
+      const swapped = homeToken === expectedAway && awayToken === expectedHome
+      if (!strict && !swapped) {
+        continue
+      }
+
+      const eventId = getAsString(event?.id)
+      if (!eventId) {
+        return []
+      }
+
+      const summary = await fetchJson(
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${encodeURIComponent(eventId)}`,
+      )
+      const keyEvents = Array.isArray(summary?.keyEvents) ? summary.keyEvents : []
+      const scorers = []
+
+      for (const keyEvent of keyEvents) {
+        const eventType = getAsString(keyEvent?.type?.text ?? keyEvent?.type?.abbreviation).toLowerCase()
+        if (!eventType.includes('goal')) {
+          continue
+        }
+
+        const minute = getAsString(keyEvent?.clock?.displayValue).replace(/'/g, '').trim()
+        const participants = Array.isArray(keyEvent?.participants) ? keyEvent.participants : []
+        const primary = participants[0]
+        const participantName = getAsString(primary?.athlete?.displayName)
+        const player = participantName || extractEspnScorerNameFromText(keyEvent?.text)
+        if (!player) {
+          continue
+        }
+
+        const eventTeam = getAsString(keyEvent?.team?.displayName)
+        const eventTeamToken = toTeamToken(eventTeam)
+        let team = eventTeam
+        if (eventTeamToken === expectedHome) {
+          team = teams[0]
+        } else if (eventTeamToken === expectedAway) {
+          team = teams[1]
+        }
+
+        scorers.push({
+          team,
+          player,
+          minute,
+        })
+      }
+
+      return scorers
+    }
+  }
+
+  return []
+}
+
+async function backfillMissingWcScorers(matchdays, now) {
+  let updated = false
+  let cacheDirty = false
+  const nowMs = now.getTime()
+  const nowIsoString = new Date(nowMs).toISOString()
+  const scorerBackfillCache = await readWcScorerBackfillCache()
+
+  for (const matchday of matchdays) {
+    for (const game of matchday.games) {
+      const homeScore = getAsString(game.homeScore)
+      const awayScore = getAsString(game.awayScore)
+      const hasScore = /^\d+$/.test(homeScore) && /^\d+$/.test(awayScore)
+      const hasScorers = Array.isArray(game.scorers) && game.scorers.length > 0
+      if (!hasScore || hasScorers) {
+        continue
+      }
+
+      const cacheKey = getFixtureResultCacheKey(matchday.matchday, game)
+      const cachedScorers = readCachedWcScorerBackfillResult(scorerBackfillCache, cacheKey, nowMs)
+      if (cachedScorers) {
+        if (cachedScorers.length > 0) {
+          game.scorers = cachedScorers
+          updated = true
+        }
+        continue
+      }
+
+      try {
+        const scorers = await getEspnFixtureScorersByGame(game, matchday.matchday, now)
+        writeCachedWcScorerBackfillResult(scorerBackfillCache, cacheKey, scorers, nowIsoString)
+        cacheDirty = true
+        if (scorers.length > 0) {
+          game.scorers = scorers
+          updated = true
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  if (cacheDirty) {
+    try {
+      await writeWcScorerBackfillCache(scorerBackfillCache)
+    } catch {
+      // Ignore cache persistence failures to avoid breaking fixture responses.
+    }
+  }
+
+  return updated
+}
+
+async function getEspnFixtureScoreByGame(game, matchday, now) {
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return null
+  }
+
+  const kickoff = serverParseFixtureKickoff(game, now)
+  const expectedHome = toTeamToken(teams[0])
+  const expectedAway = toTeamToken(teams[1])
+  if (!kickoff) {
+    return null
+  }
+
+  const dateCandidates = [
+    formatDateYYYYMMDDCompact(kickoff),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() - 24 * 60 * 60 * 1000)),
+    formatDateYYYYMMDDCompact(new Date(kickoff.getTime() + 24 * 60 * 60 * 1000)),
+  ]
+
+  const seenDates = new Set()
+  for (const dateKey of dateCandidates) {
+    if (seenDates.has(dateKey)) {
+      continue
+    }
+    seenDates.add(dateKey)
+
+    const events = await getEspnWorldCupScoreboardByDate(dateKey)
+    for (const event of events) {
+      const competition = Array.isArray(event?.competitions) ? event.competitions[0] : null
+      const competitors = Array.isArray(competition?.competitors) ? competition.competitors : []
+      const home = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'home')
+      const away = competitors.find((entry) => getAsString(entry?.homeAway).toLowerCase() === 'away')
+      if (!home || !away) {
+        continue
+      }
+
+      const homeTeam = getAsString(home?.team?.displayName)
+      const awayTeam = getAsString(away?.team?.displayName)
+      const homeToken = toTeamToken(homeTeam)
+      const awayToken = toTeamToken(awayTeam)
+      const homeScore = getAsString(home?.score)
+      const awayScore = getAsString(away?.score)
+
+      if (!/^\d+$/.test(homeScore) || !/^\d+$/.test(awayScore)) {
+        continue
+      }
+
+      const state = getAsString(competition?.status?.type?.state).toLowerCase()
+      if (state && state !== 'post') {
+        continue
+      }
+
+      const strict = homeToken === expectedHome && awayToken === expectedAway
+      const swapped = homeToken === expectedAway && awayToken === expectedHome
+      if (!strict && !swapped) {
+        continue
+      }
+
+      return {
+        matchday,
+        match: game.match,
+        time: game.time,
+        date: game.date,
+        homeScore: strict ? homeScore : awayScore,
+        awayScore: strict ? awayScore : homeScore,
+      }
+    }
+  }
+
+  return null
+}
+
+async function getFixtureResult(game, matchday, now, apiFootballKey, resolvedBestMatch = null) {
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!kickoff || kickoff.getTime() > now.getTime()) {
+    return null
+  }
+
+  const teams = serverExtractFixtureTeams(game)
+  if (!teams) {
+    return null
+  }
+
+  const nowMs = now.getTime()
+  const cached = readFixtureResultCache(matchday, game, nowMs)
+  if (cached) {
+    return cached
+  }
+
+  let fallbackApiSportsResult = null
+  try {
+    fallbackApiSportsResult = await getApiSportsFixtureScoreByGame(game, matchday, now)
+  } catch {
+    fallbackApiSportsResult = null
+  }
+
+  let fallbackEspnResult = null
+  try {
+    fallbackEspnResult = await getEspnFixtureScoreByGame(game, matchday, now)
+  } catch {
+    fallbackEspnResult = null
+  }
+
+  let bestMatch = resolvedBestMatch
+  if (!bestMatch) {
+    let searchResults = []
+    try {
+      searchResults = await searchFinishedSoccerEvents(game.match, { dateHint: kickoff })
+    } catch {
+      searchResults = []
+    }
+    bestMatch = serverSelectBestMatch(game, searchResults)
+  }
+  if (!bestMatch) {
+    let fallbackScorers = []
+    let fallbackConduct = createEmptyConductCounts()
+    try {
+      fallbackScorers = await getEspnFixtureScorersByGame(game, matchday, now)
+    } catch {
+      fallbackScorers = []
+    }
+
+    if (fallbackScorers.length === 0 && fallbackConduct.homeYellowCards + fallbackConduct.awayYellowCards + fallbackConduct.homeRedCards + fallbackConduct.awayRedCards === 0) {
+      try {
+        const fallbackSummary = await getApiSportsFixtureEventSummaryByGame(game, matchday, now)
+        fallbackScorers = fallbackSummary.scorers
+        fallbackConduct = fallbackSummary.conduct
+      } catch {
+        fallbackScorers = []
+        fallbackConduct = createEmptyConductCounts()
+      }
+    }
+
+    if (fallbackEspnResult) {
+      const resultWithScorers = {
+        ...fallbackEspnResult,
+        ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+        ...(fallbackConduct.homeYellowCards > 0 ? { homeYellowCards: fallbackConduct.homeYellowCards } : {}),
+        ...(fallbackConduct.awayYellowCards > 0 ? { awayYellowCards: fallbackConduct.awayYellowCards } : {}),
+        ...(fallbackConduct.homeRedCards > 0 ? { homeRedCards: fallbackConduct.homeRedCards } : {}),
+        ...(fallbackConduct.awayRedCards > 0 ? { awayRedCards: fallbackConduct.awayRedCards } : {}),
+      }
+      writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
+      return resultWithScorers
+    }
+    if (fallbackApiSportsResult) {
+      const resultWithScorers = {
+        ...fallbackApiSportsResult,
+        ...(fallbackScorers.length > 0 ? { scorers: fallbackScorers } : {}),
+        ...(fallbackConduct.homeYellowCards > 0 ? { homeYellowCards: fallbackConduct.homeYellowCards } : {}),
+        ...(fallbackConduct.awayYellowCards > 0 ? { awayYellowCards: fallbackConduct.awayYellowCards } : {}),
+        ...(fallbackConduct.homeRedCards > 0 ? { homeRedCards: fallbackConduct.homeRedCards } : {}),
+        ...(fallbackConduct.awayRedCards > 0 ? { awayRedCards: fallbackConduct.awayRedCards } : {}),
+      }
+      writeFixtureResultCache(matchday, game, resultWithScorers, nowMs)
+      return resultWithScorers
+    }
+    return null
+  }
+
+  let score = null
+  let scorers = []
+  let conduct = createEmptyConductCounts()
+  if (bestMatch.idApiFootball && apiFootballKey) {
+    try {
+      score = await getApiFootballFixtureScore(bestMatch.idApiFootball, apiFootballKey)
+    } catch {
+      score = null
+    }
+
+    try {
+      const eventSummary = await getApiFootballFixtureEventSummary(
+        bestMatch.idApiFootball,
+        getAsString(bestMatch.homeTeam),
+        getAsString(bestMatch.awayTeam),
+        apiFootballKey,
+      )
+      scorers = eventSummary.scorers
+      conduct = eventSummary.conduct
+    } catch {
+      scorers = []
+      conduct = createEmptyConductCounts()
+    }
+  }
+
+  if (scorers.length === 0 && conduct.homeYellowCards + conduct.awayYellowCards + conduct.homeRedCards + conduct.awayRedCards === 0) {
+    try {
+      const fallbackSummary = await getApiSportsFixtureEventSummaryByGame(game, matchday, now)
+      scorers = fallbackSummary.scorers
+      conduct = fallbackSummary.conduct
+    } catch {
+      scorers = []
+      conduct = createEmptyConductCounts()
+    }
+  }
+
+  if (scorers.length === 0) {
+    try {
+      scorers = await getEspnFixtureScorersByGame(game, matchday, now)
+    } catch {
+      scorers = []
+    }
+  }
+
+  const fallbackHomeScore = getAsString(bestMatch.homeScore)
+  const fallbackAwayScore = getAsString(bestMatch.awayScore)
+  const homeScore = score?.homeScore ?? (fallbackHomeScore !== '' ? fallbackHomeScore : null)
+  const awayScore = score?.awayScore ?? (fallbackAwayScore !== '' ? fallbackAwayScore : null)
+  if (homeScore === null || awayScore === null) {
+    if (fallbackEspnResult) {
+      writeFixtureResultCache(matchday, game, fallbackEspnResult, nowMs)
+      return fallbackEspnResult
+    }
+    if (fallbackApiSportsResult) {
+      writeFixtureResultCache(matchday, game, fallbackApiSportsResult, nowMs)
+      return fallbackApiSportsResult
+    }
+    return null
+  }
+
+  const result = {
+    matchday,
+    match: game.match,
+    time: game.time,
+    ...(game.country ? { country: game.country } : {}),
+    date: game.date,
+    homeScore,
+    awayScore,
+    ...(scorers.length > 0 ? { scorers } : {}),
+    ...(conduct.homeYellowCards > 0 ? { homeYellowCards: conduct.homeYellowCards } : {}),
+    ...(conduct.awayYellowCards > 0 ? { awayYellowCards: conduct.awayYellowCards } : {}),
+    ...(conduct.homeRedCards > 0 ? { homeRedCards: conduct.homeRedCards } : {}),
+    ...(conduct.awayRedCards > 0 ? { awayRedCards: conduct.awayRedCards } : {}),
+  }
+  writeFixtureResultCache(matchday, game, result, nowMs)
+  return result
+}
+
+function readStoredFixtureResults(storage) {
+  const raw = storage[fixtureResultsStorageKey]
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        matchday: Number(item.matchday),
+        match: typeof item.match === 'string' ? item.match : '',
+        time: typeof item.time === 'string' ? item.time : '',
+        country: typeof item.country === 'string' ? item.country : '',
+        date: typeof item.date === 'string' ? item.date : '',
+        homeScore: typeof item.homeScore === 'string' ? item.homeScore : '',
+        awayScore: typeof item.awayScore === 'string' ? item.awayScore : '',
+        homeYellowCards: Number.isFinite(item.homeYellowCards) ? Math.max(0, Math.floor(item.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(item.awayYellowCards) ? Math.max(0, Math.floor(item.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(item.homeRedCards) ? Math.max(0, Math.floor(item.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(item.awayRedCards) ? Math.max(0, Math.floor(item.awayRedCards)) : 0,
+        scorers: Array.isArray(item.scorers)
+          ? item.scorers
+              .filter((entry) => entry && typeof entry === 'object')
+              .map((entry) => ({
+                team: typeof entry.team === 'string' ? entry.team : '',
+                player: typeof entry.player === 'string' ? entry.player : '',
+                minute: typeof entry.minute === 'string' ? entry.minute : '',
+              }))
+              .filter((entry) => entry.player !== '')
+          : [],
+      }))
+      .filter((item) => Number.isFinite(item.matchday) && item.match && item.time && item.date && item.homeScore !== '' && item.awayScore !== '')
+  } catch {
+    return []
+  }
+}
+
+function fixtureResultIdentityKey(result) {
+  return `${result.matchday}|${result.date}|${result.time}|${result.country ?? ''}|${result.match}`
+}
+
+function isFixtureDueForScoreCheck(game, now) {
+  const kickoff = serverParseFixtureKickoff(game, now)
+  if (!kickoff) {
+    return false
+  }
+
+  return kickoff.getTime() + serverAutoScanDelayMs <= now.getTime()
+}
+
+function getFixtureMatchdaysSignature(matchdays) {
+  return JSON.stringify(matchdays)
+}
+
+async function syncStoredFixtureResultsWithFixtureFile(state, fixtureMatchdays) {
+  const nextSignature = getFixtureMatchdaysSignature(fixtureMatchdays)
+  const currentSignature = typeof state.storage[fixtureSignatureStorageKey] === 'string'
+    ? state.storage[fixtureSignatureStorageKey]
+    : ''
+
+  if (currentSignature === nextSignature) {
+    return state
+  }
+
+  const nextStorage = {
+    ...state.storage,
+    [fixtureSignatureStorageKey]: nextSignature,
+  }
+
+  return writeLeagueState(nextStorage)
+}
+
+function applyStoredResultsToWCFixtureMatchdays(matchdays, storedResults) {
+  const resultByKey = new Map(storedResults.map((result) => [fixtureResultIdentityKey(result), result]))
+  let updated = false
+
+  for (const matchday of matchdays) {
+    for (const game of matchday.games) {
+      const lookupKey = fixtureResultIdentityKey({
+        matchday: matchday.matchday,
+        date: game.date,
+        time: game.time,
+        country: '',
+        match: game.match,
+      })
+      const storedResult = resultByKey.get(lookupKey)
+      if (!storedResult) {
+        continue
+      }
+
+      if (game.homeScore !== storedResult.homeScore || game.awayScore !== storedResult.awayScore) {
+        game.homeScore = storedResult.homeScore
+        game.awayScore = storedResult.awayScore
+        updated = true
+      }
+
+      const nextScorers = Array.isArray(storedResult.scorers) ? storedResult.scorers : []
+      const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+      const nextConduct = {
+        homeYellowCards: Number.isFinite(storedResult.homeYellowCards) ? Math.max(0, Math.floor(storedResult.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(storedResult.awayYellowCards) ? Math.max(0, Math.floor(storedResult.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(storedResult.homeRedCards) ? Math.max(0, Math.floor(storedResult.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(storedResult.awayRedCards) ? Math.max(0, Math.floor(storedResult.awayRedCards)) : 0,
+      }
+      const currentConduct = {
+        homeYellowCards: Number.isFinite(game.homeYellowCards) ? Math.max(0, Math.floor(game.homeYellowCards)) : 0,
+        awayYellowCards: Number.isFinite(game.awayYellowCards) ? Math.max(0, Math.floor(game.awayYellowCards)) : 0,
+        homeRedCards: Number.isFinite(game.homeRedCards) ? Math.max(0, Math.floor(game.homeRedCards)) : 0,
+        awayRedCards: Number.isFinite(game.awayRedCards) ? Math.max(0, Math.floor(game.awayRedCards)) : 0,
+      }
+      if (JSON.stringify(currentScorers) !== JSON.stringify(nextScorers)) {
+        if (nextScorers.length > 0) {
+          game.scorers = nextScorers
+        } else if ('scorers' in game) {
+          delete game.scorers
+        }
+        updated = true
+      }
+
+      if (JSON.stringify(currentConduct) !== JSON.stringify(nextConduct)) {
+        if (nextConduct.homeYellowCards > 0) game.homeYellowCards = nextConduct.homeYellowCards
+        else if ('homeYellowCards' in game) delete game.homeYellowCards
+        if (nextConduct.awayYellowCards > 0) game.awayYellowCards = nextConduct.awayYellowCards
+        else if ('awayYellowCards' in game) delete game.awayYellowCards
+        if (nextConduct.homeRedCards > 0) game.homeRedCards = nextConduct.homeRedCards
+        else if ('homeRedCards' in game) delete game.homeRedCards
+        if (nextConduct.awayRedCards > 0) game.awayRedCards = nextConduct.awayRedCards
+        else if ('awayRedCards' in game) delete game.awayRedCards
+        updated = true
+      }
+    }
+  }
+
+  return updated
+}
+
+// ---- Auto-imported event ID helpers ----
+
+function serverReadAutoImportedIds(storage) {
+  const raw = storage[serverAutoImportedIdsKey]
+  if (!raw) return new Set()
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((v) => typeof v === 'string'))
+  } catch { return new Set() }
+}
+
+function serverReadAutoImportedFixtureIds(storage) {
+  const raw = storage[serverAutoImportedFixtureIdsKey]
+  if (!raw) return new Set()
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((v) => typeof v === 'string'))
+  } catch { return new Set() }
+}
+
+function serverReadAutoScannedFixtureKeys(storage) {
+  const raw = storage[serverAutoScannedFixtureKeys]
+  if (!raw) return new Set()
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((v) => typeof v === 'string'))
+  } catch { return new Set() }
+}
+
+function serverReadPlayerPointsMap(storage) {
+  const raw = storage[serverPlayerPointsKey]
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([k, v]) => typeof k === 'string' && typeof v === 'number' && Number.isFinite(v))
+    )
+  } catch { return {} }
+}
+
+// ---- Main server-side scan ----
+
+let serverScanRunning = false
+
+function clearServerFixtureRetry(fixtureKey) {
+  const timer = serverFixtureRetryTimers.get(fixtureKey)
+  if (timer) {
+    clearTimeout(timer)
+    serverFixtureRetryTimers.delete(fixtureKey)
+  }
+  serverFixtureRetryFirstRequestMs.delete(fixtureKey)
+}
+
+function scheduleServerFixtureRetry(game, fixtureKey, reason) {
+  if (serverFixtureRetryTimers.has(fixtureKey)) {
+    return
+  }
+
+  const firstRequestMs = serverFixtureRetryFirstRequestMs.get(fixtureKey) ?? Date.now()
+  if (!serverFixtureRetryFirstRequestMs.has(fixtureKey)) {
+    serverFixtureRetryFirstRequestMs.set(fixtureKey, firstRequestMs)
+  }
+
+  if (firstRequestMs + serverAutoScanRetryWindowMs <= Date.now()) {
+    serverFixtureRetryFirstRequestMs.delete(fixtureKey)
+    console.log(`[auto-scan] Retry window elapsed (3h) for fixture: ${game.match}`)
+    return
+  }
+
+  const timer = setTimeout(() => {
+    serverFixtureRetryTimers.delete(fixtureKey)
+    console.log(`[auto-scan] Retrying unresolved fixture after 30 min: ${game.match}`)
+    void serverScanDueFixturesAndImport()
+  }, serverAutoScanRetryDelayMs)
+  serverFixtureRetryTimers.set(fixtureKey, timer)
+  console.log(`[auto-scan] ${reason}; retrying in 30 min: ${game.match}`)
+}
+
+async function serverScanDueFixturesAndImport() {
+  if (serverScanRunning) {
+    return {
+      skippedBecauseRunning: true,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 0,
+      scoreUpdates: 0,
+    }
+  }
+  const apiKey = getApiFootballKey()
+  if (!apiKey) {
+    console.log('[auto-scan] Skipping — no SportAPI token set (SPORTAPI_TOKEN).')
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: true,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 0,
+      scoreUpdates: 0,
+    }
+  }
+
+  serverScanRunning = true
+  console.log(`[auto-scan] Scanning due fixtures at ${new Date().toISOString()}`)
+
+  try {
+    const fixtureMatchdays = await readWCFixtureMatchdays()
+    const { players } = await getServerPlayers()
+    const now = new Date()
+    const state = await readLeagueState()
+    const importedIds = serverReadAutoImportedIds(state.storage)
+    const importedFixtureIds = serverReadAutoImportedFixtureIds(state.storage)
+    const scannedFixtureKeys = serverReadAutoScannedFixtureKeys(state.storage)
+    const playerPointsMap = serverReadPlayerPointsMap(state.storage)
+    const existingResults = readStoredFixtureResults(state.storage)
+    const resultByKey = new Map(existingResults.map((result) => [fixtureResultIdentityKey(result), result]))
+
+    let importedCount = 0
+    let appliedPlayers = 0
+    let skippedPlayers = 0
+    let alreadyImported = 0
+    let errors = 0
+    let scoreUpdates = 0
+    let wcScoresUpdated = false
+    let scannedFixtureKeysChanged = false
+
+    // Backfill fixture IDs from legacy event-id cache so dedupe works immediately
+    // after deploy, even before any new imports are written.
+    if (importedFixtureIds.size === 0 && importedIds.size > 0) {
+      for (const id of importedIds) {
+        if (/^\d+$/.test(id)) {
+          importedFixtureIds.add(id)
+          continue
+        }
+        if (id.startsWith('api-sports:')) {
+          const raw = id.slice('api-sports:'.length)
+          if (/^\d+$/.test(raw)) {
+            importedFixtureIds.add(raw)
+          }
+        }
+      }
+    }
+
+    for (const matchday of fixtureMatchdays) {
+      for (const game of matchday.games) {
+        const teams = serverExtractFixtureTeams(game)
+        if (!teams) continue
+        const kickoff = serverParseFixtureKickoff(game, now)
+        if (!kickoff) continue
+        if (kickoff.getTime() + serverAutoScanDelayMs > now.getTime()) continue
+
+        const fixtureScanKey = getFixtureResultCacheKey(matchday.matchday, game)
+        if (scannedFixtureKeys.has(fixtureScanKey)) continue
+
+        const fixtureIdentityKey = fixtureResultIdentityKey({
+          matchday: matchday.matchday,
+          date: game.date,
+          time: game.time,
+          country: '',
+          match: game.match,
+        })
+        if (resultByKey.has(fixtureIdentityKey)) {
+          clearServerFixtureRetry(fixtureScanKey)
+          scannedFixtureKeys.add(fixtureScanKey)
+          scannedFixtureKeysChanged = true
+          continue
+        }
+
+        try {
+          let searchRes = []
+          try {
+            searchRes = await searchFinishedSoccerEvents(game.match, { dateHint: kickoff })
+          } catch {
+            searchRes = []
+          }
+
+          let apiSportsFallbackMatch = null
+          try {
+            apiSportsFallbackMatch = await getApiSportsFallbackMatchByGame(game, matchday.matchday, now)
+          } catch {
+            apiSportsFallbackMatch = null
+          }
+
+          const bestMatch = serverSelectBestMatch(game, searchRes) ?? apiSportsFallbackMatch
+
+          const scoreResult = await getFixtureResult(game, matchday.matchday, now, apiKey, bestMatch)
+          if (scoreResult) {
+            const identityKey = fixtureResultIdentityKey(scoreResult)
+            const existing = resultByKey.get(identityKey)
+            const existingScorers = Array.isArray(existing?.scorers) ? existing.scorers : []
+            const nextScorers = Array.isArray(scoreResult.scorers) ? scoreResult.scorers : []
+            if (
+              !existing ||
+              existing.homeScore !== scoreResult.homeScore ||
+              existing.awayScore !== scoreResult.awayScore ||
+              JSON.stringify(existingScorers) !== JSON.stringify(nextScorers)
+            ) {
+              resultByKey.set(identityKey, scoreResult)
+              scoreUpdates++
+            }
+
+            const nextGameScorers = Array.isArray(scoreResult.scorers) ? scoreResult.scorers : []
+            const currentScorers = Array.isArray(game.scorers) ? game.scorers : []
+            if (
+              game.homeScore !== scoreResult.homeScore ||
+              game.awayScore !== scoreResult.awayScore ||
+              JSON.stringify(currentScorers) !== JSON.stringify(nextGameScorers)
+            ) {
+              game.homeScore = scoreResult.homeScore
+              game.awayScore = scoreResult.awayScore
+              if (nextGameScorers.length > 0) {
+                game.scorers = nextGameScorers
+              } else if ('scorers' in game) {
+                delete game.scorers
+              }
+              wcScoresUpdated = true
+            }
+          }
+
+          const isResolvedMatchFinished = Boolean(scoreResult) || (bestMatch ? isFinishedFixture(bestMatch) : false)
+          if (!isResolvedMatchFinished) {
+            scheduleServerFixtureRetry(game, fixtureScanKey, 'Fixture not finished yet')
+            continue
+          }
+
+          if (!bestMatch) {
+            scheduleServerFixtureRetry(game, fixtureScanKey, 'No match found')
+            continue
+          }
+
+          if (importedIds.has(bestMatch.idEvent)) {
+            clearServerFixtureRetry(fixtureScanKey)
+            alreadyImported++
+            scannedFixtureKeys.add(fixtureScanKey)
+            scannedFixtureKeysChanged = true
+            continue
+          }
+
+          if (bestMatch.idApiFootball && importedFixtureIds.has(bestMatch.idApiFootball)) {
+            clearServerFixtureRetry(fixtureScanKey)
+            alreadyImported++
+            scannedFixtureKeys.add(fixtureScanKey)
+            scannedFixtureKeysChanged = true
+            continue
+          }
+
+          if (!bestMatch.idApiFootball) {
+            console.log(`[auto-scan] No API-Football ID for: ${bestMatch.name}`)
+            clearServerFixtureRetry(fixtureScanKey)
+            scannedFixtureKeys.add(fixtureScanKey)
+            scannedFixtureKeysChanged = true
+            continue
+          }
+
+          if (importedCount > 0) {
+            // Avoid hitting api-sports rate limits (10 req/min on free plan)
+            await new Promise(resolve => setTimeout(resolve, 7000))
+          }
+
+          const importedRows = bestMatch.idEvent.startsWith('api-sports:')
+            ? await getApiSportsPlayerStats(bestMatch.idApiFootball, getApiSportsKey())
+            : await getApiFootballPlayerStats(bestMatch.idApiFootball, apiKey)
+          const { calculated, skipped } = serverCalculateImportedRows(players, importedRows, bestMatch)
+
+          for (const row of calculated) {
+            const key = `${row.player.team}::${row.player.name}`
+            playerPointsMap[key] = row.points
+          }
+
+          importedIds.add(bestMatch.idEvent)
+          if (bestMatch.idApiFootball) {
+            importedFixtureIds.add(bestMatch.idApiFootball)
+          }
+          clearServerFixtureRetry(fixtureScanKey)
+          scannedFixtureKeys.add(fixtureScanKey)
+          scannedFixtureKeysChanged = true
+          importedCount++
+          appliedPlayers += calculated.length
+          skippedPlayers += skipped
+          console.log(`[auto-scan] Imported ${bestMatch.name}: ${calculated.length} players, ${skipped} skipped`)
+        } catch (err) {
+          console.error(`[auto-scan] Error processing ${game.match}:`, err.message)
+          errors++
+        }
+      }
+    }
+
+    if (importedCount > 0 || scoreUpdates > 0 || scannedFixtureKeysChanged) {
+      const nextStorage = {
+        ...state.storage,
+        [serverAutoImportedIdsKey]: JSON.stringify(Array.from(importedIds).sort()),
+        [serverAutoImportedFixtureIdsKey]: JSON.stringify(Array.from(importedFixtureIds).sort()),
+        [serverAutoScannedFixtureKeys]: JSON.stringify(Array.from(scannedFixtureKeys).sort()),
+        [serverPlayerPointsKey]: JSON.stringify(playerPointsMap),
+        [fixtureResultsStorageKey]: JSON.stringify(Array.from(resultByKey.values())),
+      }
+      await writeLeagueState(nextStorage)
+      if (wcScoresUpdated) {
+        await writeFile(wcFixturesPath, `${JSON.stringify(fixtureMatchdays, null, 2)}\n`, 'utf8')
+      }
+      console.log(`[auto-scan] Done. Imported: ${importedCount} matches, ${appliedPlayers} players applied, ${skippedPlayers} skipped, ${alreadyImported} already done, ${scoreUpdates} score updates, ${errors} errors.`)
+    } else {
+      console.log(`[auto-scan] Done. Nothing new to import (${alreadyImported} already done, ${errors} errors).`)
+    }
+
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: false,
+      importedCount,
+      appliedPlayers,
+      skippedPlayers,
+      alreadyImported,
+      errors,
+      scoreUpdates,
+    }
+  } catch (err) {
+    console.error('[auto-scan] Unexpected error:', err.message)
+    return {
+      skippedBecauseRunning: false,
+      skippedBecauseMissingApiKey: false,
+      importedCount: 0,
+      appliedPlayers: 0,
+      skippedPlayers: 0,
+      alreadyImported: 0,
+      errors: 1,
+      scoreUpdates: 0,
+      errorMessage: err.message,
+    }
+  } finally {
+    serverScanRunning = false
+  }
+}
+
+// ---- Scheduler ----
+
+const serverScheduledKeys = new Set()
+
+async function scheduleServerFixtureScans() {
+  let fixtureMatchdays = []
+  try {
+    fixtureMatchdays = await readWCFixtureMatchdays()
+  } catch (err) {
+    console.error('[auto-scan] Unable to read WC fixtures file:', err.message)
+    return
+  }
+
+  await getServerPlayers()
+
+  // If the matching logic version has changed, wipe the import cache so all
+  // fixtures are re-processed with the updated matching on this scan pass.
+  try {
+    const state = await readLeagueState()
+    if (state.storage[serverMatchingVersionKey] !== serverMatchingVersion) {
+      console.log(`[auto-scan] Matching version changed to ${serverMatchingVersion} — clearing import cache for full rescan.`)
+      const nextStorage = { ...state.storage, [serverMatchingVersionKey]: serverMatchingVersion }
+      delete nextStorage[serverAutoImportedIdsKey]
+      delete nextStorage[serverAutoImportedFixtureIdsKey]
+      delete nextStorage[serverPlayerPointsKey]
+      await writeLeagueState(nextStorage)
+    }
+  } catch (err) {
+    console.error('[auto-scan] Unable to check matching version:', err.message)
+  }
+
+  const now = new Date()
+  let shouldRunNow = false
+
+  for (const matchday of fixtureMatchdays) {
+    for (const game of matchday.games) {
+      if (!serverExtractFixtureTeams(game)) continue
+      const kickoff = serverParseFixtureKickoff(game, now)
+      if (!kickoff) continue
+      const key = `${game.date}::${game.time}::${game.match}`
+      if (serverScheduledKeys.has(key)) continue
+      serverScheduledKeys.add(key)
+      const dueAtMs = kickoff.getTime() + serverAutoScanDelayMs
+      const delayMs = dueAtMs - now.getTime()
+      if (delayMs <= 0) {
+        shouldRunNow = true
+      } else if (delayMs <= serverSchedulerMaxDelayMs) {
+        setTimeout(() => { void serverScanDueFixturesAndImport() }, delayMs)
+        console.log(`[auto-scan] Scheduled scan for "${game.match}" in ${Math.round(delayMs / 60000)} min`)
+      }
+    }
+  }
+
+  if (shouldRunNow) {
+    void serverScanDueFixturesAndImport()
+  }
+}
+
+// ========== END SERVER-SIDE FIXTURE AUTO-SCANNER ==========
+
+// ========== WC 2026 KNOCKOUT FIXTURE UPDATER ==========
+
+const WC_TEAM_NAMES = {
+  MEX: 'Mexico', RSA: 'South Africa', KOR: 'Korea Republic', CZE: 'Czechia',
+  CAN: 'Canada', BIH: 'Bosnia and Herzegovina', USA: 'USA', PAR: 'Paraguay',
+  QAT: 'Qatar', SUI: 'Switzerland', BRA: 'Brazil', MAR: 'Morocco',
+  HAI: 'Haiti', SCO: 'Scotland', AUS: 'Australia', TUR: 'Türkiye',
+  GER: 'Germany', CUW: 'Curaçao', NED: 'Netherlands', JPN: 'Japan',
+  CIV: "Côte d'Ivoire", ECU: 'Ecuador', SWE: 'Sweden', TUN: 'Tunisia',
+  ESP: 'Spain', CPV: 'Cabo Verde', BEL: 'Belgium', EGY: 'Egypt',
+  KSA: 'Saudi Arabia', URU: 'Uruguay', IRN: 'Iran', NZL: 'New Zealand',
+  FRA: 'France', SEN: 'Senegal', IRQ: 'Iraq', NOR: 'Norway',
+  ARG: 'Argentina', ALG: 'Algeria', AUT: 'Austria', JOR: 'Jordan',
+  POR: 'Portugal', COD: 'Congo DR', ENG: 'England', CRO: 'Croatia',
+  GHA: 'Ghana', PAN: 'Panama', UZB: 'Uzbekistan', COL: 'Colombia',
+}
+
+// First day to start checking (group stage ends 28 June) and last day of tournament.
+const WC_UPDATE_FROM = new Date('2026-06-28T05:00:00+01:00') // 5am BST
+const WC_UPDATE_UNTIL = new Date('2026-07-20T00:00:00+01:00')
+// Hour (local server time, 0-23) at which the daily update fires.
+const WC_UPDATE_HOUR = 5
+
+const wcScheduledDays = new Set()
+
+function wcFormatTime(time24) {
+  const [h, m] = time24.split(':').map(Number)
+  const suffix = h < 12 ? 'am' : 'pm'
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return m === 0 ? `${hour}${suffix}` : `${hour}.${String(m).padStart(2, '0')}${suffix}`
+}
+
+function wcFormatDate(dayString) {
+  // "Thursday 11 June 2026" → "Thursday, June 11"
+  const parts = dayString.trim().split(/\s+/)
+  if (parts.length === 4) return `${parts[0]}, ${parts[2]} ${parseInt(parts[1], 10)}`
+  return dayString
+}
+
+function wcIsPlaceholder(teamName) {
+  // Placeholder codes look like "1A", "2B", "3EFGIJ", "W73", "RU101" etc.
+  return /^(\d[A-Z]|[0-9]+[A-Z]+|W\d+|RU\d+)/.test(teamName)
+}
+
+async function runWCKnockoutUpdate() {
+  const FIFA_URL = 'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures?country=GB&wtw-filter=ALL'
+  console.log('[wc-update] Fetching WC fixtures from FIFA website...')
+  let html
+  try {
+    const res = await fetch(FIFA_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fixture-updater/1.0)', Accept: 'text/html' },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    html = await res.text()
+  } catch (err) {
+    console.error('[wc-update] Failed to fetch FIFA page:', err.message)
+    return
+  }
+
+  // Parse date headers and match-centre links from HTML
+  const events = []
+  const dateRe = /(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+\d+\s+(June|July|August)\s+2026/g
+  const linkRe = /<a[^>]+href="[^"]*match-centre[^"]*"[^>]*>([\s\S]*?)<\/a>/g
+  let m
+  while ((m = dateRe.exec(html)) !== null) events.push({ pos: m.index, type: 'date', text: m[0] })
+  while ((m = linkRe.exec(html)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').trim()
+    events.push({ pos: m.index, type: 'match', text })
+  }
+  events.sort((a, b) => a.pos - b.pos)
+
+  // Build lookup: "Thursday, June 11" → [{ homeCode, time, awayCode, stadium }, ...]
+  const liveByDate = {}
+  let currentDate = null
+  for (const ev of events) {
+    if (ev.type === 'date') {
+      currentDate = wcFormatDate(ev.text)
+      if (!liveByDate[currentDate]) liveByDate[currentDate] = []
+    } else if (ev.type === 'match' && currentDate) {
+      const lines = ev.text.split('\n').map(l => l.trim()).filter(Boolean)
+      if (lines.length >= 3) {
+        liveByDate[currentDate].push({
+          homeCode: lines[0], time: wcFormatTime(lines[1]), awayCode: lines[2],
+          stadium: lines[6] || '',
+        })
+      }
+    }
+  }
+
+  let existing
+  try {
+    existing = JSON.parse(await readFile(wcFixturesPath, 'utf8'))
+  } catch (err) {
+    console.error('[wc-update] Could not read WCfixtures.json:', err.message)
+    return
+  }
+
+  let updatedCount = 0
+  for (const matchday of existing) {
+    for (const game of matchday.games) {
+      const gameRound = (game.round || matchday.round || '').toLowerCase()
+      const isKnockout = ['round of 32', 'round of 16', 'quarter', 'semi', 'final', 'third']
+        .some(r => gameRound.includes(r))
+      if (!isKnockout) continue
+
+      // Skip if both teams are already real names
+      const [home, away] = game.match.split(' vs ')
+      if (!wcIsPlaceholder(home) && !wcIsPlaceholder(away)) continue
+
+      const liveCandidates = liveByDate[game.date] || []
+      const live = liveCandidates.find(lm => lm.stadium === game.stadium && lm.time === game.time)
+      if (!live) continue
+
+      const liveHome = WC_TEAM_NAMES[live.homeCode] || live.homeCode
+      const liveAway = WC_TEAM_NAMES[live.awayCode] || live.awayCode
+      if (wcIsPlaceholder(liveHome) || wcIsPlaceholder(liveAway)) continue
+
+      const newMatch = `${liveHome} vs ${liveAway}`
+      if (game.match !== newMatch) {
+        console.log(`[wc-update] ${game.date} ${game.time}: ${game.match} → ${newMatch}`)
+        game.match = newMatch
+        updatedCount++
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    await writeFile(wcFixturesPath, JSON.stringify(existing, null, 2) + '\n', 'utf8')
+    console.log(`[wc-update] Saved ${updatedCount} updated knockout match(es) to WCfixtures.json`)
+  } else {
+    console.log('[wc-update] No new knockout teams confirmed yet — nothing to update')
+  }
+}
+
+function scheduleWCKnockoutUpdates() {
+  const now = new Date()
+  if (now < WC_UPDATE_FROM || now > WC_UPDATE_UNTIL) return
+
+  // If we're already past today's update hour, run immediately (once per calendar day)
+  const todayKey = now.toISOString().slice(0, 10)
+  const todayUpdateTime = new Date(now)
+  todayUpdateTime.setHours(WC_UPDATE_HOUR, 0, 0, 0)
+
+  if (now >= todayUpdateTime && !wcScheduledDays.has(todayKey)) {
+    wcScheduledDays.add(todayKey)
+    console.log(`[wc-update] Running immediate knockout fixture update for ${todayKey}`)
+    void runWCKnockoutUpdate()
+  }
+
+  // Schedule next upcoming 5am run (tomorrow or later in the window)
+  const nextRunDate = new Date(now)
+  nextRunDate.setDate(nextRunDate.getDate() + (now >= todayUpdateTime ? 1 : 0))
+  nextRunDate.setHours(WC_UPDATE_HOUR, 0, 0, 0)
+
+  const nextKey = nextRunDate.toISOString().slice(0, 10)
+  if (nextRunDate <= WC_UPDATE_UNTIL && !wcScheduledDays.has(nextKey)) {
+    const delayMs = nextRunDate.getTime() - now.getTime()
+    if (delayMs <= serverSchedulerMaxDelayMs) {
+      wcScheduledDays.add(nextKey)
+      setTimeout(() => {
+        console.log(`[wc-update] Scheduled knockout fixture update running for ${nextKey}`)
+        void runWCKnockoutUpdate()
+      }, delayMs)
+      console.log(`[wc-update] Scheduled next knockout update in ${Math.round(delayMs / 60000)} min (${nextKey} ${WC_UPDATE_HOUR}:00)`)
+    }
+  }
+}
+
+// ========== END WC 2026 KNOCKOUT FIXTURE UPDATER ==========
+
+const args = parseArgs(process.argv.slice(2))
+const { server } =
+  args.mode === 'development'
+    ? await createDevelopmentServer(args.host, args.port)
+    : await createProductionServer()
+
+server.listen(args.port, args.host, () => {
+  console.log(`Fantasy Football server running on http://${args.host}:${args.port} (${args.mode})`)
+  void backupLeagueStateWithDateStamp().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[backup] Initial backup failed: ${message}`)
+  })
+  scheduleLeagueStateHourlyBackups()
+  // Initial scheduling pass — picks up overdue fixtures and schedules near-future ones.
+  void scheduleServerFixtureScans()
+  void scheduleWCKnockoutUpdates()
+  // Re-check every 12 hours to schedule fixtures that were previously out of setTimeout range.
+  setInterval(() => {
+    void scheduleServerFixtureScans()
+    void scheduleWCKnockoutUpdates()
+  }, 12 * 60 * 60 * 1000)
+})
