@@ -1,6 +1,6 @@
 import { renderPage } from './renderPage'
-import { getTeamsSorted, positionOrder, type TeamSquad, getCountryFlag } from './teamsData'
-import { getCurrentMatchdayPlayerPoints, getTotalAccumulatedPoints } from './teamsData'
+import { getTeamsSorted, positionOrder, type TeamSquad, getTeamBadgeOrFlagHtml } from './teamsData'
+import { getCurrentGameweekPlayerPoints, getTotalAccumulatedPoints } from './teamsData'
 import { requireAuth } from './auth'
 
 requireAuth()
@@ -18,7 +18,7 @@ function escapeHtml(value: string): string {
 function renderTeams(teams: TeamSquad[]): string {
 	return teams
 		.map((team) => {
-			const countryFlag = getCountryFlag(team.name)
+			const teamIdentity = getTeamBadgeOrFlagHtml(team.name, 'team-icon')
 			const orderedPlayers = [...team.players].sort((a, b) => {
 				const aRank = positionOrder[a.position] ?? 99
 				const bRank = positionOrder[b.position] ?? 99
@@ -33,7 +33,7 @@ function renderTeams(teams: TeamSquad[]): string {
 					? orderedPlayers
 							.map(
 								(player) => {
-									const totalPoints = getTotalAccumulatedPoints(player.name, team.name) + getCurrentMatchdayPlayerPoints(player.name, team.name)
+									const totalPoints = getTotalAccumulatedPoints(player.name, team.name) + getCurrentGameweekPlayerPoints(player.name, team.name)
 									return `<li>${escapeHtml(player.name)} <span class="player-price">(£${player.price.toFixed(1)})</span> <span class="player-points">(${totalPoints}pts)</span> <span class="player-position">(${escapeHtml(player.position)})</span></li>`
 								},
 							)
@@ -43,7 +43,7 @@ function renderTeams(teams: TeamSquad[]): string {
 			return `
 				<details class="team-card">
 					<summary>
-						<span class="team-name">${countryFlag} ${escapeHtml(team.name)}</span>
+						<span class="team-name">${teamIdentity} ${escapeHtml(team.name)}</span>
 					</summary>
 					<ul class="player-list">${playerRows}</ul>
 				</details>

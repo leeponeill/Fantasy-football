@@ -20,7 +20,7 @@ import {
   setTeamNameForUser,
   userScopedStorageKey,
 } from './auth'
-import { clearAllPoints, getCurrentMatchdayPlayerPoints, resetAllPlayerPoints } from './teamsData'
+import { clearAllPoints, getCurrentGameweekPlayerPoints, resetAllPlayerPoints } from './teamsData'
 import {
   flushSharedLeagueStorage,
   getSharedItem,
@@ -38,8 +38,8 @@ import {
   renameLeague,
   renameUserInLeagues,
 } from './leagues'
-import { getWCFixtureMatchdays } from './fixturesData'
-import { getTransferAwareMatchdayPoints, getTransferAwarePlayerCurrentPoints, parseTransferPointEvents } from './transferPoints'
+import { getWCFixtureGameweeks } from './fixturesData'
+import { getTransferAwareGameweekPoints, getTransferAwarePlayerCurrentPoints, parseTransferPointEvents } from './transferPoints'
 
 requireAuth()
 
@@ -67,6 +67,10 @@ const adminMarkup = `
       <div class="draft-mode-section">
         <button id="admin-draft-mode-btn" type="button" class="draft-mode-btn">Enable Draft Mode</button>
         <input id="admin-draft-order-input" class="draft-order-input" type="text" placeholder="Draft order e.g. lee, sam, alex" aria-label="Draft order" />
+        <select id="admin-draft-type-select" class="draft-order-input" aria-label="Draft format">
+          <option value="round-robin">Round Robin</option>
+          <option value="snake">Snake</option>
+        </select>
         <button id="admin-save-draft-order-btn" type="button" class="draft-order-save-btn">Save Draft Order</button>
       </div>
     </section>
@@ -77,6 +81,8 @@ const adminMarkup = `
       <p id="bench-mode-message" class="admin-message" aria-live="polite"></p>
       <div class="draft-mode-section">
         <button id="admin-bench-mode-btn" type="button" class="draft-mode-btn">Disable Bench</button>
+        <input id="admin-bench-size-input" class="draft-order-input" type="number" min="0" max="11" step="1" placeholder="Bench size (0-11)" aria-label="Bench size" />
+        <button id="admin-save-bench-size-btn" type="button" class="draft-order-save-btn">Save Bench Size</button>
       </div>
     </section>
 
@@ -108,7 +114,7 @@ const adminMarkup = `
         <button id="admin-prev-gameweek-btn" type="button" class="lock-team-btn">Go Back One Gameweek</button>
         <button id="admin-fix-gw1-totals-btn" type="button" class="lock-team-btn">Fix GW1 Legacy Totals</button>
       </div>
-      <p class="danger-copy">Going back a gameweek only changes matchday state. It does not roll back awarded points.</p>
+      <p class="danger-copy">Going back a gameweek only changes Gameweek state. It does not roll back awarded points.</p>
       <p id="gameweek-wc-status" class="admin-message" aria-live="polite"></p>
     </section>
 
@@ -213,10 +219,13 @@ const draftModeStatusEl = document.querySelector<HTMLParagraphElement>('#draft-m
 const draftModeMessageEl = document.querySelector<HTMLParagraphElement>('#draft-mode-message')
 const adminDraftModeBtn = document.querySelector<HTMLButtonElement>('#admin-draft-mode-btn')
 const adminDraftOrderInput = document.querySelector<HTMLInputElement>('#admin-draft-order-input')
+const adminDraftTypeSelect = document.querySelector<HTMLSelectElement>('#admin-draft-type-select')
 const adminSaveDraftOrderBtn = document.querySelector<HTMLButtonElement>('#admin-save-draft-order-btn')
 const benchModeStatusEl = document.querySelector<HTMLParagraphElement>('#bench-mode-status')
 const benchModeMessageEl = document.querySelector<HTMLParagraphElement>('#bench-mode-message')
 const adminBenchModeBtn = document.querySelector<HTMLButtonElement>('#admin-bench-mode-btn')
+const adminBenchSizeInput = document.querySelector<HTMLInputElement>('#admin-bench-size-input')
+const adminSaveBenchSizeBtn = document.querySelector<HTMLButtonElement>('#admin-save-bench-size-btn')
 const fixtureScoreCheckMessageEl = document.querySelector<HTMLParagraphElement>('#fixture-score-check-message')
 const adminCheckScoresBtn = document.querySelector<HTMLButtonElement>('#admin-check-scores-btn')
 const adminClearApiDataBtn = document.querySelector<HTMLButtonElement>('#admin-clear-api-data-btn')
@@ -233,18 +242,21 @@ const autoImportedEventIdsStorageKey = 'fantasy-football-auto-imported-event-ids
 const importedMatchPlayerPointsStorageKey = 'fantasy-football-imported-match-player-points'
 const autoScannedFixtureKeysStorageKey = 'fantasy-football-auto-scanned-fixture-keys'
 const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
-const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const globalGameweekStorageKey = 'fantasy-football-global-Gameweek'
 
 let draftModeEnabled = false
 let draftModeCanEnable = false
 let draftOrder: string[] = []
+let draftType: 'round-robin' | 'snake' = 'round-robin'
 let draftComplete = false
 let draftCurrentTurn: string | null = null
 let benchModeEnabled = true
 let benchModeCanToggle = false
+let benchModeCanChangeSize = false
+let benchSize = 4
 
-function getGlobalMatchday(): number {
-  const raw = getSharedItem(globalMatchdayStorageKey)
+function getGlobalGameweek(): number {
+  const raw = getSharedItem(globalGameweekStorageKey)
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   if (Number.isFinite(parsed) && parsed >= 0) {
     return parsed
@@ -253,9 +265,9 @@ function getGlobalMatchday(): number {
   return 1
 }
 
-function setGlobalMatchday(matchday: number): void {
-  const safeMatchday = Math.max(0, Math.floor(matchday))
-  setSharedItem(globalMatchdayStorageKey, String(safeMatchday))
+function setGlobalGameweek(Gameweek: number): void {
+  const safeGameweek = Math.max(0, Math.floor(Gameweek))
+  setSharedItem(globalGameweekStorageKey, String(safeGameweek))
 }
 
 function setMessage(text: string, type: 'ok' | 'error'): void {
@@ -378,18 +390,18 @@ function setGameweekMessage(text: string, type: 'ok' | 'error'): void {
 }
 
 function renderGameweekControls(): void {
-  const currentMatchday = getGlobalMatchday()
+  const currentGameweek = getGlobalGameweek()
 
   if (gameweekStatusEl) {
-    gameweekStatusEl.textContent = `Current gameweek: ${currentMatchday}`
+    gameweekStatusEl.textContent = `Current gameweek: ${currentGameweek}`
   }
 
   if (adminPrevGameweekBtn) {
-    adminPrevGameweekBtn.disabled = currentMatchday <= 0
-    adminPrevGameweekBtn.title = currentMatchday <= 0 ? 'Gameweek cannot go below 0.' : ''
+    adminPrevGameweekBtn.disabled = currentGameweek <= 0
+    adminPrevGameweekBtn.title = currentGameweek <= 0 ? 'Gameweek cannot go below 0.' : ''
   }
 
-  void refreshWCGameweekStatus(currentMatchday)
+  void refreshWCGameweekStatus(currentGameweek)
 }
 
 function parseWcFixtureKickoff(game: { date: string; time: string }): Date | null {
@@ -485,12 +497,12 @@ function getAssignedWcGameweek(game: { date: string; time: string }, fallbackGam
     return 7
   }
 
-  // Prevent legacy grouped matchday 6 fixtures (e.g. June 16 group games) from landing in GW6.
+  // Prevent legacy grouped Gameweek 6 fixtures (e.g. June 16 group games) from landing in GW6.
   if (fallbackGameweek === 6) {
     return 5
   }
 
-  // Prevent legacy grouped matchday 7 fixtures (e.g. June 17 group games) from landing in GW7.
+  // Prevent legacy grouped Gameweek 7 fixtures (e.g. June 17 group games) from landing in GW7.
   if (fallbackGameweek === 7) {
     return 6
   }
@@ -498,15 +510,15 @@ function getAssignedWcGameweek(game: { date: string; time: string }, fallbackGam
   return fallbackGameweek
 }
 
-async function refreshWCGameweekStatus(matchday: number): Promise<void> {
+async function refreshWCGameweekStatus(Gameweek: number): Promise<void> {
   if (!adminEndGameweekBtn || !gameweekWcStatusEl) return
   try {
-    const wcMatchdays = await getWCFixtureMatchdays()
+    const wcGameweeks = await getWCFixtureGameweeks()
 
     // Collect all real team names from group stage fixtures.
     // Placeholder names (knockout seeds like "W73", "1A", "3ABCDF", "RU101") start with a digit, W, or R.
     const groupStageTeams = new Set<string>()
-    for (const md of wcMatchdays) {
+    for (const md of wcGameweeks) {
       if (!md.round.startsWith('Group Stage')) continue
       for (const game of md.games) {
         const [home, away] = game.match.split(' vs ')
@@ -530,18 +542,18 @@ async function refreshWCGameweekStatus(matchday: number): Promise<void> {
       }
     }
 
-    if (matchday <= 3) {
-      // Group stage: every team must have played at least `matchday` times
-      const pending = [...groupStageTeams].filter((t) => (teamResultCount[t] ?? 0) < matchday).sort()
+    if (Gameweek <= 3) {
+      // Group stage: every team must have played at least `Gameweek` times
+      const pending = [...groupStageTeams].filter((t) => (teamResultCount[t] ?? 0) < Gameweek).sort()
       if (pending.length > 0) {
         adminEndGameweekBtn.disabled = true
         adminEndGameweekBtn.title = `${pending.length} team${pending.length === 1 ? '' : 's'} yet to play`
-        gameweekWcStatusEl.textContent = `⏳ ${pending.length} team${pending.length === 1 ? '' : 's'} yet to play in gameweek ${matchday}: ${pending.join(', ')}`
+        gameweekWcStatusEl.textContent = `⏳ ${pending.length} team${pending.length === 1 ? '' : 's'} yet to play in gameweek ${Gameweek}: ${pending.join(', ')}`
         gameweekWcStatusEl.className = 'admin-message error'
       } else {
         adminEndGameweekBtn.disabled = false
         adminEndGameweekBtn.title = ''
-        gameweekWcStatusEl.textContent = `✓ All ${groupStageTeams.size} teams have played their gameweek ${matchday} game.`
+        gameweekWcStatusEl.textContent = `✓ All ${groupStageTeams.size} teams have played their gameweek ${Gameweek} game.`
         gameweekWcStatusEl.className = 'admin-message ok'
       }
     } else {
@@ -552,11 +564,11 @@ async function refreshWCGameweekStatus(matchday: number): Promise<void> {
       )
 
       const pendingGames: string[] = []
-      for (const [index, md] of wcMatchdays.entries()) {
+      for (const [index, md] of wcGameweeks.entries()) {
         for (const game of md.games) {
-          const fallbackGameweek = Number.isFinite(md.matchday) ? md.matchday : index + 1
+          const fallbackGameweek = Number.isFinite(md.Gameweek) ? md.Gameweek : index + 1
           const assignedGameweek = getAssignedWcGameweek(game, fallbackGameweek)
-          if (assignedGameweek !== matchday) {
+          if (assignedGameweek !== Gameweek) {
             continue
           }
 
@@ -569,12 +581,12 @@ async function refreshWCGameweekStatus(matchday: number): Promise<void> {
       if (pendingGames.length > 0) {
         adminEndGameweekBtn.disabled = true
         adminEndGameweekBtn.title = `${pendingGames.length} game${pendingGames.length === 1 ? '' : 's'} still pending`
-        gameweekWcStatusEl.textContent = `⏳ ${pendingGames.length} game${pendingGames.length === 1 ? '' : 's'} still to play in gameweek ${matchday}: ${pendingGames.join(', ')}`
+        gameweekWcStatusEl.textContent = `⏳ ${pendingGames.length} game${pendingGames.length === 1 ? '' : 's'} still to play in gameweek ${Gameweek}: ${pendingGames.join(', ')}`
         gameweekWcStatusEl.className = 'admin-message error'
       } else {
         adminEndGameweekBtn.disabled = false
         adminEndGameweekBtn.title = ''
-        gameweekWcStatusEl.textContent = `✓ All games assigned to gameweek ${matchday} have results.`
+        gameweekWcStatusEl.textContent = `✓ All games assigned to gameweek ${Gameweek} have results.`
         gameweekWcStatusEl.className = 'admin-message ok'
       }
     }
@@ -588,38 +600,38 @@ async function refreshWCGameweekStatus(matchday: number): Promise<void> {
 type SavedTeamState = {
   selectedPlayerKeys?: string[]
   isTeamLocked?: boolean
-  transfersUsedThisMatchday?: number
-  transferUsageByMatchday?: unknown
-  currentMatchday?: number
+  transfersUsedThisGameweek?: number
+  transferUsageByGameweek?: unknown
+  currentGameweek?: number
   captainPlayerKey?: string | null
-  captainChangesThisMatchday?: number
+  captainChangesThisGameweek?: number
   captainBonusTotal?: number
   ownedPointsTotal?: number
   transferPointEvents?: unknown
 }
 
-function parseTransferUsageByMatchday(value: unknown): Record<number, number> {
+function parseTransferUsageByGameweek(value: unknown): Record<number, number> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}
   }
 
   const next: Record<number, number> = {}
-  for (const [rawMatchday, rawUsed] of Object.entries(value as Record<string, unknown>)) {
-    const matchday = Number.parseInt(rawMatchday, 10)
-    if (!Number.isFinite(matchday) || matchday < 0) {
+  for (const [rawGameweek, rawUsed] of Object.entries(value as Record<string, unknown>)) {
+    const Gameweek = Number.parseInt(rawGameweek, 10)
+    if (!Number.isFinite(Gameweek) || Gameweek < 0) {
       continue
     }
 
     const used = typeof rawUsed === 'number' && Number.isFinite(rawUsed)
       ? Math.max(0, Math.floor(rawUsed))
       : 0
-    next[matchday] = used
+    next[Gameweek] = used
   }
 
   return next
 }
 
-function updateAllUserMatchdayStates(nextMatchday: number, carryForwardCurrentMatchdayPoints: boolean): void {
+function updateAllUserGameweekStates(nextGameweek: number, carryForwardCurrentGameweekPoints: boolean): void {
   const usernames = getAllUsernames()
 
   for (const username of usernames) {
@@ -633,14 +645,14 @@ function updateAllUserMatchdayStates(nextMatchday: number, carryForwardCurrentMa
       const state = JSON.parse(raw) as SavedTeamState
       const selectedKeys = Array.isArray(state.selectedPlayerKeys) ? state.selectedPlayerKeys : []
       const savedCaptainKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
-      const currentMatchday = Number.isFinite(state.currentMatchday)
-        ? Math.max(0, Math.floor(state.currentMatchday ?? 0))
-        : getGlobalMatchday()
-      const currentTransfersUsed = Number.isFinite(state.transfersUsedThisMatchday)
-        ? Math.max(0, Math.floor(state.transfersUsedThisMatchday ?? 0))
+      const currentGameweek = Number.isFinite(state.currentGameweek)
+        ? Math.max(0, Math.floor(state.currentGameweek ?? 0))
+        : getGlobalGameweek()
+      const currentTransfersUsed = Number.isFinite(state.transfersUsedThisGameweek)
+        ? Math.max(0, Math.floor(state.transfersUsedThisGameweek ?? 0))
         : 0
-      const transferUsageByMatchday = parseTransferUsageByMatchday(state.transferUsageByMatchday)
-      transferUsageByMatchday[currentMatchday] = currentTransfersUsed
+      const transferUsageByGameweek = parseTransferUsageByGameweek(state.transferUsageByGameweek)
+      transferUsageByGameweek[currentGameweek] = currentTransfersUsed
 
       const existingCaptainBonus = Number.isFinite(state.captainBonusTotal)
         ? Math.max(0, state.captainBonusTotal ?? 0)
@@ -657,45 +669,45 @@ function updateAllUserMatchdayStates(nextMatchday: number, carryForwardCurrentMa
 
         const teamName = parts[0]
         const playerName = parts.slice(1).join('::')
-        return getCurrentMatchdayPlayerPoints(playerName, teamName)
+        return getCurrentGameweekPlayerPoints(playerName, teamName)
       }
 
       const transferPointEvents = parseTransferPointEvents(state.transferPointEvents)
-      const playerPointsThisMatchday = carryForwardCurrentMatchdayPoints
+      const playerPointsThisGameweek = carryForwardCurrentGameweekPoints
         ? Math.max(
             0,
-            getTransferAwareMatchdayPoints(
+            getTransferAwareGameweekPoints(
               selectedKeys,
-              currentMatchday,
+              currentGameweek,
               transferPointEvents,
               getCurrentPointsByPlayerKey,
             ),
           )
         : 0
 
-      let captainBonusThisMatchday = 0
-      if (carryForwardCurrentMatchdayPoints && savedCaptainKey && selectedKeys.includes(savedCaptainKey)) {
-        captainBonusThisMatchday = getTransferAwarePlayerCurrentPoints(
+      let captainBonusThisGameweek = 0
+      if (carryForwardCurrentGameweekPoints && savedCaptainKey && selectedKeys.includes(savedCaptainKey)) {
+        captainBonusThisGameweek = getTransferAwarePlayerCurrentPoints(
           savedCaptainKey,
           selectedKeys,
-          currentMatchday,
+          currentGameweek,
           transferPointEvents,
           getCurrentPointsByPlayerKey,
         )
       }
 
-      const restoredTransfersUsed = nextMatchday === 0
+      const restoredTransfersUsed = nextGameweek === 0
         ? 0
-        : Math.max(0, Math.floor(transferUsageByMatchday[nextMatchday] ?? 0))
+        : Math.max(0, Math.floor(transferUsageByGameweek[nextGameweek] ?? 0))
 
       const nextState: SavedTeamState = {
         ...state,
-        currentMatchday: nextMatchday,
-        transfersUsedThisMatchday: restoredTransfersUsed,
-        transferUsageByMatchday,
-        captainChangesThisMatchday: 0,
-        captainBonusTotal: existingCaptainBonus + captainBonusThisMatchday,
-        ownedPointsTotal: existingOwnedPointsTotal + playerPointsThisMatchday,
+        currentGameweek: nextGameweek,
+        transfersUsedThisGameweek: restoredTransfersUsed,
+        transferUsageByGameweek,
+        captainChangesThisGameweek: 0,
+        captainBonusTotal: existingCaptainBonus + captainBonusThisGameweek,
+        ownedPointsTotal: existingOwnedPointsTotal + playerPointsThisGameweek,
         transferPointEvents: [],
       }
 
@@ -719,10 +731,10 @@ function normalizeLegacyTotalsForGameweekOne(): number {
 
     try {
       const state = JSON.parse(raw) as SavedTeamState
-      const currentMatchday = Number.isFinite(state.currentMatchday)
-        ? Math.max(0, Math.floor(state.currentMatchday ?? 0))
+      const currentGameweek = Number.isFinite(state.currentGameweek)
+        ? Math.max(0, Math.floor(state.currentGameweek ?? 0))
         : 1
-      if (currentMatchday > 1) {
+      if (currentGameweek > 1) {
         continue
       }
 
@@ -796,15 +808,17 @@ function clearAllUserCarriedPointState(): number {
 }
 
 function renderDraftModeControls(): void {
+  const draftTypeLabel = draftType === 'snake' ? 'Snake' : 'Round Robin'
+
   if (draftModeStatusEl) {
     if (!draftModeEnabled) {
       draftModeStatusEl.textContent = 'Draft Mode: Off'
     } else if (draftOrder.length === 0) {
-      draftModeStatusEl.textContent = 'Draft Mode: On (waiting for order)'
+      draftModeStatusEl.textContent = `Draft Mode: On (${draftTypeLabel}, waiting for order)`
     } else if (draftComplete) {
-      draftModeStatusEl.textContent = `Draft Mode: Complete (${draftOrder.join(' -> ')})`
+      draftModeStatusEl.textContent = `Draft Mode: Complete (${draftTypeLabel} | ${draftOrder.join(' -> ')})`
     } else {
-      draftModeStatusEl.textContent = `Draft Mode: ${draftCurrentTurn ?? 'Unknown'}'s turn (${draftOrder.join(' -> ')})`
+      draftModeStatusEl.textContent = `Draft Mode: ${draftCurrentTurn ?? 'Unknown'}'s turn (${draftTypeLabel} | ${draftOrder.join(' -> ')})`
     }
   }
 
@@ -820,11 +834,16 @@ function renderDraftModeControls(): void {
   if (adminSaveDraftOrderBtn) {
     adminSaveDraftOrderBtn.disabled = !draftModeEnabled || draftComplete
   }
+
+  if (adminDraftTypeSelect) {
+    adminDraftTypeSelect.value = draftType
+    adminDraftTypeSelect.disabled = !draftModeEnabled || draftComplete
+  }
 }
 
 function renderBenchModeControls(): void {
   if (benchModeStatusEl) {
-    benchModeStatusEl.textContent = benchModeEnabled ? 'Bench Mode: On' : 'Bench Mode: Off'
+    benchModeStatusEl.textContent = `${benchModeEnabled ? 'Bench Mode: On' : 'Bench Mode: Off'} (Bench Size: ${benchSize})`
   }
 
   if (adminBenchModeBtn) {
@@ -833,6 +852,21 @@ function renderBenchModeControls(): void {
     adminBenchModeBtn.classList.toggle('draft-mode-btn--active', benchModeEnabled)
     adminBenchModeBtn.title = !benchModeCanToggle
       ? 'All users must have empty teams to change bench mode'
+      : ''
+  }
+
+  if (adminBenchSizeInput) {
+    adminBenchSizeInput.value = String(benchSize)
+    adminBenchSizeInput.disabled = !benchModeCanChangeSize
+    adminBenchSizeInput.title = !benchModeCanChangeSize
+      ? 'All benches must be empty to change bench size'
+      : ''
+  }
+
+  if (adminSaveBenchSizeBtn) {
+    adminSaveBenchSizeBtn.disabled = !benchModeCanChangeSize
+    adminSaveBenchSizeBtn.title = !benchModeCanChangeSize
+      ? 'All benches must be empty to change bench size'
       : ''
   }
 }
@@ -847,12 +881,14 @@ async function refreshDraftMode(): Promise<void> {
     const data = (await response.json()) as {
       enabled?: boolean
       canEnable?: boolean
+      type?: string
       order?: string[]
       currentTurn?: string | null
       complete?: boolean
     }
     draftModeEnabled = data.enabled === true
     draftModeCanEnable = data.canEnable === true
+    draftType = data.type === 'snake' ? 'snake' : 'round-robin'
     draftOrder = Array.isArray(data.order) ? data.order.filter((value) => typeof value === 'string') : []
     draftCurrentTurn = typeof data.currentTurn === 'string' ? data.currentTurn : null
     draftComplete = data.complete === true
@@ -872,11 +908,15 @@ async function refreshBenchMode(): Promise<void> {
 
     const data = (await response.json()) as {
       enabled?: boolean
+      benchSize?: number
       canToggle?: boolean
+      canChangeBenchSize?: boolean
     }
 
     benchModeEnabled = data.enabled !== false
+    benchSize = Number.isFinite(data.benchSize) ? Math.max(0, Math.floor(data.benchSize ?? benchSize)) : benchSize
     benchModeCanToggle = data.canToggle === true
+    benchModeCanChangeSize = data.canChangeBenchSize === true
   } catch {
     // Keep current values on fetch failure.
   }
@@ -1580,11 +1620,15 @@ if (adminSaveDraftOrderBtn && adminDraftOrderInput) {
       return
     }
 
+    const selectedDraftType: 'round-robin' | 'snake' = adminDraftTypeSelect?.value === 'snake'
+      ? 'snake'
+      : 'round-robin'
+
     try {
       const response = await fetch('/api/draft-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: currentUsername, order: rawOrder }),
+        body: JSON.stringify({ user: currentUsername, order: rawOrder, type: selectedDraftType }),
       })
       const payload = (await response.json()) as { error?: string }
       if (!response.ok) {
@@ -1592,7 +1636,7 @@ if (adminSaveDraftOrderBtn && adminDraftOrderInput) {
         return
       }
 
-      setDraftModeMessage('Draft order saved.', 'ok')
+      setDraftModeMessage(`Draft order saved (${selectedDraftType === 'snake' ? 'Snake' : 'Round Robin'}).`, 'ok')
       await refreshDraftMode()
     } catch {
       setDraftModeMessage('Unable to save draft order.', 'error')
@@ -1613,7 +1657,13 @@ if (adminBenchModeBtn) {
           enabled: nextEnabled,
         }),
       })
-      const data = (await response.json()) as { error?: string; enabled?: boolean }
+      const data = (await response.json()) as {
+        error?: string
+        enabled?: boolean
+        benchSize?: number
+        canToggle?: boolean
+        canChangeBenchSize?: boolean
+      }
       if (!response.ok) {
         setBenchModeMessage(data.error ?? 'Unable to update bench mode.', 'error')
         await refreshBenchMode()
@@ -1621,6 +1671,11 @@ if (adminBenchModeBtn) {
       }
 
       benchModeEnabled = data.enabled !== false
+      if (Number.isFinite(data.benchSize)) {
+  		benchSize = Math.max(0, Math.floor(data.benchSize ?? benchSize))
+      }
+      benchModeCanToggle = data.canToggle === true
+      benchModeCanChangeSize = data.canChangeBenchSize === true
       setBenchModeMessage(
         benchModeEnabled ? 'Bench mode enabled.' : 'Bench mode disabled.',
         'ok',
@@ -1630,6 +1685,53 @@ if (adminBenchModeBtn) {
       await refreshBenchMode()
     } catch {
       setBenchModeMessage('Unable to update bench mode.', 'error')
+    }
+  })
+}
+
+if (adminSaveBenchSizeBtn && adminBenchSizeInput) {
+  adminSaveBenchSizeBtn.addEventListener('click', async () => {
+    const requestedBenchSize = Number.parseInt(adminBenchSizeInput.value, 10)
+    if (!Number.isFinite(requestedBenchSize) || requestedBenchSize < 0 || requestedBenchSize > 11) {
+      setBenchModeMessage('Bench size must be a number from 0 to 11.', 'error')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/bench-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user: currentUsername,
+          benchSize: requestedBenchSize,
+        }),
+      })
+      const data = (await response.json()) as {
+        error?: string
+        enabled?: boolean
+        benchSize?: number
+        canToggle?: boolean
+        canChangeBenchSize?: boolean
+      }
+
+      if (!response.ok) {
+        setBenchModeMessage(data.error ?? 'Unable to update bench size.', 'error')
+        await refreshBenchMode()
+        return
+      }
+
+      benchModeEnabled = data.enabled !== false
+      if (Number.isFinite(data.benchSize)) {
+  		benchSize = Math.max(0, Math.floor(data.benchSize ?? benchSize))
+      }
+      benchModeCanToggle = data.canToggle === true
+      benchModeCanChangeSize = data.canChangeBenchSize === true
+      setBenchModeMessage(`Bench size updated to ${benchSize}.`, 'ok')
+
+      await flushSharedLeagueStorage()
+      await refreshBenchMode()
+    } catch {
+      setBenchModeMessage('Unable to update bench size.', 'error')
     }
   })
 }
@@ -1737,14 +1839,14 @@ if (adminEndGameweekBtn) {
     adminEndGameweekBtn.disabled = true
 
     try {
-      const nextMatchday = getGlobalMatchday() + 1
-      updateAllUserMatchdayStates(nextMatchday, true)
-      setGlobalMatchday(nextMatchday)
+      const nextGameweek = getGlobalGameweek() + 1
+      updateAllUserGameweekStates(nextGameweek, true)
+      setGlobalGameweek(nextGameweek)
       resetAllPlayerPoints()
       await flushSharedLeagueStorage()
       await refreshSharedLeagueStorage()
       renderGameweekControls()
-      setGameweekMessage(`Gameweek ended. Moved to gameweek ${nextMatchday}.`, 'ok')
+      setGameweekMessage(`Gameweek ended. Moved to gameweek ${nextGameweek}.`, 'ok')
     } catch {
       setGameweekMessage('Unable to end gameweek right now.', 'error')
     } finally {
@@ -1755,8 +1857,8 @@ if (adminEndGameweekBtn) {
 
 if (adminPrevGameweekBtn) {
   adminPrevGameweekBtn.addEventListener('click', async () => {
-    const currentMatchday = getGlobalMatchday()
-    if (currentMatchday <= 0) {
+    const currentGameweek = getGlobalGameweek()
+    if (currentGameweek <= 0) {
       setGameweekMessage('Already at gameweek 0.', 'error')
       renderGameweekControls()
       return
@@ -1765,14 +1867,14 @@ if (adminPrevGameweekBtn) {
     adminPrevGameweekBtn.disabled = true
 
     try {
-      const previousMatchday = currentMatchday - 1
-      updateAllUserMatchdayStates(previousMatchday, false)
-      setGlobalMatchday(previousMatchday)
+      const previousGameweek = currentGameweek - 1
+      updateAllUserGameweekStates(previousGameweek, false)
+      setGlobalGameweek(previousGameweek)
       await flushSharedLeagueStorage()
       await refreshSharedLeagueStorage()
       renderGameweekControls()
       setGameweekMessage(
-        `Moved back to gameweek ${previousMatchday}. Points were not rolled back.`,
+        `Moved back to gameweek ${previousGameweek}. Points were not rolled back.`,
         'ok',
       )
     } catch {

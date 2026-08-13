@@ -2,7 +2,7 @@ import { renderPage } from './renderPage'
 import { getAllPlayers, getPlayerPoints, updatePlayerPoints, type SelectablePlayer } from './teamsData'
 import { calculatePlayerPoints, getPointsBreakdownText, type PlayerPerformance } from './pointsCalculator'
 import { getCurrentUsername, requireAuth } from './auth'
-import { getWCFixtureMatchdays, type WCFixtureGame, type WCFixtureMatchday } from './fixturesData'
+import { getWCFixtureGameweeks, type WCFixtureGame, type WCFixtureGameweek } from './fixturesData'
 import { flushSharedLeagueStorage, getSharedItem, setSharedItem } from './sharedLeague'
 
 requireAuth()
@@ -328,7 +328,7 @@ const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
 const dueFixtureScanDelayMs = 150 * 60 * 1000
 const autoGameweekScanDelayMs = 180 * 60 * 1000
 const oneTimeScanMaxDelayMs = 2_147_000_000
-let fixtureMatchdays: WCFixtureMatchday[] = []
+let fixtureGameweeks: WCFixtureGameweek[] = []
 
 const playersByTeamAndName = new Map<string, SelectablePlayer>()
 const playersByName = new Map<string, SelectablePlayer[]>()
@@ -650,7 +650,7 @@ function saveAutoScannedFixtureKeys(keys: Set<string>): void {
 }
 
 type StoredFixtureResult = {
-  matchday: number
+  Gameweek: number
   match: string
   time: string
   date: string
@@ -676,7 +676,7 @@ function readStoredFixtureResults(): StoredFixtureResult[] {
 
       const candidate = value as Record<string, unknown>
       return (
-        typeof candidate.matchday === 'number' &&
+        typeof candidate.Gameweek === 'number' &&
         typeof candidate.match === 'string' &&
         typeof candidate.time === 'string' &&
         typeof candidate.date === 'string'
@@ -692,7 +692,7 @@ function saveStoredFixtureResults(results: StoredFixtureResult[]): void {
 }
 
 function getStoredFixtureResultIdentity(result: StoredFixtureResult): string {
-  return `${result.matchday}|${result.date}|${result.time}|${result.country ?? ''}|${result.match}`
+  return `${result.Gameweek}|${result.date}|${result.time}|${result.country ?? ''}|${result.match}`
 }
 
 function applyImportedMatchPointsForEvent(eventId: string, calculatedRows: CalculatedImportRow[]): number {
@@ -957,8 +957,8 @@ async function fetchJsonWithRetry<T>(url: string, maxAttempts = 2): Promise<ApiC
 function getDueFixtureMatches(now: Date): FixtureDueMatch[] {
   const due: FixtureDueMatch[] = []
 
-  for (const matchday of fixtureMatchdays) {
-    for (const game of matchday.games) {
+  for (const Gameweek of fixtureGameweeks) {
+    for (const game of Gameweek.games) {
       const teams = extractFixtureTeams(game.match)
       if (!teams) {
         continue
@@ -1109,7 +1109,7 @@ function setAutoScanButtonsDisabled(disabled: boolean): void {
 }
 
 function getRoundGameweekNumber(round: string): number | null {
-  const match = round.match(/group\s*stage\s*-\s*matchday\s*(\d+)/i)
+  const match = round.match(/group\s*stage\s*-\s*Gameweek\s*(\d+)/i)
   if (!match) {
     return null
   }
@@ -1119,12 +1119,12 @@ function getRoundGameweekNumber(round: string): number | null {
 }
 
 function getAssignedGameweekNumber(
-  matchday: WCFixtureMatchday,
-  matchdayIndex: number,
+  Gameweek: WCFixtureGameweek,
+  GameweekIndex: number,
   game: WCFixtureGame,
 ): number {
-  const groupedNumber = getRoundGameweekNumber(matchday.round)
-  const fallbackGameweek = groupedNumber ?? (matchdayIndex + 1)
+  const groupedNumber = getRoundGameweekNumber(Gameweek.round)
+  const fallbackGameweek = groupedNumber ?? (GameweekIndex + 1)
 
   const kickoff = parseFixtureKickoff(game, new Date())
   if (!kickoff) {
@@ -1159,12 +1159,12 @@ function getAssignedGameweekNumber(
     return 7
   }
 
-  // Prevent legacy grouped matchday 6 fixtures (e.g. June 16 group games) from landing in GW6.
+  // Prevent legacy grouped Gameweek 6 fixtures (e.g. June 16 group games) from landing in GW6.
   if (fallbackGameweek === 6) {
     return 5
   }
 
-  // Prevent legacy grouped matchday 7 fixtures (e.g. June 17 group games) from landing in GW7.
+  // Prevent legacy grouped Gameweek 7 fixtures (e.g. June 17 group games) from landing in GW7.
   if (fallbackGameweek === 7) {
     return 6
   }
@@ -1175,22 +1175,22 @@ function getAssignedGameweekNumber(
 function getAvailableGameweekNumbers(): number[] {
   const values = new Set<number>()
 
-  for (const [index, matchday] of fixtureMatchdays.entries()) {
-    if (!Array.isArray(matchday.games) || matchday.games.length === 0) {
-      const groupedNumber = getRoundGameweekNumber(matchday.round)
+  for (const [index, Gameweek] of fixtureGameweeks.entries()) {
+    if (!Array.isArray(Gameweek.games) || Gameweek.games.length === 0) {
+      const groupedNumber = getRoundGameweekNumber(Gameweek.round)
       values.add(groupedNumber ?? (index + 1))
       continue
     }
 
-    for (const game of matchday.games) {
-      values.add(getAssignedGameweekNumber(matchday, index, game))
+    for (const game of Gameweek.games) {
+      values.add(getAssignedGameweekNumber(Gameweek, index, game))
     }
   }
 
   return Array.from(values).sort((a, b) => a - b)
 }
 
-function getFixtureMatchdayByGameweek(gameweekNumber: number): WCFixtureMatchday | null {
+function getFixtureGameweekByGameweek(gameweekNumber: number): WCFixtureGameweek | null {
   const normalized = Math.floor(gameweekNumber)
   if (!Number.isFinite(normalized) || normalized < 1) {
     return null
@@ -1199,10 +1199,10 @@ function getFixtureMatchdayByGameweek(gameweekNumber: number): WCFixtureMatchday
   const selectedGames: WCFixtureGame[] = []
   const roundLabels = new Set<string>()
 
-  for (const [index, matchday] of fixtureMatchdays.entries()) {
-    const roundLabel = matchday.round?.trim() || `Matchday ${matchday.matchday}`
-    for (const game of matchday.games) {
-      if (getAssignedGameweekNumber(matchday, index, game) === normalized) {
+  for (const [index, Gameweek] of fixtureGameweeks.entries()) {
+    const roundLabel = Gameweek.round?.trim() || `Gameweek ${Gameweek.Gameweek}`
+    for (const game of Gameweek.games) {
+      if (getAssignedGameweekNumber(Gameweek, index, game) === normalized) {
         selectedGames.push(game)
         roundLabels.add(roundLabel)
       }
@@ -1218,7 +1218,7 @@ function getFixtureMatchdayByGameweek(gameweekNumber: number): WCFixtureMatchday
     : `Mixed Rounds (${roundLabels.size})`
 
   return {
-    matchday: normalized,
+    Gameweek: normalized,
     round,
     games: selectedGames,
   }
@@ -1231,8 +1231,8 @@ function renderGameweekOptions(): void {
 
   const options = getAvailableGameweekNumbers()
     .map((gameweekNumber) => {
-      const matchday = getFixtureMatchdayByGameweek(gameweekNumber)
-      const roundLabel = matchday?.round ?? `Gameweek ${gameweekNumber}`
+      const Gameweek = getFixtureGameweekByGameweek(gameweekNumber)
+      const roundLabel = Gameweek?.round ?? `Gameweek ${gameweekNumber}`
       return `<option value="${gameweekNumber}">Gameweek ${gameweekNumber} (${escapeHtml(roundLabel)})</option>`
     })
     .join('')
@@ -1257,9 +1257,9 @@ function renderIndividualGameOptions(): void {
   const options: string[] = []
   individualFixtureGameByKey.clear()
 
-  for (const [index, matchday] of fixtureMatchdays.entries()) {
-    for (const game of matchday.games) {
-      const gameweekNumber = getAssignedGameweekNumber(matchday, index, game)
+  for (const [index, Gameweek] of fixtureGameweeks.entries()) {
+    for (const game of Gameweek.games) {
+      const gameweekNumber = getAssignedGameweekNumber(Gameweek, index, game)
       const fixtureKey = getIndividualFixtureKey(game)
       individualFixtureGameByKey.set(fixtureKey, game)
       options.push(
@@ -1710,13 +1710,13 @@ async function scanSelectedGameweekAndImport(): Promise<void> {
     return
   }
 
-  const matchday = getFixtureMatchdayByGameweek(selectedGameweek)
-  if (!matchday) {
+  const Gameweek = getFixtureGameweekByGameweek(selectedGameweek)
+  if (!Gameweek) {
     setAutoImportMessage(`Gameweek ${selectedGameweek} was not found in fixtures.`, 'error')
     return
   }
 
-  await scanFixtureGamesAndImport(matchday.games, `Gameweek ${selectedGameweek} scan`, {
+  await scanFixtureGamesAndImport(Gameweek.games, `Gameweek ${selectedGameweek} scan`, {
     skipAlreadyImported: false,
     includeZeroPoints: true,
     replaceExistingValues: true,
@@ -1818,16 +1818,16 @@ async function clearSelectedIndividualGamePoints(): Promise<void> {
     scannedFixtureKeys.delete(selectedFixtureKey)
     saveAutoScannedFixtureKeys(scannedFixtureKeys)
 
-    let selectedMatchday: number | null = null
-    for (const matchday of fixtureMatchdays) {
-      if (matchday.games.includes(selectedGame)) {
-        selectedMatchday = matchday.matchday
+    let selectedGameweek: number | null = null
+    for (const Gameweek of fixtureGameweeks) {
+      if (Gameweek.games.includes(selectedGame)) {
+        selectedGameweek = Gameweek.Gameweek
         break
       }
     }
 
-    if (selectedMatchday !== null) {
-      const selectedResultKey = `${selectedMatchday}|${selectedGame.date}|${selectedGame.time}||${selectedGame.match}`
+    if (selectedGameweek !== null) {
+      const selectedResultKey = `${selectedGameweek}|${selectedGame.date}|${selectedGame.time}||${selectedGame.match}`
       const storedResults = readStoredFixtureResults().filter(
         (result) => getStoredFixtureResultIdentity(result) !== selectedResultKey,
       )
@@ -1848,10 +1848,10 @@ async function clearSelectedIndividualGamePoints(): Promise<void> {
   }
 }
 
-function getLatestKickoffForGameweek(matchday: WCFixtureMatchday, now: Date): Date | null {
+function getLatestKickoffForGameweek(Gameweek: WCFixtureGameweek, now: Date): Date | null {
   let latestKickoff: Date | null = null
 
-  for (const game of matchday.games) {
+  for (const game of Gameweek.games) {
     const teams = extractFixtureTeams(game.match)
     if (!teams) {
       continue
@@ -1870,27 +1870,27 @@ function getLatestKickoffForGameweek(matchday: WCFixtureMatchday, now: Date): Da
   return latestKickoff
 }
 
-async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
-  const matchday = getFixtureMatchdayByGameweek(matchdayNumber)
-  if (!matchday) {
+async function triggerAutoGameweekScan(GameweekNumber: number): Promise<void> {
+  const Gameweek = getFixtureGameweekByGameweek(GameweekNumber)
+  if (!Gameweek) {
     return
   }
 
   const importedGameweeks = readAutoImportedGameweeks()
-  if (importedGameweeks.has(matchdayNumber)) {
+  if (importedGameweeks.has(GameweekNumber)) {
     return
   }
 
   if (isAutoScanRunning) {
     window.setTimeout(() => {
-      void triggerAutoGameweekScan(matchdayNumber)
+      void triggerAutoGameweekScan(GameweekNumber)
     }, 30_000)
     return
   }
 
   const summary = await scanFixtureGamesAndImport(
-    matchday.games,
-    `Gameweek ${matchdayNumber} scan (auto +3h after final kickoff)`,
+    Gameweek.games,
+    `Gameweek ${GameweekNumber} scan (auto +3h after final kickoff)`,
     {
       skipAlreadyImported: false,
       includeZeroPoints: true,
@@ -1905,12 +1905,12 @@ async function triggerAutoGameweekScan(matchdayNumber: number): Promise<void> {
 
   if (hasPendingFixtures) {
     window.setTimeout(() => {
-      void triggerAutoGameweekScan(matchdayNumber)
+      void triggerAutoGameweekScan(GameweekNumber)
     }, 30 * 60 * 1000)
     return
   }
 
-  importedGameweeks.add(matchdayNumber)
+  importedGameweeks.add(GameweekNumber)
   saveAutoImportedGameweeks(importedGameweeks)
   await flushSharedLeagueStorage()
 }
@@ -1924,12 +1924,12 @@ function scheduleOneTimeGameweekScans(now: Date): void {
       continue
     }
 
-    const matchday = getFixtureMatchdayByGameweek(gameweekNumber)
-    if (!matchday) {
+    const Gameweek = getFixtureGameweekByGameweek(gameweekNumber)
+    if (!Gameweek) {
       continue
     }
 
-    const latestKickoff = getLatestKickoffForGameweek(matchday, now)
+    const latestKickoff = getLatestKickoffForGameweek(Gameweek, now)
     if (!latestKickoff) {
       continue
     }
@@ -1973,8 +1973,8 @@ function scheduleOneTimeFixtureScans(now: Date): void {
   const nowMs = now.getTime()
   let nextRunAt: number | null = null
 
-  for (const matchday of fixtureMatchdays) {
-    for (const game of matchday.games) {
+  for (const Gameweek of fixtureGameweeks) {
+    for (const game of Gameweek.games) {
       const teams = extractFixtureTeams(game.match)
       if (!teams) {
         continue
@@ -2163,7 +2163,7 @@ async function initializeStatsPage(): Promise<void> {
   renderPlayerSearch()
 
   try {
-    fixtureMatchdays = await getWCFixtureMatchdays()
+    fixtureGameweeks = await getWCFixtureGameweeks()
     renderGameweekOptions()
     renderIndividualGameOptions()
   } catch {

@@ -103,7 +103,7 @@ if (app) {
 				return
 			}
 
-			const signedInUsername = getCurrentUsername() ?? username
+			const signedInUsername = result.username ?? getCurrentUsername() ?? username
 			window.location.replace(getPostLoginPath(signedInUsername))
 		})
 	}
@@ -153,7 +153,7 @@ if (app) {
 				return
 			}
 
-			const signedInUsername = getCurrentUsername() ?? username
+			const signedInUsername = signInResult.username ?? getCurrentUsername() ?? username
 			window.location.replace(getPostLoginPath(signedInUsername))
 		})
 	}

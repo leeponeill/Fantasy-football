@@ -1,3 +1,0 @@
-Connection timed out during banner exchange
-Connection to 192.168.1.5 port 22 timed out
-SSH_EXIT:255

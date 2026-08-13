@@ -2564,7 +2564,7 @@
         "scorers": [
           {
             "team": "Spain",
-            "player": "Mikel Merino",
+            "player": "ssikel Merino",
             "minute": "90+1"
           }
         ]
@@ -2698,8 +2698,7 @@
         "stadium": "Los Angeles Stadium",
         "group": "",
         "round": ""
-      }
-    ]
+      }]
   },
   {
     "round": "Quarter-final",
@@ -2770,7 +2769,7 @@
     "round": "Final",
     "games": [
       {
-        "match": "W101 vs W102",
+        "match": "Spain vs Argentina",
         "time": "8pm",
         "date": "Sunday, July 19",
         "stadium": "New York/New Jersey Stadium",

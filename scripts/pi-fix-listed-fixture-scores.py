@@ -104,7 +104,7 @@ def update_records(records: list[dict], source_label: str) -> list[tuple[str, st
 def main() -> int:
     wc_path = Path("data/WCfixtures.json")
     wc_data = json.loads(wc_path.read_text(encoding="utf-8"))
-    wc_games = [game for matchday in wc_data for game in matchday.get("games", [])]
+    wc_games = [game for Gameweek in wc_data for game in Gameweek.get("games", [])]
     wc_changes = update_records(wc_games, "WC")
     if wc_changes:
         wc_path.write_text(json.dumps(wc_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

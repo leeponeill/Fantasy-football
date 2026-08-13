@@ -1,6 +1,6 @@
 [
   {
-    "matchday": 37,
+    "Gameweek": 37,
     "games": [
       {
         "match": "Aston Villa vs Liverpool",
@@ -55,7 +55,7 @@
     ]
   },
   {
-    "matchday": 38,
+    "Gameweek": 38,
     "games": [
       {
         "match": "Brighton vs Man Utd",

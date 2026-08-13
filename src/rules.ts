@@ -40,7 +40,7 @@ const rulesMarkup = `
   <section class="rules-grid">
     <article class="rules-card">
       <h2>How Players Score Points</h2>
-      <p class="players-help">Scoring is applied per player performance each matchday.</p>
+      <p class="players-help">Scoring is applied per player performance each Gameweek.</p>
       <div class="history-table-wrap">
         <table class="history-table rules-table">
           <thead>
@@ -57,11 +57,11 @@ const rulesMarkup = `
     <article class="rules-card">
       <h2>Transfer Limits</h2>
       <ul class="rules-list">
-        <li>You get up to 3 transfers per matchday while teams are locked.</li>
+        <li>You get up to 3 transfers per Gameweek while teams are locked.</li>
         <li>Transfers can be made mid gameweek, including for players who have already played, except from kickoff until 3.5 hours after kickoff of any game involving that player's team.</li>
-        <li>On Matchday 0, transfers are unlimited and do not consume transfer count.</li>
-        <li>Each player removed counts toward transfer usage for that matchday.</li>
-        <li>Transfers reset to 0 used when the global matchday advances.</li>
+        <li>On Gameweek 0, transfers are unlimited and do not consume transfer count.</li>
+        <li>Each player removed counts toward transfer usage for that Gameweek.</li>
+        <li>Transfers reset to 0 used when the global Gameweek advances.</li>
       </ul>
     </article>
   </section>

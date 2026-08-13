@@ -119,8 +119,107 @@ export function getCountryFlag(teamName: string): string {
   return countryFlagMap[normalized] ?? '🏳️'
 }
 
+function normalizeTeamKey(teamName: string): string {
+  return teamName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
+
+const clubBadgeIdByTeamKey: Record<string, number> = {
+  arsenal: 3,
+  astonvilla: 7,
+  villa: 7,
+  bournemouth: 91,
+  brentford: 94,
+  brighton: 36,
+  brightonandhovealbion: 36,
+  chelsea: 8,
+  coventry: 9,
+  coventrycity: 9,
+  crystalpalace: 31,
+  palace: 31,
+  everton: 11,
+  fulham: 54,
+  hull: 88,
+  hullcity: 88,
+  ipswich: 40,
+  ipswichtown: 40,
+  leeds: 2,
+  leedsunited: 2,
+  liverpool: 14,
+  mancity: 43,
+  manchestercity: 43,
+  manutd: 1,
+  manchesterunited: 1,
+  newcastle: 4,
+  newcastleunited: 4,
+  nottmforest: 17,
+  nottinghamforest: 17,
+  forest: 17,
+  sunderland: 56,
+  spurs: 6,
+  tottenham: 6,
+  tottenhamhotspur: 6,
+  burnley: 90,
+  westham: 21,
+  westhamunited: 21,
+  wolves: 39,
+  wolverhampton: 39,
+  wolverhamptonwanderers: 39,
+}
+
+const clubBadgeUrlByTeamKey: Record<string, string> = {
+  // Use the full Liverpool crest with the "You'll Never Walk Alone" banner.
+  liverpool: '/badges/liverpool-full-crest.svg',
+  liverpoolfc: '/badges/liverpool-full-crest.svg',
+  liverpoolfpl: '/badges/liverpool-full-crest.svg',
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+export function getTeamBadgeUrl(teamName: string): string | null {
+  const teamKey = normalizeTeamKey(teamName)
+  const customBadgeUrl = clubBadgeUrlByTeamKey[teamKey]
+  if (customBadgeUrl) {
+    return customBadgeUrl
+  }
+
+  const badgeId = clubBadgeIdByTeamKey[teamKey]
+  if (!badgeId) {
+    return null
+  }
+
+  return `https://resources.premierleague.com/premierleague/badges/70/t${badgeId}.png`
+}
+
+export function getTeamBadgeOrFlagHtml(teamName: string, className = 'team-icon'): string {
+  const normalized = teamName.trim()
+  const flag = countryFlagMap[normalized]
+  if (flag) {
+    return `<span class="${className} team-flag" aria-hidden="true">${flag}</span>`
+  }
+
+  const badgeUrl = getTeamBadgeUrl(normalized)
+  if (badgeUrl) {
+    const safeName = escapeHtml(normalized)
+    return `<img class="${className} team-badge-icon" src="${badgeUrl}" alt="${safeName} badge" loading="lazy" decoding="async" />`
+  }
+
+  return `<span class="${className} team-flag" aria-hidden="true">🏳️</span>`
+}
+
 type TeamKitColors = {
   backgroundColor: string
+  backgroundPattern: string
   textColor: string
   borderColor: string
 }
@@ -205,6 +304,77 @@ const teamKitColorMap: Record<string, string> = {
   Uzbekistan: '#ffffff',
   Vietnam: '#d71920',
   Wales: '#d71920',
+  Arsenal: '#ef0107',
+  'Aston Villa': '#670e36',
+  Bournemouth: '#da291c',
+  Brentford: '#e30613',
+  'Brighton and Hove Albion': '#0057b8',
+  Brighton: '#0057b8',
+  Chelsea: '#034694',
+  'Coventry City': '#6cabdd',
+  'Crystal Palace': '#1b458f',
+  Everton: '#003399',
+  Fulham: '#ffffff',
+  'Hull City': '#f2a900',
+  'Ipswich Town': '#0057b8',
+  'Leeds United': '#ffffff',
+  Leeds: '#ffffff',
+  Liverpool: '#c8102e',
+  'Manchester City': '#6cabdd',
+  'Man City': '#6cabdd',
+  'Manchester United': '#da291c',
+  'Man Utd': '#da291c',
+  'Newcastle United': '#ffffff',
+  Newcastle: '#ffffff',
+  'Nottingham Forest': '#dd0000',
+  Forest: '#dd0000',
+  Forrest: '#dd0000',
+  Sunderland: '#eb172b',
+  'Tottenham Hotspur': '#ffffff',
+  Spurs: '#ffffff',
+  Totenham: '#ffffff',
+  Burnley: '#6c1d45',
+  'West Ham': '#7a263a',
+  'West Ham United': '#7a263a',
+  Wolves: '#fdb913',
+  'Wolverhampton Wanderers': '#fdb913',
+}
+
+const stripedKitMap: Record<string, { stripeColor: string }> = {
+  // Classic black and white vertical stripes.
+  newcastleunited: { stripeColor: '#241f20' },
+  newcastle: { stripeColor: '#241f20' },
+
+  // Red and white stripes.
+  sunderland: { stripeColor: '#ffffff' },
+  brentford: { stripeColor: '#ffffff' },
+
+  // Claret and sky blue split for Villa.
+  astonvilla: { stripeColor: '#95bfe5' },
+  villa: { stripeColor: '#95bfe5' },
+
+  // Blue and red split for Palace.
+  crystalpalace: { stripeColor: '#c4122e' },
+  palace: { stripeColor: '#c4122e' },
+
+  // Bournemouth and Southampton both use red/white striped homes in many seasons.
+  bournemouth: { stripeColor: '#111111' },
+  southampton: { stripeColor: '#ffffff' },
+
+  // Dark blue and white stripes.
+  westbrom: { stripeColor: '#ffffff' },
+  westbromwichalbion: { stripeColor: '#ffffff' },
+}
+
+const teamTextColorOverrideMap: Record<string, string> = {
+  newcastleunited: '#0057b8',
+  newcastle: '#0057b8',
+  leedsunited: '#0057b8',
+  leeds: '#0057b8',
+  tottenhamhotspur: '#132257',
+  spurs: '#132257',
+  manchesterunited: '#000000',
+  manutd: '#000000',
 }
 
 function clampByte(value: number): number {
@@ -242,19 +412,63 @@ function getPerceivedBrightness(hex: string): number {
   return (r * 299 + g * 587 + b * 114) / 1000
 }
 
+function relativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex)
+  const srgb = [r, g, b].map((channel) => channel / 255)
+  const linear = srgb.map((channel) => (
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  ))
+
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+}
+
+function contrastRatio(colorA: string, colorB: string): number {
+  const l1 = relativeLuminance(colorA)
+  const l2 = relativeLuminance(colorB)
+  const lighter = Math.max(l1, l2)
+  const darker = Math.min(l1, l2)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+function pickReadableTextColor(backgroundColors: string[]): string {
+  const candidates = ['#0f172a', '#ffffff']
+  let bestColor = candidates[0]
+  let bestScore = -1
+
+  for (const candidate of candidates) {
+    const worstContrast = Math.min(...backgroundColors.map((bg) => contrastRatio(candidate, bg)))
+    if (worstContrast > bestScore) {
+      bestScore = worstContrast
+      bestColor = candidate
+    }
+  }
+
+  return bestColor
+}
+
 function shadeHex(hex: string, amount: number): string {
   const { r, g, b } = hexToRgb(hex)
   return rgbToHex(r + amount, g + amount, b + amount)
 }
 
+function buildStripePattern(baseHex: string, stripeHex: string): string {
+  return `linear-gradient(90deg, ${baseHex} 0 50%, ${stripeHex} 50% 100%)`
+}
+
 export function getTeamKitColors(teamName: string): TeamKitColors {
-  const base = teamKitColorMap[teamName.trim()] ?? '#2563eb'
+  const normalizedName = teamName.trim()
+  const base = teamKitColorMap[normalizedName] ?? '#2563eb'
+  const teamKey = normalizeTeamKey(normalizedName)
+  const stripe = stripedKitMap[teamKey]
+  const backgroundPattern = stripe ? buildStripePattern(base, stripe.stripeColor) : 'none'
+  const computedTextColor = pickReadableTextColor(stripe ? [base, stripe.stripeColor] : [base])
+  const textColor = teamTextColorOverrideMap[teamKey] ?? computedTextColor
   const brightness = getPerceivedBrightness(base)
-  const textColor = brightness > 155 ? '#0f172a' : '#ffffff'
   const borderColor = brightness > 155 ? shadeHex(base, -55) : shadeHex(base, 45)
 
   return {
     backgroundColor: base,
+    backgroundPattern,
     textColor,
     borderColor,
   }
@@ -450,7 +664,7 @@ export function getAllPlayers(): SelectablePlayer[] {
         ...player,
         team: team.name,
         status: team.status,
-        points: getCurrentMatchdayPlayerPoints(player.name, team.name),
+        points: getCurrentGameweekPlayerPoints(player.name, team.name),
       })),
     )
     .sort((a, b) => {
@@ -502,15 +716,16 @@ function syncStoredPointMaps(): void {
   replaceMapContents(totalPointsMap, loadStoredMap(totalPointsStorageKey))
 }
 
-function getCurrentMatchdayPlayedTeams(): Set<string> {
-  const currentMatchdayRaw = getSharedItem('fantasy-football-global-matchday')
-  const currentMatchday = currentMatchdayRaw ? Number.parseInt(currentMatchdayRaw, 10) : 1
+function getCurrentGameweekPlayedTeams(): Set<string> {
+  const currentGameweekRaw = getSharedItem('fantasy-football-global-Gameweek')
+  const parsedGameweek = currentGameweekRaw ? Number.parseInt(currentGameweekRaw, 10) : 1
+  const currentGameweek = Number.isFinite(parsedGameweek) && parsedGameweek > 0 ? parsedGameweek : 1
 
   const raw = getSharedItem('fantasy-football-fixture-results')
-  const results: Array<{ match: string; homeScore?: string; awayScore?: string }> = raw
+  const results: Array<{ match: string; matchday?: number; homeScore?: string; awayScore?: string }> = raw
     ? (() => {
       try {
-        return JSON.parse(raw) as Array<{ match: string; homeScore?: string; awayScore?: string }>
+        return JSON.parse(raw) as Array<{ match: string; matchday?: number; homeScore?: string; awayScore?: string }>
       } catch {
         return []
       }
@@ -519,6 +734,10 @@ function getCurrentMatchdayPlayedTeams(): Set<string> {
 
   const teamCount: Record<string, number> = {}
   for (const result of results) {
+    if (!Number.isFinite(result.matchday) || Number(result.matchday) !== currentGameweek) {
+      continue
+    }
+
     if (result.homeScore === undefined || result.awayScore === undefined) {
       continue
     }
@@ -536,7 +755,7 @@ function getCurrentMatchdayPlayedTeams(): Set<string> {
 
   const fixturePlayedTeams = new Set<string>()
   for (const [team, count] of Object.entries(teamCount)) {
-    if (count >= currentMatchday) {
+    if (count >= currentGameweek) {
       fixturePlayedTeams.add(team.toLowerCase())
     }
   }
@@ -544,8 +763,8 @@ function getCurrentMatchdayPlayedTeams(): Set<string> {
   return fixturePlayedTeams
 }
 
-export function hasTeamPlayedThisMatchday(teamName: string): boolean {
-  return getCurrentMatchdayPlayedTeams().has(teamName.trim().toLowerCase())
+export function hasTeamPlayedThisGameweek(teamName: string): boolean {
+  return getCurrentGameweekPlayedTeams().has(teamName.trim().toLowerCase())
 }
 
 function savePlayerPointsMap(): void {
@@ -564,18 +783,18 @@ export function getPlayerPoints(playerName: string, teamName: string): number {
   return playerPointsMap[key] ?? 0
 }
 
-function getCurrentMatchdayImportedPoints(_playerName: string, _teamName: string): number | null {
+function getCurrentGameweekImportedPoints(_playerName: string, _teamName: string): number | null {
   // No maps—return null to use fixture-result logic only.
   return null
 }
 
-export function getCurrentMatchdayPlayerPoints(playerName: string, teamName: string): number {
-  const importedPoints = getCurrentMatchdayImportedPoints(playerName, teamName)
+export function getCurrentGameweekPlayerPoints(playerName: string, teamName: string): number {
+  const importedPoints = getCurrentGameweekImportedPoints(playerName, teamName)
   if (importedPoints !== null) {
     return importedPoints
   }
 
-  const playedTeams = getCurrentMatchdayPlayedTeams()
+  const playedTeams = getCurrentGameweekPlayedTeams()
   if (!playedTeams.has(teamName.trim().toLowerCase())) {
     return 0
   }
@@ -611,7 +830,7 @@ export function getTotalAccumulatedPoints(playerName: string, teamName: string):
   return totalPointsMap[key] ?? 0
 }
 
-export function addMatchdayPointsToTotal(): void {
+export function addGameweekPointsToTotal(): void {
   for (const key in playerPointsMap) {
     totalPointsMap[key] = (totalPointsMap[key] ?? 0) + playerPointsMap[key]
   }

@@ -1,0 +1,121 @@
+Premier League 2026/27 - Squad Data (scraped from premierleague.com)
+
+Arsenal (current)
+Goalkeepers: Alexei Rojas, David Raya, Illan Meslier, Jack Porter, Karl Hein, Kepa Arrizabalaga, Khari Ranson, Tommy Setford
+Defenders: Ben White, Brayden Clarke, Cristhian Mosquera, Gabriel dos Santos Magalhães, Jaden Dixon, Josh Nichols, Josh Ogunnaike, Jurriën Timber, Marli Salmon, Myles Lewis-Skelly, Piero Hincapié, Riccardo Calafiori, William Saliba
+Midfielders: Bruno Guimarães Rodriguez Moura, Declan Rice, Demiane Agustien, Eberechi Eze, Ethan Nwaneri, Fábio Daniel Ferreira Vieira, Harrison Dudziak, Ife Ibrahim, Louie Copley, Martin Ødegaard, Martín Zubimendi, Max Dowman, Mikel Merino, Theo Julienne
+Forwards: Andre Harriman-Annous, Brando Bailey-Joseph, Bukayo Saka, Ceadach O’Neill, Christos Tzolis, Gabriel Fernando de Jesus, Gabriel Teodoro Martinelli Silva, Ismeal Kabia, Kai Havertz, Leandro Trossard, Noni Madueke, Reiss Nelson, Viktor Gyökeres
+
+Aston Villa (current)
+Goalkeepers: Emiliano Martínez, James Wright, Joe Gauci, Marco Bizot, Oliwier Zych, Owen Asemota, Rhys Oakley, Ronnie Hollingshead, Sam Proctor
+Defenders: Andrés García, Ezri Konsa, Ian Maatsen, Kosta Nedeljkovic, Leon Routh, Lucas Digne, Matty Cash, Modou Kéba Cissé, Pau Torres, TJ Carroll, Triston Rowe, Tyrone Mings, Victor Lindelöf
+Midfielders: Aidan Borland, Amadou Onana, Boubacar Kamara, Bradley Burrowes, Emiliano Buendía, Enzo Barrenechea, George Hemmings, João Victor Gomes da Silva, Johan Manzambi, John McGinn, Lamare Bogarde, Mohamed Koné, Ross Barkley
+Forwards: Alejandro Garnacho, Alysson Edward Franco da Rocha dos Santos, Brian Madjo, Donyell Malen, Evann Guessand, Leon Bailey, Lewis Dobbin, Luka Lynch, Ollie Watkins, Samuel Iling-Junior, Tammy Abraham
+
+Bournemouth (current)
+Goalkeepers: Alex Paulsen, Christos Mandas, Djordje Petrovic, Fraser Forster, Will Dennis
+Defenders: Adam Smith, Adrien Truffert, Álex Jiménez, António João Pereira de Albuquerque Tavares da Silva, Bafodé Diakité, James Hill, Julián Araujo, Julio Soler, Matai Akinmboni, Max Aarons, Owen Bevan, Veljko Milosavljevic
+Midfielders: Alex Scott, Alex Tóth, Ben Winterburn, Charlie Stevens, David Brooks, Hamed Traoré, Juanlu Sánchez, Lewis Cook, Malcom DaCosta, Marcus Tavernier, Romain Faivre, Ryan Christie, Tyler Adams
+Forwards: Álvaro Rodríguez, Amine Adli, Ben Gannon-Doak, Daniel Jebbison, Enes Ünal, Francisco Evanilson de Lima Barbosa, Junior Kroupi, Justin Kluivert, Luis Sinisterra, Rayan Vitor Simplício Rocha, Remy Rees-Dottin
+
+Brentford (current)
+Goalkeepers: Caoimhín Kelleher, Ellery Balcombe, Hákon Valdimarsson, Julian Eyestone, Matthew Cox
+Defenders: Aaron Hickey, Benjamin Arthur, Benjamin Fredrick, Caelan Avenell, Conor McManus, Ethan Pinnock, Jannik Schuster, Jayden Meghoma, Ji-Soo Kim, Joshua Stephenson, Kristoffer Ajer, Michael Kayode, Nathan Collins, Ollie Shield, Rico Henry, Sepp van den Berg
+Midfielders: Andre Grey, Antoni Milambo, Ethan Brierley, Fábio Leandro Freitas Gouveia de Carvalho, Josh Dasilva, Kevin Schade, Luca Picotto, Luka Bentt, Mamadou Sangaré, Mathias Jensen, Mikkel Damsgaard, Riley Owen, Romelle Donovan, Ryan Trevitt, Vitaly Janelt, Yehor Yarmoliuk, Yunus Konak
+Forwards: Callum Wilson, Dango Ouattara, Gustavo Nunes Fernandes Gomes, Igor Thiago Nascimento Rodrigues, Jaidon Anthony, Kaye Furo, Keane Lewis-Potter, Theo Mawene
+
+Brighton and Hove Albion (current)
+Goalkeepers: Bart Verbruggen, James Beadle, Jason Steele, Nils Ramming, Tom McGill
+Defenders: Adam Webster, Charlie Tasker, Diego Coppola, Eiran Cashin, Ferdi Kadioglu, Freddie Simmonds, Igor Julio dos Santos de Paulo, João Pedro Loureiro da Costa, Joël Veltman, Lewis Dunk, Luka Vuskovic, Maxim De Cuyper, Michael Svoboda, Olivier Boscagli, Pascal Struijk
+Midfielders: Amario Cozier-Duberry, Brajan Gruda, Carlos Baleba, Diego Gómez, Facundo Buonanotte, Harry Howell, Jack Hinshelwood, James Milner, Jeremy Sarmiento, Jesse Middleton, Kaoru Mitoma, Malick Yalcouyé, Mats Wieffer, Matt O'Riley, Pascal Groß, Rodrigo Miguel Ferreira Rêgo, Solly March, Yasin Ayari
+Forwards: Charalampos Kostoulas, Do-Young Yoon, Evan Ferguson, George Munday, Georginio Rutter, Ibrahim Osman, Mark O'Mahony, Nehemiah Oriola, Stefanos Tzimas, Tom Watson, Yankuba Minteh, Zadok Yohanna
+
+Chelsea (current)
+Goalkeepers: Filip Jörgensen, Gaga Slonina, Max Merrick, Mike Penders, Robert Sánchez, Ted Curd, Teddy Sharman-Lowe
+Defenders: Aaron Anselmino, Axel Disasi, Benoît Badiashile, Calvin Diakite, Ishé Samuels-Smith, Jorrel Hato, Josh Acheampong, Landon Emenalo, Levi Colwill, Malo Gusto, Mamadou Sarr, Marc Cucurella, Marco Palestra, Maxence Lacroix, Olutayo Subuloye, Pep Chavarría, Reece James, Tosin Adarabioyo, Trevoh Chalobah, Wesley Fofana
+Midfielders: Charlie Holland, Cole Palmer, Dário Cassia Luís Essugo, Enzo Fernández, Geovany Tcherno Quenda, Jordan Henderson, Mahdi Nicoll-Jazuli, Mathis Eboué, Moisés Caicedo, Morgan Rogers, Mykhailo Mudryk, Ollie Harrison, Omari Kellyman, Reggie Walsh, Reggie Watson, Roméo Lavia, Valentín Barco
+Forwards: Danny Welbeck, Dastan Satpaev, David Datro Fofana, Emmanuel Emegha, Estêvão Willian Almeida de Oliveira Gonçalves, Jamie Gittens, Jesse Derry, João Pedro Junqueira de Jesus, Liam Delap, Marc Guiu, Nicolas Jackson, Pedro Lomba Neto, Ryan Kavuma-McQueen, Shumaira Mheuka
+
+Coventry City (current)
+Goalkeepers: Ben Wilson, Bradley Collins, Carl Rushworth, Oliver Dovin, Oscar Varney
+Defenders: Aurèle Amenda, Bobby Thomas, Callum Perry, Harvey Broad, Jake Bidwell, Jay Dasilva, Joel Latibeaudiere, Kaine Kesler-Hayden, Liam Kitching, Luke Woolfenden, Miguel Ángel Brau, Milan van Ewijk
+Midfielders: Caleb Yirenkyi, Frank Onyeka, George Shepherd, Gustavo Hamer, Jack Rudoni, Jamie Allen, Josh Eccles, Kai Andrews, Matt Grimes, Tatsuhiro Sakamoto, Victor Torp
+Forwards: Aidan Dausch, Brandon Thomas-Asante, Ellis Simms, Ephron Mason-Clark, Haji Wright, Jahnoah Markelo, Loum Tchaouna, Norman Bassette, Raphael Borges Rodrigues
+
+Crystal Palace (current)
+Goalkeepers: Dean Henderson, Jackson Izquierdo, Joe Whitworth, Lucca Benetton, Owen Goodman, Remi Matthews, Walter Benítez
+Defenders: Borna Sosa, Caleb Kporha, Chadi Riad, Charlie Walker-Smith, Chris Richards, Daniel Muñoz, Danny Imray, Dean Benamar, George King, Jaydee Canvot, Mofe Jemide, Nathaniel Clyne, Óscar Mingueza, Takehiro Tomiyasu, Tayo Adaramola, Trialist 1, Tyrick Mitchell
+Midfielders: Adam Wharton, Cheick Doucouré, Christantus Uche, Daichi Kamada, David Ozoh, Jefferson Lerma, Justin Devenny, Kaden Rodney, Rio Cardines, Romain Esse, Will Hughes, Yéremy Pino
+Forwards: Ben Casey, Dwight McNeil, Eddie Nketiah, Ismaïla Sarr, Jean-Philippe Mateta, Jesurun Rak-Sakyi, Joél Drakes-Thomas, Jørgen Strand Larsen, Matheus França de Oliveira, Zach Marsh
+
+Everton (current)
+Goalkeepers: George Pickford, Jordan Pickford, Mark Travers, Tom King
+Defenders: Adam Aznou, Jake O'Brien, James Tarkowski, Jarrad Branthwaite, Michael Keane, Nathan Patterson, Reece Welch, Séamus Coleman, Vitalii Mykolenko
+Midfielders: Callum Bates, Charly Alcaraz, Christian Nørgaard, Harrison Armstrong, Harvey Foster, Hayden Hackney, Idrissa Gueye, James Garner, Kiernan Dewsbury-Hall, Malik Olayiwola, Merlin Röhl, Tim Iroegbunam, Tyler Dibling, Tyler Onyango
+Forwards: Braiden Graham, Brennan Johnson, Iliman Ndiaye, Martin Sherif, Norberto Bercique Gomes Betuncal, Thierno Barry, Tyrique George
+
+Fulham (current)
+Goalkeepers: Alex Borto, Alfie McNally, Benjamin Lecomte, Bernd Leno, Steven Benda
+Defenders: Antonee Robinson, Calvin Bassey, Joachim Andersen, Jorge Cuenca, Kenny Tete, Luc De Fougerolles, Sam Amissah, Timothy Castagne
+Midfielders: César Palacios, Emile Smith Rowe, Harrison Reed, Josh King, Luke Harris, Oscar Bobb, Ryan Sessegnon, Sander Berge, Seth Ridgeon, Shea Charles, Tom Cairney
+Forwards: Alex Iwobi, Gonzalo García, Jonah Kusi-Asare, Kevin Santos Lopes de Macedo, Macauley Zepa, Raúl Jiménez, Rodrigo Muniz Carvalho, Samuel Chukwueze
+
+Hull City (current)
+Goalkeepers: Archie Howard, Dillon Phillips, Harvey Cartwright, Ivor Pandur, Jack Butland, Konstantinos Tzolakis, Thimothée Lo-Tutala
+Defenders: Akin Famewo, Calvin Okike, Cathal McCarthy, Charlie Hughes, Cody Drameh, James Debayo, James Furlong, John Egan, Lewie Coyle, Lucas Herrington, Matt Targett, Matty Jacob, Nobel Mendy, Paddy McNair, Ryan Giles, Semi Ajayi, Stanley Ashbee
+Midfielders: Abdülkadir Ömür, Amir Hadziahmetovic, Darko Gyabi, Eliot Matazo, Elliot Stroud, Harry Vaughan, Hidemasa Morita, Jens Hjertø-Dahl, John Lundstram, Kasey Palmer, Kieran Dowell, Matt Crooks, Nathan Tinsdale, Óscar Zambrano, Pharrell Brown, Regan Slater
+Forwards: Abu Kamara, David Akintola, Enis Destan, Hugh Parker, Kyle Joseph, Liam Millar, Mason Burstow, Mohamed Belloumi, Oliver McBurnie, Yu Hirakawa
+
+Ipswich Town (current)
+Goalkeepers: Alex Palmer, Arijanet Muric, Christian Walton, Cieran Slicker, David Button, Kayne van Oevelen, Kjell Scherpen
+Defenders: Ashley Young, Ben Johnson, Cédric Kipré, Conor Townsend, Dara O'Shea, Darnell Furlong, Elkan Baggott, Harry Clarke, Issa Diop, Jacob Greaves, Leif Davis, Somto Boniface
+Midfielders: Anis Mehmeti, Azor Matusiwa, Cameron Humphreys, Dan Neil, Finley Barbrook, Florentino Ibrain Morris Luís, Jack Taylor, Jens Cajuste, Kasey McAteer, Marcelino Núñez, Sasa Lukic
+Forwards: Abdul Fatawu Issahaku, Ali Ibrahim Karim Ali Al Hamadi, Chiedozie Ogbene, Chuba Akpom, Conor Chaplin, Daizen Maeda, Emersonn Correia da Silva, George Hirst, Iván Azón, Jack Clarke, Jaden Philogene, Leon Ayinde, Sam Szmodics, Sindre Egeli, Wes Burns
+
+Leeds United (current)
+Goalkeepers: Alex Cairns, Darryl Ombang, James Trafford, Lucas Estella Perri, Rory Mahady
+Defenders: Ethan Ampadu, Gabriel Gudmundsson, Isaac Schmidt, Jaka Bijol, James Justin, Jayden Bogle, Jayden Lienou, Joe Rodon, Max Wöber, Sam Byram, Sebastiaan Bornauw, Tarik Muharemovic
+Midfielders: Alfie Cresswell, Anton Stach, Ao Tanaka, Brenden Aaronson, Callum Mills, Charlie Crew, Daniel James, Freddie Lane, Harry Wilson, Ilia Gruev, Ollie Pickles, Rhys Chadwick, Sam Chambers, Sean Longstaff
+Forwards: Dominic Calvert-Lewin, Jack Harrison, Joe Gelhardt, Joël Piroe, Largie Ramazani, Lukas Nmecha, Mateo Joseph, Noah Okafor, Wilfried Gnonto
+
+Liverpool (current)
+Goalkeepers: Alisson Ramsés Becker, Ármin Pécsi, Freddie Woodman, Giorgi Mamardashvili, Harvey Davies, Kornel Misciur, Vítezslav Jaros
+Defenders: Amara Nallo, Calum Scanlon, Calvin Ramsay, Carter Pinnington, Conor Bradley, Giovanni Leoni, Ibrahima Konaté, Ifeanyi Ndukwe, Jeremie Frimpong, Jérémy Jacquet, Joe Gomez, Kostas Tsimikas, Luke Chambers, Milos Kerkez, Natalia Ramos Álvarez, Rhys Williams, Ronald Araujo, Talla Ndiaye, Virgil van Dijk, Wellity Lucky
+Midfielders: Alexis Mac Allister, Curtis Jones, Dominik Szoboszlai, Florian Wirtz, Harvey Elliott, James McConnell, Kieran Morrison, Michael Laffey, Ryan Gravenberch, Stefan Bajcetic, Tommy Pilling, Trey Nyoni, Wataru Endo
+Forwards: Alexander Isak, Cody Gakpo, Federico Chiesa, Hugo Ekitiké, Jayden Danns, Joshua Abe, Joshua Sonni-Lambie, Kaide Gordon, Keyrol Figueroa, Lewis Koumas, Mohamed Salah Hamed Mahrous Ghaly, Rio Ngumoha, Víctor Muñoz, Will Wright
+
+Manchester City (current)
+Goalkeepers: Gerónimo Rulli, Gianluigi Donnarumma, Jack Wint, Marcus Bettinelli, Max-Edgar Chabot, Pierce Charles, X Trialist
+Defenders: Abdukodir Khusanov, Finley Burns, Issa Kaboré, John Stones, Josh Wilson-Esbrand, Josko Gvardiol, Juma Bah, Kaden Braithwaite, Kian Noble, Manuel Akanji, Marc Guéhi, Matty Henderson-Hall, Max Alleyne, Nathan Aké, Nico O'Reilly, Rayan Aït-Nouri, Rico Lewis, Rúben dos Santos Gato Alves Dias, Stephen Mfuni, Vitor de Oliveira Nunes dos Reis
+Midfielders: Bernardo Mota Veiga de Carvalho e Silva, Charlie Gray, Claudio Echeverri, Divine Mukasa, Elliot Anderson, Floyd Samba, Jack Grealish, Kalvin Phillips, Mateo Kovacic, Matheus Luiz Nunes, Nico González, Phil Foden, Rayan Cherki, Rodrigo Hernández Cascante, Sverre Nypan, Tijjani Reijnders, Xavier Parker
+Forwards: Antoine Semenyo, Divin Mubama, Erling Haaland, Jaden Heskey, Jérémy Doku, Jeremy Monga, Mahamadou Sangaré, Omar Khaled Mohamed Abdelsalam Marmoush, Reigan Heskey, Ryan McAidoo, Sávio Moreira de Oliveira, Tyrone Samba
+
+Manchester United (current)
+Goalkeepers: Altay Bayindir, André Onana, Dermot Mee, Fred Heath, Karl Darlow, Radek Vítek, Senne Lammens, Solomon Honor, Tom Heaton
+Defenders: Ayden Heaven, Daniel Armer, Diego León, Godwill Kukonki, Harry Amass, Harry Maguire, Jaydan Kamason, José Diogo Dalot Teixeira, Leny Yoro, Lisandro Martínez, Luke Shaw, Matthijs de Ligt, Noussair Mazraoui, Patrick Dorgu, Tyler Fredricson, Tyrell Malacia
+Midfielders: Andrey Nascimento dos Santos, Bruno Miguel Borges Fernandes, Carlos Henrique Casimiro, Daniel Gore, Jack Fletcher, Jack Moorhouse, Jacob Devaney, Jim Thwaites, Kobbie Mainoo, Manuel Ugarte, Mason Mount, Toby Collyer, Tyler Fletcher, Youri Tielemans
+Forwards: Amad Diallo, Bendito Mantato, Benjamin Sesko, Bryan Mbeumo, Chido Obi, Enzo Kana Biyik, Ethan Wheatley, Ethan Williams, Jadon Sancho, Joseph Gabriel, Joshua Zirkzee, Marcus Rashford, Matheus Santos Carneiro da Cunha, Rasmus Højlund, Shea Lacey, Tynan Thompson
+
+Newcastle United (current)
+Goalkeepers: Aaron Ramsdale, Adam Harrison, Aidan Harris, Ewen Jaouen, John Ruddy, Lukás Hornícek, Mark Gillespie, Max Thompson, Nick Pope, Odysseas Vlachodimos
+Defenders: Alex Murphy, Dan Burn, Dylan Charlton, Emil Krafth, Fabian Schär, Harrison Ashby, Henry Johnson, Kieran Trippier, Leo Shahar, Lewis Hall, Luke Craggs, Malick Thiaw, Miodrag Pivas, Sven Botman, Tino Livramento
+Midfielders: Aladji Bamba, Anthony Munda, Harvey Barnes, Jacob Murphy, Jacob Ramsey, Joe White, Joe Willock, Joelinton Cássio Apolinário de Lira, Lewis Miley, Mason Miley, Rory Finneran, Sam Alabi, Sean Steur
+Forwards: Anthony Elanga, Anthony Gordon, Antoñito Cordero, Bazoumana Touré, Matheos Ferreira, Nick Woltemade, Sean Neave, Seung-Soo Park, Trevan Sanusi, Vakhtang Salia, William Osula, Yoane Wissa
+
+Nottingham Forest (current)
+Goalkeepers: Aaron Bott, Angus Gunn, John Victor Maciel Furtado, Keehan Willows, Matz Sels, Stefan Ortega
+Defenders: Ben Hammond, Felipe Rodrigues da Silva, Jack Thompson, Jair Paula da Cunha Filho, Justin Hanks, Lamin Sillah, Luca Netz, Murillo Santiago Costa dos Santos, Neco Williams, Nicolò Savona, Nikola Milenkovic, Ola Aina, Omar Richards, Ousmane Diomande, Tyler Bindon, Willy Boly, Zach Abbott
+Midfielders: Archie Whitehall, Douglas Luiz Soares de Paulo, Ibrahim Sangaré, James McAtee, Jimmy Sinclair, Morgan Gibbs-White, Nicolás Domínguez, Ryan Yates, Xaver Schlager
+Forwards: Arnaud Kalimuendo, Callum Hudson-Odoi, Chris Wood, Dan Ndoye, Dilane Bakwa, Eric da Silva Moreira, Igor Jesus Maciel da Cruz, João Pedro Ferreira Silva, Lorenzo Lucca, Omari Hutchinson, Taiwo Awoniyi, Zyan Blake
+
+Sunderland (current)
+Goalkeepers: Anthony Patterson, Melker Ellborg, Robin Roefs, Simon Moore
+Defenders: Aji Alese, Arthur Masuaku, Ben Kindon, Dan Ballard, Dennis Cirkin, Felix Scott, Jenson Jones, Jenson Seelt, Leo Hjelde, Lutsharel Geertruida, Niall Huggins, Nordi Mukiele, Omar Alderete, Reinildo Isnard Mandava, Thomas Meunier, Timothée Pembélé, Trai Hume, Zak Johnson
+Midfielders: Abdoullah Ba, Alan Browne, Archie Lightfoot, Charlie Dinsdale, Chris Rigg, Enzo Le Fée, Granit Xhaka, Habib Diarra, Harrison Jones, Jack Whittaker, Jaydon Jones, Luke O'Nien, Milan Aleksic, Noah Sadiki, Tom Proctor
+Forwards: Ahmed Abdullahi, Bertrand Traoré, Brian Brobbey, Chemsdine Talbi, Djiamgone Jocelin Ta Bi, Eliezer Mayenda, Finn Geragusyan, Luís Hemir Silva Semedo, Nazariy Rusyn, Nilson Angulo, Romaine Mundle, Simon Adingra, Trey Ogunsuyi, Tymur Tutierov, Wilson Isidor
+
+Tottenham Hotspur (current)
+Goalkeepers: Antonín Kinsky, Brandon Austin, Dylan Thompson, Guglielmo Vicario, Luca Gunter, Martin Dúbravka
+Defenders: Andy Robertson, Ashley Phillips, Ben Davies, Cristian Romero, Destiny Udogie, Djed Spence, James Rowswell, Jan Paul van Hecke, João Victor de Souza Menezes, Jun'ai Byfield, Kevin Danso, Kota Takai, Malachi Hardy, Marcos Senesi, Micky van de Ven, Pedro Porro, Radu Dragusin, Tyler Tingey
+Midfielders: Alfie Devine, Archie Gray, Callum Olusesi, Conor Gallagher, Dejan Kulusevski, George Abbott, Harry Byrne, James Maddison, Jamie Donley, João Maria Lobo Alves Palhares Costa Palhinha Gonçalves, Luca Williams-Barnett, Lucas Bergvall, Mateus Gonçalo Espanha Fernandes, Mohammed Kudus, Pape Matar Sarr, Reiss-Alexander Russell-Denny, Rio Kyerematen, Rodrigo Bentancur, Sandro Tonali, Tye Hall, Tyrese Hall, Xavi Simons, Yves Bissouma
+Forwards: Alejo Veliz, Damola Ajayi, Dane Scarlett, Dominic Solanke, James Wilson, Manor Solomon, Mason Melia, Mathys Tel, Mikey Moore, Min-Hyeok Yang, Randal Kolo Muani, Richarlison de Andrade, Will Lankshear, Wilson Odobert

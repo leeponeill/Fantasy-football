@@ -157,9 +157,9 @@ async function main() {
 
   let updatedCount = 0;
 
-  for (const matchday of existing) {
-    for (const game of matchday.games) {
-      const gameRound = (game.round || matchday.round || '').toLowerCase();
+  for (const Gameweek of existing) {
+    for (const game of Gameweek.games) {
+      const gameRound = (game.round || Gameweek.round || '').toLowerCase();
       const isKnockout = ['round of 32', 'round of 16', 'quarter', 'semi', 'final', 'third'].some(
         r => gameRound.includes(r)
       );

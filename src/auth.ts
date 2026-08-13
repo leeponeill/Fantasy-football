@@ -1,8 +1,27 @@
-import { bootstrapSharedLeagueStorage, commitSharedStorageChanges, getSharedItem, removeSharedItem, setSharedItem } from './sharedLeague'
-import { getCurrentMatchdayPlayerPoints } from './teamsData'
-import { getTransferAwareMatchdayPoints, getTransferAwarePlayerCurrentPoints, parseTransferPointEvents } from './transferPoints'
+import {
+  bootstrapSharedLeagueStorage,
+  commitSharedStorageChanges,
+  getSharedItem,
+  removeSharedItem,
+  setSharedItem,
+  sharedLeagueUpdatedEvent,
+} from './sharedLeague'
+import { getCurrentGameweekPlayerPoints } from './teamsData'
+import { getTransferAwareGameweekPoints, getTransferAwarePlayerCurrentPoints, parseTransferPointEvents } from './transferPoints'
 
 await bootstrapSharedLeagueStorage()
+
+window.addEventListener(sharedLeagueUpdatedEvent, () => {
+  const currentUser = safeGetStorageItem(currentUserStorageKey)
+  if (!currentUser) {
+    return
+  }
+
+  if (isCurrentSessionForceSignedOut()) {
+    signOut()
+    redirectIfNeeded('/index.html')
+  }
+})
 
 type StoredUser = {
   username: string
@@ -28,6 +47,8 @@ export const maxActiveAdminNotifications = 5
 
 const usersStorageKey = 'fantasy-football-users'
 const currentUserStorageKey = 'fantasy-football-current-user'
+const forceSignOutVersionStorageKey = 'fantasy-football-force-signout-version'
+const seenForceSignOutVersionStorageKey = 'fantasy-football-seen-force-signout-version'
 const userProfilesStorageKey = 'fantasy-football-user-profiles'
 const passwordResetRequestsStorageKey = 'fantasy-football-password-reset-requests'
 const adminNotificationStorageKey = 'fantasy-football-admin-notification'
@@ -261,6 +282,34 @@ function normalizeUsername(username: string): string {
   return username.trim()
 }
 
+function isCurrentSessionForceSignedOut(): boolean {
+  const currentUsername = safeGetStorageItem(currentUserStorageKey)
+  if (!currentUsername) {
+    return false
+  }
+
+  const forceSignOutVersion = getSharedItem(forceSignOutVersionStorageKey)
+  if (typeof forceSignOutVersion !== 'string' || forceSignOutVersion.length === 0) {
+    return false
+  }
+
+  const seenForceSignOutVersion = safeGetStorageItem(seenForceSignOutVersionStorageKey)
+  if (seenForceSignOutVersion === forceSignOutVersion) {
+    return false
+  }
+
+  const userStillExists = readUsers().some(
+    (user) => user.username.toLowerCase() === currentUsername.toLowerCase(),
+  )
+  if (userStillExists) {
+    // This is a valid current user (for example, newly created after reset).
+    safeSetStorageItem(seenForceSignOutVersionStorageKey, forceSignOutVersion)
+    return false
+  }
+
+  return true
+}
+
 export function getRegisteredUserCount(): number {
   return readUsers().length
 }
@@ -271,25 +320,39 @@ export function getAllUsernames(): string[] {
 
 export function getCurrentUsername(): string | null {
   const username = safeGetStorageItem(currentUserStorageKey)
+  if (!username) {
+    return null
+  }
+
+  if (isCurrentSessionForceSignedOut()) {
+    signOut()
+    return null
+  }
+
   return username ? username : null
 }
 
 export function signOut(): void {
   try {
     localStorage.removeItem(currentUserStorageKey)
+    const forceSignOutVersion = getSharedItem(forceSignOutVersionStorageKey)
+    if (typeof forceSignOutVersion === 'string' && forceSignOutVersion.length > 0) {
+      localStorage.setItem(seenForceSignOutVersionStorageKey, forceSignOutVersion)
+    }
   } catch {
     // Ignore storage failures on sign-out.
   }
 }
 
-export function signIn(username: string, password: string): { ok: boolean; error?: string } {
+export function signIn(username: string, password: string): { ok: boolean; error?: string; username?: string } {
   const normalizedUsername = normalizeUsername(username)
+  const trimmedPassword = password.trim()
   const users = readUsers()
   const user = users.find(
     (item) => item.username.toLowerCase() === normalizedUsername.toLowerCase(),
   )
 
-  if (!user || user.password !== password) {
+  if (!user || (user.password !== password && user.password !== trimmedPassword)) {
     return { ok: false, error: 'Invalid username or password.' }
   }
 
@@ -302,18 +365,24 @@ export function signIn(username: string, password: string): { ok: boolean; error
     return { ok: false, error: 'Sign-in session could not be saved for this domain.' }
   }
 
-  return { ok: true }
+  const forceSignOutVersion = getSharedItem(forceSignOutVersionStorageKey)
+  if (typeof forceSignOutVersion === 'string' && forceSignOutVersion.length > 0) {
+    safeSetStorageItem(seenForceSignOutVersionStorageKey, forceSignOutVersion)
+  }
+
+  return { ok: true, username: user.username }
 }
 
 export function registerUser(username: string, password: string): { ok: boolean; error?: string } {
   const normalizedUsername = normalizeUsername(username)
+  const normalizedPassword = password.trim()
   const users = readUsers()
 
   if (normalizedUsername.length < 3) {
     return { ok: false, error: 'Username must be at least 3 characters.' }
   }
 
-  if (password.length < 4) {
+  if (normalizedPassword.length < 4) {
     return { ok: false, error: 'Password must be at least 4 characters.' }
   }
 
@@ -328,7 +397,7 @@ export function registerUser(username: string, password: string): { ok: boolean;
     return { ok: false, error: 'That username is already taken.' }
   }
 
-  users.push({ username: normalizedUsername, password })
+  users.push({ username: normalizedUsername, password: normalizedPassword })
   const didWriteUsers = setSharedItem(usersStorageKey, JSON.stringify(users))
   if (!didWriteUsers) {
     return { ok: false, error: 'Cannot save users. Browser storage is blocked for this site.' }
@@ -522,12 +591,13 @@ export function requireCurrentUserTeamName(redirectPath = '/team-setup.html'): s
 
 export function clearAllUsersAndTeams(): void {
   const usernames = getAllUsernames()
+  const forceSignOutVersion = String(Date.now())
   const removeKeys = [
     usersStorageKey,
     userProfilesStorageKey,
     passwordResetRequestsStorageKey,
     adminNotificationStorageKey,
-    'fantasy-football-global-matchday',
+    'fantasy-football-global-Gameweek',
     globalBudgetStorageKey,
     'fantasy-football-transfer-history',
   ]
@@ -537,7 +607,13 @@ export function clearAllUsersAndTeams(): void {
   }
 
   localStorage.removeItem(currentUserStorageKey)
-  commitSharedStorageChanges({ remove: removeKeys })
+  safeSetStorageItem(seenForceSignOutVersionStorageKey, forceSignOutVersion)
+  commitSharedStorageChanges({
+    set: {
+      [forceSignOutVersionStorageKey]: forceSignOutVersion,
+    },
+    remove: removeKeys,
+  })
 }
 
 export function requestPasswordReset(username: string): { ok: boolean; error?: string } {
@@ -1046,8 +1122,8 @@ export function getUserTotalPoints(username: string): number {
     const captainBonusTotalRaw = Number.isFinite(state.captainBonusTotal as number)
       ? (state.captainBonusTotal as number)
       : 0
-    const currentMatchday = Number.isFinite(state.currentMatchday as number)
-      ? Math.max(0, Number(state.currentMatchday as number))
+    const currentGameweek = Number.isFinite(state.currentGameweek as number)
+      ? Math.max(0, Number(state.currentGameweek as number))
       : 1
     const captainBonusTotal = captainBonusTotalRaw
     const transferPointEvents = parseTransferPointEvents(state.transferPointEvents)
@@ -1063,12 +1139,12 @@ export function getUserTotalPoints(username: string): number {
 
       const teamName = parts[0]
       const playerName = parts.slice(1).join('::')
-      return getCurrentMatchdayPlayerPoints(playerName, teamName)
+      return getCurrentGameweekPlayerPoints(playerName, teamName)
     }
 
-    const transferAwareCurrentPoints = getTransferAwareMatchdayPoints(
+    const transferAwareCurrentPoints = getTransferAwareGameweekPoints(
       selectedPlayerKeys,
-      currentMatchday,
+      currentGameweek,
       transferPointEvents,
       getCurrentPointsByPlayerKey,
     )
@@ -1078,7 +1154,7 @@ export function getUserTotalPoints(username: string): number {
       : null
     const ownedPointsTotal = ownedPointsTotalRaw
 
-    // Fallback for legacy/missing owned totals: use only current matchday points.
+    // Fallback for legacy/missing owned totals: use only current Gameweek points.
     // This keeps table totals aligned with the pitch view and avoids re-adding
     // previously accumulated points from stale storage.
     const playerPointsTotal = ownedPointsTotal === null
@@ -1093,7 +1169,7 @@ export function getUserTotalPoints(username: string): number {
         captainCurrentBonus = getTransferAwarePlayerCurrentPoints(
           captainPlayerKey,
           selectedPlayerKeys,
-          currentMatchday,
+          currentGameweek,
           transferPointEvents,
           getCurrentPointsByPlayerKey,
         )

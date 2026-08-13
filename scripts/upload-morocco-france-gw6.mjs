@@ -3,7 +3,7 @@
  * API-Sports, calculates GW6 fantasy points using the same logic as server.mjs,
  * then POSTs them to the Pi at http://192.168.1.5:4173.
  *
- * Only touches fantasy-football-player-points — does not change matchday or any
+ * Only touches fantasy-football-player-points — does not change Gameweek or any
  * other storage key.
  */
 import { readFile } from 'fs/promises'
@@ -197,7 +197,7 @@ console.log(`Loaded ${allPlayers.length} players from teams.txt`)
 
 // 2. Check Pi GW
 const piState = await fetchJson(`${PI_BASE}/api/league-state`)
-const piGW = Number(piState.storage?.['fantasy-football-global-matchday'] ?? 0)
+const piGW = Number(piState.storage?.['fantasy-football-global-Gameweek'] ?? 0)
 if (piGW !== EXPECTED_GW) {
   console.error(`Pi is on GW${piGW}, expected GW${EXPECTED_GW}. Aborting.`)
   process.exit(1)

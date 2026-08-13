@@ -19,7 +19,7 @@ type TransferSale = {
   marketPrice: number
   salePrice: number
   type: string
-  matchday?: number | null
+  Gameweek?: number | null
   createdAt: string
 }
 
@@ -75,11 +75,11 @@ function renderHistory(sales: TransferSale[], draftEnabled: boolean): void {
     .map((sale) => {
       const when = new Date(sale.createdAt)
       const whenLabel = Number.isNaN(when.getTime()) ? sale.createdAt : when.toLocaleString()
-      const matchdayLabel = Number.isFinite(sale.matchday) ? String(sale.matchday) : '-'
+      const GameweekLabel = Number.isFinite(sale.Gameweek) ? String(sale.Gameweek) : '-'
       return `
         <tr>
           <td>${escapeHtml(whenLabel)}</td>
-          <td>${escapeHtml(matchdayLabel)}</td>
+          <td>${escapeHtml(GameweekLabel)}</td>
           <td>${escapeHtml(sale.playerName || sale.playerKey)}</td>
           <td>${escapeHtml(sale.buyerUser)}</td>
           <td>${escapeHtml(sale.sellerUser)}</td>

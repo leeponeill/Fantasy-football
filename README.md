@@ -6,7 +6,7 @@ A minimal TypeScript web page powered by Vite.
 
 League data is now shared across all devices that open the same hosted app URL.
 
-- Users, team names, saved squads, player points, matchday state, and admin changes are stored centrally on the host machine.
+- Users, team names, saved squads, player points, Gameweek state, and admin changes are stored centrally on the host machine.
 - Signed-in browser session still stays local per device, so each phone/laptop can stay logged in as a different user.
 - Shared league data is stored in `data/league-state.json`.
 
@@ -325,7 +325,7 @@ The repository includes a deployment script that:
 
 - builds locally,
 - syncs files to your Pi,
-- kills the old app,
+- kills the old app,n
 - starts the new app.
 
 Script path:
@@ -365,3 +365,4 @@ PI_HOST=192.168.1.50 PI_USER=lee npm run deploy:pi
 ```bash
 PI_HOST=192.168.1.5 PI_USER=lee PI_SERVICE=fantasy-football PI_USE_SUDO=true npm run deploy:pi
 ```
+https://dashboard.api-football.com/public/img/small/baseball-logo.png

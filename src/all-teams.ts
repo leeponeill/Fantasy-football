@@ -11,9 +11,9 @@ import { renderPage } from './renderPage'
 import { getSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
 import {
   getAllPlayers,
-  getCurrentMatchdayPlayerPoints,
-  getCountryFlag,
-  hasTeamPlayedThisMatchday,
+  getCurrentGameweekPlayerPoints,
+  getTeamBadgeOrFlagHtml,
+  hasTeamPlayedThisGameweek,
   getTeamKitColors,
   type SelectablePlayer,
 } from './teamsData'
@@ -35,9 +35,9 @@ type TeamStateView = {
   selectedPlayerKeys: string[]
   benchPlayerKeys: string[]
   captainPlayerKey: string | null
-  currentMatchday: number
+  currentGameweek: number
   transferPointEvents: TransferPointEvent[]
-  transfersUsedThisMatchday: number
+  transfersUsedThisGameweek: number
 }
 
 type TeamRow = {
@@ -49,9 +49,9 @@ type TeamRow = {
   selectedPlayers: SelectablePlayer[]
   benchPlayers: SelectablePlayer[]
   captainPlayerKey: string | null
-  currentMatchday: number
+  currentGameweek: number
   transferPointEvents: TransferPointEvent[]
-  transfersUsedThisMatchday: number
+  transfersUsedThisGameweek: number
 }
 
 const allPlayers = getAllPlayers()
@@ -59,11 +59,11 @@ const playerByKey = new Map(allPlayers.map((player) => [`${player.team}::${playe
 
 let selectedUsername: string | null = null
 
-const maxTransfersPerMatchday = 3
-const unlimitedTransferMatchday = 0
+const maxTransfersPerGameweek = 3
+const unlimitedTransferGameweek = 0
 
-function getGlobalMatchday(): number {
-  const raw = getSharedItem('fantasy-football-global-matchday')
+function getGlobalGameweek(): number {
+  const raw = getSharedItem('fantasy-football-global-Gameweek')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   if (Number.isFinite(parsed) && parsed >= 0) {
     return parsed
@@ -73,18 +73,18 @@ function getGlobalMatchday(): number {
 }
 
 function getTransfersRemainingForRow(row: TeamRow): number {
-  const globalMatchday = getGlobalMatchday()
-  const effectiveMatchday = row.currentMatchday === globalMatchday ? row.currentMatchday : globalMatchday
+  const globalGameweek = getGlobalGameweek()
+  const effectiveGameweek = row.currentGameweek === globalGameweek ? row.currentGameweek : globalGameweek
 
-  if (effectiveMatchday === unlimitedTransferMatchday) {
+  if (effectiveGameweek === unlimitedTransferGameweek) {
     return Number.POSITIVE_INFINITY
   }
 
-  if (row.currentMatchday !== globalMatchday) {
-    return maxTransfersPerMatchday
+  if (row.currentGameweek !== globalGameweek) {
+    return maxTransfersPerGameweek
   }
 
-  return Math.max(0, maxTransfersPerMatchday - row.transfersUsedThisMatchday)
+  return Math.max(0, maxTransfersPerGameweek - row.transfersUsedThisGameweek)
 }
 
 function escapeHtml(value: string): string {
@@ -114,19 +114,19 @@ function parseTeamState(username: string): TeamStateView | null {
   try {
     const state = JSON.parse(raw) as Record<string, unknown>
     const captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
-    const currentMatchday = Number.isFinite(state.currentMatchday)
-      ? Math.max(0, Number(state.currentMatchday))
+    const currentGameweek = Number.isFinite(state.currentGameweek)
+      ? Math.max(0, Number(state.currentGameweek))
       : 1
-    const transfersUsedThisMatchday = Number.isFinite(state.transfersUsedThisMatchday)
-      ? Math.max(0, Math.floor(Number(state.transfersUsedThisMatchday)))
+    const transfersUsedThisGameweek = Number.isFinite(state.transfersUsedThisGameweek)
+      ? Math.max(0, Math.floor(Number(state.transfersUsedThisGameweek)))
       : 0
     return {
       selectedPlayerKeys: parsePlayerKeys(state.selectedPlayerKeys),
       benchPlayerKeys: parsePlayerKeys(state.benchPlayerKeys),
       captainPlayerKey,
-      currentMatchday,
+      currentGameweek,
       transferPointEvents: parseTransferPointEvents(state.transferPointEvents),
-      transfersUsedThisMatchday,
+      transfersUsedThisGameweek,
     }
   } catch {
     return null
@@ -141,7 +141,7 @@ function getCurrentPointsByPlayerKey(playerKey: string): number {
 
   const teamName = parts[0]
   const playerName = parts.slice(1).join('::')
-  return getCurrentMatchdayPlayerPoints(playerName, teamName)
+  return getCurrentGameweekPlayerPoints(playerName, teamName)
 }
 
 function getTeamTileDisplayMode(): 'flag' | 'name' {
@@ -160,7 +160,7 @@ function renderTeamIdentity(player: SelectablePlayer): string {
     return `<div class="player-flag player-team-name">${escapeHtml(player.team)}</div>`
   }
 
-  return `<div class="player-flag">${getCountryFlag(player.team)}</div>`
+  return `<div class="player-flag">${getTeamBadgeOrFlagHtml(player.team, 'team-icon')}</div>`
 }
 
 function renderPitchPlayerName(name: string): string {
@@ -198,9 +198,9 @@ function buildRows(): TeamRow[] {
       selectedPlayers,
       benchPlayers,
       captainPlayerKey: state?.captainPlayerKey ?? null,
-      currentMatchday: state?.currentMatchday ?? 1,
+      currentGameweek: state?.currentGameweek ?? 1,
       transferPointEvents: state?.transferPointEvents ?? [],
-      transfersUsedThisMatchday: state?.transfersUsedThisMatchday ?? 0,
+      transfersUsedThisGameweek: state?.transfersUsedThisGameweek ?? 0,
     }
   })
     .sort((a, b) => {
@@ -253,11 +253,11 @@ function renderSelectedTeamMarkup(selected: TeamRow | undefined): string {
       .map((player) => {
         const kitColors = getTeamKitColors(player.team)
         const playerKey = `${player.team}::${player.name}`
-        const played = hasTeamPlayedThisMatchday(player.team)
+        const played = hasTeamPlayedThisGameweek(player.team)
         const basePlayerPoints = getTransferAwarePlayerCurrentPoints(
           playerKey,
           selected.selectedPlayerKeys,
-          selected.currentMatchday,
+          selected.currentGameweek,
           selected.transferPointEvents,
           getCurrentPointsByPlayerKey,
         )
@@ -266,7 +266,7 @@ function renderSelectedTeamMarkup(selected: TeamRow | undefined): string {
           : basePlayerPoints
         return `
           <div class="pitch-player">
-            <div class="player-card${played ? ' team-has-played' : ''}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+            <div class="player-card${played ? ' team-has-played' : ''}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-pattern: ${kitColors.backgroundPattern}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
               ${selected.captainPlayerKey === playerKey ? '<div class="captain-badge">C</div>' : ''}
               ${played ? '<div class="team-played-badge">✓</div>' : ''}
               <div class="player-name">${renderPitchPlayerName(player.name)}</div>

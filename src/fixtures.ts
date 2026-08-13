@@ -3,12 +3,12 @@ import {
 	type FixtureGame,
 } from './fixturesData'
 import {
-	getWCFixtureMatchdays,
+	getWCFixtureGameweeks,
 	type WCFixtureGame,
-	type WCFixtureMatchday,
+	type WCFixtureGameweek,
 } from './fixturesData'
 import { requireAuth } from './auth'
-import { getCountryFlag } from './teamsData'
+import { getTeamBadgeOrFlagHtml } from './teamsData'
 
 requireAuth()
 
@@ -36,7 +36,7 @@ function getHostCountryForStadium(stadium: string): 'Mexico' | 'USA' | 'Canada' 
 }
 
 function withTeamFlag(name: string): string {
-	return `${getCountryFlag(name)} ${name}`
+	return `${getTeamBadgeOrFlagHtml(name, 'fixture-team-icon')} ${name}`
 }
 
 function normalizeTeamToken(value: string): string {
@@ -194,32 +194,35 @@ function parseFixtureKickoff(game: FixtureGame, now: Date): Date | null {
 	}
 
 	const currentYear = now.getFullYear()
-	const kickoff = new Date(currentYear, monthIndex, day, hour24, minute, 0, 0)
-	const halfYearMs = 180 * 24 * 60 * 60 * 1000
-	if (kickoff.getTime() - now.getTime() > halfYearMs) {
-		kickoff.setFullYear(currentYear - 1)
-	} else if (now.getTime() - kickoff.getTime() > halfYearMs) {
-		kickoff.setFullYear(currentYear + 1)
-	}
+	const currentMonthIndex = now.getMonth()
+
+	// Infer season year for dates that omit a year (Aug-May season model).
+	// Jul-Dec belong to the season start year; Jan-Jun belong to season end year.
+	const isSecondHalfOfSeasonMonth = monthIndex <= 5
+	const isNowSecondHalfOfSeason = currentMonthIndex <= 5
+	const seasonStartYear = isNowSecondHalfOfSeason ? currentYear - 1 : currentYear
+	const inferredYear = isSecondHalfOfSeasonMonth ? seasonStartYear + 1 : seasonStartYear
+
+	const kickoff = new Date(inferredYear, monthIndex, day, hour24, minute, 0, 0)
 
 	return kickoff
 }
 
-function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixtures' | 'results'): string {
-	if (matchdays.length === 0) {
+function renderWCSectionMarkup(Gameweeks: WCFixtureGameweek[], section: 'fixtures' | 'results'): string {
+	if (Gameweeks.length === 0) {
 		return section === 'fixtures'
 			? '<p class="empty-state">No upcoming fixtures match your filter.</p>'
 			: '<p class="empty-state">No finished fixtures match your filter.</p>'
 	}
 
 	if (section === 'fixtures') {
-		return matchdays
+		return Gameweeks
 			.map(
-				(matchday) => `
-					<section class="fixture-matchday">
-						<h2>${matchday.round || `Matchday ${matchday.matchday}`}</h2>
+				(Gameweek) => `
+					<section class="fixture-Gameweek">
+						<h2>${Gameweek.round || `Gameweek ${Gameweek.Gameweek}`}</h2>
 						<ul class="fixture-list">
-							${matchday.games
+							${Gameweek.games
 								.map(
 									(game) => `
 										<li class="fixture-item">
@@ -239,13 +242,13 @@ function renderWCSectionMarkup(matchdays: WCFixtureMatchday[], section: 'fixture
 			.join('')
 	}
 
-	return matchdays
+	return Gameweeks
 		.map(
-			(matchday) => `
-				<section class="fixture-matchday fixture-matchday--results"> 
-					<h2>${matchday.round || `Matchday ${matchday.matchday}`}</h2>
+			(Gameweek) => `
+				<section class="fixture-Gameweek fixture-Gameweek--results"> 
+					<h2>${Gameweek.round || `Gameweek ${Gameweek.Gameweek}`}</h2>
 					<ul class="fixture-list">
-						${matchday.games
+						${Gameweek.games
 							.map((game) => {
 								const wcGame = game as WCFixtureGame
 								const homeScore = typeof wcGame.homeScore === 'string' ? wcGame.homeScore.trim() : ''
@@ -542,8 +545,8 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 	const groupResults = new Map<string, ParsedResult[]>()
 	const now = new Date()
 
-	for (const matchday of fixtureMatchdays) {
-		for (const game of matchday.games) {
+	for (const Gameweek of fixtureGameweeks) {
+		for (const game of Gameweek.games) {
 			if (!isGroupStageGame(game)) {
 				continue
 			}
@@ -691,7 +694,7 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 			}
 
 			groupSections.push(`
-				<section class="fixture-matchday fixture-matchday--groups">
+				<section class="fixture-Gameweek fixture-Gameweek--groups">
 					<h2>Standings - ${groupName}</h2>
 					<div class="history-table-wrap">
 						<table class="history-table groups-table${isCompact ? ' groups-table--compact' : ''}">
@@ -768,13 +771,13 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 
 	function renderKnockoutBracketMarkup(): string {
 		const knockoutFixturesByMatch = new Map<string, WCFixtureGame>()
-		for (const matchday of fixtureMatchdays) {
-			for (const game of matchday.games) {
+		for (const Gameweek of fixtureGameweeks) {
+			for (const game of Gameweek.games) {
 				if (game.group) {
 					continue
 				}
 
-				const roundText = `${matchday.round} ${game.round}`.toLowerCase()
+				const roundText = `${Gameweek.round} ${game.round}`.toLowerCase()
 				if (!['round of 32', 'round of 16', 'quarter', 'semi', 'final', 'third'].some((token) => roundText.includes(token))) {
 					continue
 				}
@@ -1008,7 +1011,7 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 		`
 
 		return `
-			<section class="fixture-matchday fixture-matchday--groups">
+			<section class="fixture-Gameweek fixture-Gameweek--groups">
 				<h2>Knockout Diagram</h2>
 				<div class="knockout-bracket-wrap">
 					<div class="knockout-bracket" aria-label="Knockout bracket from 32 teams to a final of 2 teams">
@@ -1045,7 +1048,7 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 
 	const thirdPlaceSection = thirdPlaceRows.length > 0
 		? `
-			<section class="fixture-matchday fixture-matchday--groups">
+			<section class="fixture-Gameweek fixture-Gameweek--groups">
 				<h2>Current 3rd-Place Teams</h2>
 				<div class="history-table-wrap">
 					<table class="history-table groups-table${mobile ? ' groups-table--compact' : ''}">
@@ -1098,14 +1101,14 @@ function renderGroupsTableMarkup(groupsSubView: GroupsSubView): string {
 function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: string): string {
 	const query = searchText.trim().toLowerCase()
 	const now = new Date()
-	const upcomingMatchdays: WCFixtureMatchday[] = []
-	const pastMatchdays: WCFixtureMatchday[] = []
+	const upcomingGameweeks: WCFixtureGameweek[] = []
+	const pastGameweeks: WCFixtureGameweek[] = []
 
-	for (const matchday of fixtureMatchdays) {
+	for (const Gameweek of fixtureGameweeks) {
 		const upcomingGames: WCFixtureGame[] = []
 		const pastGames: WCFixtureGame[] = []
 
-		for (const game of matchday.games) {
+		for (const game of Gameweek.games) {
 			const countryMatches = selectedCountry === '' || getHostCountryForStadium(game.stadium) === selectedCountry
 			const stadiumText = game.stadium.toLowerCase()
 			const textMatches =
@@ -1130,26 +1133,26 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		}
 
 		if (upcomingGames.length > 0) {
-			upcomingMatchdays.push({
-				matchday: matchday.matchday,
-				round: matchday.round,
+			upcomingGameweeks.push({
+				Gameweek: Gameweek.Gameweek,
+				round: Gameweek.round,
 				games: upcomingGames,
 			})
 		}
 
 		if (pastGames.length > 0) {
-			pastMatchdays.push({
-				matchday: matchday.matchday,
-				round: matchday.round,
+			pastGameweeks.push({
+				Gameweek: Gameweek.Gameweek,
+				round: Gameweek.round,
 				games: pastGames,
 			})
 		}
 	}
 
-	// Results: reverse chronological — sort matchdays most recent first,
-	// and within each matchday sort games most recent kickoff first
-	const sortedPastMatchdays = [...pastMatchdays]
-		.sort((a, b) => b.matchday - a.matchday)
+	// Results: reverse chronological — sort Gameweeks most recent first,
+	// and within each Gameweek sort games most recent kickoff first
+	const sortedPastGameweeks = [...pastGameweeks]
+		.sort((a, b) => b.Gameweek - a.Gameweek)
 		.map((md) => ({
 			...md,
 			games: [...md.games].sort((a, b) => {
@@ -1158,9 +1161,9 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 				return tb - ta
 			}),
 		}))
-	// Fixtures: chronological (lowest matchday first), games by kickoff ascending
-	const sortedUpcomingMatchdays = [...upcomingMatchdays]
-		.sort((a, b) => a.matchday - b.matchday)
+	// Fixtures: chronological (lowest Gameweek first), games by kickoff ascending
+	const sortedUpcomingGameweeks = [...upcomingGameweeks]
+		.sort((a, b) => a.Gameweek - b.Gameweek)
 		.map((md) => ({
 			...md,
 			games: [...md.games].sort((a, b) => {
@@ -1174,13 +1177,13 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 		? `
 			<section class="fixture-section">
 				<h2>Results</h2>
-				${renderWCSectionMarkup(sortedPastMatchdays, 'results')}
+				${renderWCSectionMarkup(sortedPastGameweeks, 'results')}
 			</section>
 		`
 		: `
 			<section class="fixture-section">
 				<h2>Fixtures</h2>
-				${renderWCSectionMarkup(sortedUpcomingMatchdays, 'fixtures')}
+				${renderWCSectionMarkup(sortedUpcomingGameweeks, 'fixtures')}
 			</section>
 		`
 
@@ -1191,7 +1194,7 @@ function renderFixturesAndResultsMarkup(searchText: string, selectedCountry: str
 	`
 }
 
-let fixtureMatchdays: WCFixtureMatchday[] = []
+let fixtureGameweeks: WCFixtureGameweek[] = []
 let activeFixtureView: FixtureView = 'results'
 let activeGroupsSubView: GroupsSubView = 'standings'
 
@@ -1365,7 +1368,7 @@ if (results && searchInput && countrySelect) {
 
 	async function loadAndUpdateResults() {
 		try {
-			fixtureMatchdays = await getWCFixtureMatchdays()
+			fixtureGameweeks = await getWCFixtureGameweeks()
 			updateResults()
 		} catch {
 			if (results) {

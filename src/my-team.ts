@@ -1,19 +1,19 @@
 import { renderPage } from './renderPage'
 import {
 	getAllPlayers,
-	getCurrentMatchdayPlayerPoints,
-	hasTeamPlayedThisMatchday,
+	getCurrentGameweekPlayerPoints,
+	hasTeamPlayedThisGameweek,
 	getPlayerPoints,
 	getTotalAccumulatedPoints,
 	type SelectablePlayer,
-	getCountryFlag,
+	getTeamBadgeOrFlagHtml,
 	getTeamKitColors,
 } from './teamsData'
 import { getTeamNameForUser, getTeamTileDisplayPreferenceForUser, requireAuth, userScopedStorageKey } from './auth'
 import { getSharedItem, setSharedItem, sharedLeagueUpdatedEvent } from './sharedLeague'
-import { getWCFixtureMatchdays, type WCFixtureGame, type WCFixtureMatchday } from './fixturesData'
+import { getWCFixtureGameweeks, type WCFixtureGame, type WCFixtureGameweek } from './fixturesData'
 import {
-	getTransferAwareMatchdayPoints,
+	getTransferAwareGameweekPoints,
 	getTransferAwarePlayerCurrentPoints,
 	parseTransferPointEvents,
 	pruneTransferPointEvents,
@@ -44,13 +44,13 @@ function renderPitchPlayerName(name: string): string {
 }
 
 const maxTeamSize = 11
-const maxBenchSize = 4
+const defaultBenchSize = 4
 const defaultBudget = 100
-const maxTransfersPerMatchday = 3
+const maxTransfersPerGameweek = 3
 const currentUsername = requireAuth()
 const currentTeamName = getTeamNameForUser(currentUsername) ?? 'Unnamed Team'
 const teamStateStorageKey = userScopedStorageKey('fantasy-football-my-team-state', currentUsername)
-const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
+const globalGameweekStorageKey = 'fantasy-football-global-Gameweek'
 const globalBudgetStorageKey = 'fantasy-football-global-budget'
 const benchModeStorageKey = 'fantasy-football-bench-mode'
 const positionLimits: Record<string, number> = {
@@ -66,7 +66,7 @@ const positionMinimums: Record<keyof typeof positionLimits, number> = {
 	Forward: 1,
 }
 
-const unlimitedTransferMatchday = 0
+const unlimitedTransferGameweek = 0
 const transferKickoffLockWindowMs = 3.5 * 60 * 60 * 1000
 
 const allPlayers = getAllPlayers()
@@ -78,12 +78,14 @@ let claimedByOthers: Map<string, string> = new Map()
 let draftModeEnabled = false
 let draftOrder: string[] = []
 let draftCurrentTurn: string | null = null
+let draftType: 'round-robin' | 'snake' = 'round-robin'
 let draftComplete = false
 let benchModeEnabled = getSharedItem(benchModeStorageKey) !== 'false'
+let benchSize = defaultBenchSize
 let remainingBudget = maxBudget
 let incomingTransferRequests: TransferRequest[] = []
 let outgoingTransferRequests: TransferRequest[] = []
-let fixtureMatchdays: WCFixtureMatchday[] = []
+let fixtureGameweeks: WCFixtureGameweek[] = []
 
 type TeamTileDisplayMode = 'flag' | 'name'
 
@@ -101,7 +103,7 @@ function renderTeamIdentity(player: SelectablePlayer): string {
 		return `<div class="player-flag player-team-name">${escapeHtml(player.team)}</div>`
 	}
 
-	return `<div class="player-flag">${getCountryFlag(player.team)}</div>`
+	return `<div class="player-flag">${getTeamBadgeOrFlagHtml(player.team, 'team-icon')}</div>`
 }
 
 const transferTeamAliases: Record<string, string> = {
@@ -256,59 +258,71 @@ function parseFixtureKickoff(game: WCFixtureGame, now: Date): Date | null {
 	return kickoff
 }
 
-function fixtureGameIncludesTeam(game: WCFixtureGame, teamName: string): boolean {
-	const [homeTeam, awayTeam] = game.match.split(' vs ')
-	if (!homeTeam || !awayTeam) {
-		return false
-	}
+let transferLockCacheMinute = -1
+let transferLockCacheFixtureRef: WCFixtureGameweek[] | null = null
+let transferLockCacheLockedTeamTokens = new Set<string>()
 
-	const teamToken = normalizeTeamToken(teamName)
-	return normalizeTeamToken(homeTeam) === teamToken || normalizeTeamToken(awayTeam) === teamToken
-}
-
-function isPlayerTransferLockedNow(player: SelectablePlayer): boolean {
-	const now = new Date()
-
-	if (fixtureMatchdays.length === 0) {
-		return false
+function getLockedTeamTokensNow(now: Date): Set<string> {
+	const minuteBucket = Math.floor(now.getTime() / 60000)
+	if (transferLockCacheFixtureRef === fixtureGameweeks && transferLockCacheMinute === minuteBucket) {
+		return transferLockCacheLockedTeamTokens
 	}
 
 	const nowMs = now.getTime()
+	const lockedTokens = new Set<string>()
 
-	for (const matchday of fixtureMatchdays) {
-		for (const game of matchday.games) {
-			if (!fixtureGameIncludesTeam(game, player.team)) {
-				continue
-			}
-
+	for (const Gameweek of fixtureGameweeks) {
+		for (const game of Gameweek.games) {
 			const kickoff = parseFixtureKickoff(game, now)
 			if (!kickoff) {
 				continue
 			}
 
 			const kickoffMs = kickoff.getTime()
-			if (nowMs >= kickoffMs && nowMs <= kickoffMs + transferKickoffLockWindowMs) {
-				return true
+			if (nowMs < kickoffMs || nowMs > kickoffMs + transferKickoffLockWindowMs) {
+				continue
+			}
+
+			const [homeTeam, awayTeam] = game.match.split(' vs ')
+			if (homeTeam) {
+				lockedTokens.add(normalizeTeamToken(homeTeam))
+			}
+			if (awayTeam) {
+				lockedTokens.add(normalizeTeamToken(awayTeam))
 			}
 		}
 	}
 
-	return false
+	transferLockCacheMinute = minuteBucket
+	transferLockCacheFixtureRef = fixtureGameweeks
+	transferLockCacheLockedTeamTokens = lockedTokens
+	return lockedTokens
+}
+
+function isPlayerTransferLockedNow(player: SelectablePlayer): boolean {
+	const now = new Date()
+
+	if (fixtureGameweeks.length === 0) {
+		return false
+	}
+
+	const lockedTeams = getLockedTeamTokensNow(now)
+	return lockedTeams.has(normalizeTeamToken(player.team))
 }
 
 function getTransferLockMessage(player: SelectablePlayer): string {
 	return `${player.name} cannot be transferred from kickoff until 3.5 hours after kickoff for ${player.team}.`
 }
 
-async function refreshFixtureMatchdays(): Promise<void> {
+async function refreshFixtureGameweeks(): Promise<void> {
 	try {
-		fixtureMatchdays = await getWCFixtureMatchdays()
+		fixtureGameweeks = await getWCFixtureGameweeks()
 	} catch {
-		fixtureMatchdays = []
+		fixtureGameweeks = []
 	}
 }
 
-async function refreshTeamsPlayedThisMatchday(): Promise<void> {
+async function refreshTeamsPlayedThisGameweek(): Promise<void> {
 	return Promise.resolve()
 }
 
@@ -387,11 +401,13 @@ async function refreshDraftMode(): Promise<void> {
 			canEnable?: boolean
 			order?: string[]
 			currentTurn?: string | null
+			type?: string
 			complete?: boolean
 		}
 		draftModeEnabled = data.enabled === true
 		draftOrder = Array.isArray(data.order) ? data.order.filter((value) => typeof value === 'string') : []
 		draftCurrentTurn = typeof data.currentTurn === 'string' ? data.currentTurn : null
+		draftType = data.type === 'snake' ? 'snake' : 'round-robin'
 		draftComplete = data.complete === true
 	} catch {
 		// Keep existing state on failure.
@@ -415,8 +431,12 @@ async function refreshBenchMode(): Promise<void> {
 		if (!response.ok) return
 		const data = (await response.json()) as {
 			enabled?: boolean
+			benchSize?: number
 		}
 		benchModeEnabled = data.enabled !== false
+		if (Number.isFinite(data.benchSize)) {
+			benchSize = Math.max(0, Math.floor(data.benchSize ?? benchSize))
+		}
 	} catch {
 		// Keep existing state on failure.
 	}
@@ -434,32 +454,37 @@ async function refreshBenchMode(): Promise<void> {
 function renderDraftStatus(): void {
 	const status = document.querySelector<HTMLParagraphElement>('#draft-status')
 	if (!status) return
+	const draftTypeLabel = draftType === 'snake' ? 'Snake' : 'Round Robin'
 
 	if (!draftModeEnabled) {
 		status.textContent = 'Draft Mode: Off'
+		renderAutoDraftPickButton()
 		return
 	}
 
 	if (draftOrder.length === 0) {
-		status.textContent = 'Draft Mode: On (waiting for order)'
+		status.textContent = `Draft Mode: On (${draftTypeLabel}, waiting for order)`
+		renderAutoDraftPickButton()
 		return
 	}
 
 	if (draftComplete) {
-		status.textContent = `Draft Mode: Complete (${draftOrder.join(' -> ')})`
+		status.textContent = `Draft Mode: Complete (${draftTypeLabel} | ${draftOrder.join(' -> ')})`
+		renderAutoDraftPickButton()
 		return
 	}
 
 	const turnLabel = draftCurrentTurn ? draftCurrentTurn : 'Unknown'
-	status.textContent = `Draft Mode: ${turnLabel}'s turn (${draftOrder.join(' -> ')})`
+	status.textContent = `Draft Mode: ${turnLabel}'s turn (${draftTypeLabel} | ${draftOrder.join(' -> ')})`
+	renderAutoDraftPickButton()
 }
 
 function isDraftPhaseActive(): boolean {
-	return draftModeEnabled && !draftComplete && currentMatchday === 1
+	return draftModeEnabled && !draftComplete && currentGameweek === 1
 }
 
-function isUnlimitedTransferMatchday(matchday: number = currentMatchday): boolean {
-	return matchday === unlimitedTransferMatchday
+function isUnlimitedTransferGameweek(Gameweek: number = currentGameweek): boolean {
+	return Gameweek === unlimitedTransferGameweek
 }
 
 function renderTransferRequests(): void {
@@ -521,21 +546,21 @@ function renderTransferRequests(): void {
 	`
 }
 
-let transfersUsedThisMatchday = 0
-let currentMatchday = 1
+let transfersUsedThisGameweek = 0
+let currentGameweek = 1
 let captainPlayerKey: string | null = null
-let captainChangesThisMatchday = 0
+let captainChangesThisGameweek = 0
 let captainBonusTotal = 0
 let manualPointsAdjustment = 0
 let ownedPointsTotal = 0
 let isCaptainSelectMode = false
 let swapBenchKey: string | null = null
 let transferPointEvents: TransferPointEvent[] = []
-let transferUsageByMatchday: Record<number, number> = {}
+let transferUsageByGameweek: Record<number, number> = {}
 let hasLoadedTeamState = false
 
-function isTeamLockedForMatchday(matchday: number = currentMatchday): boolean {
-	return matchday !== unlimitedTransferMatchday
+function isTeamLockedForGameweek(Gameweek: number = currentGameweek): boolean {
+	return Gameweek !== unlimitedTransferGameweek
 }
 
 function getCurrentPointsByPlayerKey(key: string): number {
@@ -546,11 +571,11 @@ function getCurrentPointsByPlayerKey(key: string): number {
 
 	const teamName = parts[0]
 	const playerName = parts.slice(1).join('::')
-	return getCurrentMatchdayPlayerPoints(playerName, teamName)
+	return getCurrentGameweekPlayerPoints(playerName, teamName)
 }
 
 function getDisplayedPlayerTotalPoints(playerName: string, teamName: string): number {
-	return getCurrentMatchdayPlayerPoints(playerName, teamName)
+	return getCurrentGameweekPlayerPoints(playerName, teamName)
 }
 
 function getSearchPlayerTotalPoints(playerName: string, teamName: string): number {
@@ -561,33 +586,33 @@ function getDisplayedSelectedPlayerTotalPoints(player: SelectablePlayer, selecte
 	return getTransferAwarePlayerCurrentPoints(
 		playerKey(player),
 		selectedKeys,
-		currentMatchday,
+		currentGameweek,
 		transferPointEvents,
 		getCurrentPointsByPlayerKey,
 	)
 }
 
 function addTransferPointEvent(direction: 'in' | 'out', key: string): void {
-	if (!isTeamLockedForMatchday()) {
+	if (!isTeamLockedForGameweek()) {
 		return
 	}
 
-	const effectiveMatchday = getGlobalMatchday()
-	if (currentMatchday !== effectiveMatchday) {
-		currentMatchday = effectiveMatchday
+	const effectiveGameweek = getGlobalGameweek()
+	if (currentGameweek !== effectiveGameweek) {
+		currentGameweek = effectiveGameweek
 	}
 
 	transferPointEvents = recordTransferPointEvent(
 		transferPointEvents,
 		key,
 		direction,
-		effectiveMatchday,
+		effectiveGameweek,
 		getCurrentPointsByPlayerKey,
 	)
 }
 
-function reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys: Set<string>, previousMatchday: number): void {
-	if (!hasLoadedTeamState || !isTeamLockedForMatchday() || previousMatchday !== currentMatchday) {
+function reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys: Set<string>, previousGameweek: number): void {
+	if (!hasLoadedTeamState || !isTeamLockedForGameweek() || previousGameweek !== currentGameweek) {
 		return
 	}
 
@@ -625,13 +650,13 @@ const myTeamMarkup = `
 			</div>
 			<p class="my-team-name">${escapeHtml(currentTeamName)}</p>
 			<p class="players-help">Pick up to 11 players. Limits: 1 GK, 5 DEF, 5 MID, 3 FWD. Minimums: 1 GK, 3 DEF, 3 MID, 1 FWD.</p>
-			<p class="players-help" id="transfer-status">Matchday 1 Transfers: 0/3 used</p>
+			<p class="players-help" id="transfer-status">Gameweek 1 Transfers: 0/3 used</p>
 			<p class="players-help" id="captain-status">Captain: None</p>
 			<button id="select-captain-btn" type="button" class="lock-team-btn">Select Captain</button>
 			<p class="players-help" id="budget-count">Budget: £0.0 / £100.0</p>
 			<div class="pitch-info-row">
 				<div>
-					<p class="players-help">Matchday Points: <span id="matchday-points" style="font-weight: 700; color: #059669;">0</span></p>
+					<p class="players-help">Gameweek Points: <span id="Gameweek-points" style="font-weight: 700; color: #059669;">0</span></p>
 					<p class="players-help">Total Points: <span id="total-points" style="font-weight: 700; color: #0f172a;">0</span></p>
 				</div>
 			</div>
@@ -639,8 +664,8 @@ const myTeamMarkup = `
 				<div class="transfer-requests-section" id="transfer-requests-section" hidden><h3>Transfer Requests</h3><div id="transfer-requests"></div></div>
 				<div class="football-pitch" id="selected-team"></div>
 				<div class="bench-section" id="bench-section" hidden>
-					<h3>Bench <span id="bench-count">0/4</span></h3>
-					<p class="players-help">Pick 4 bench players. Swap to/from active team for free.</p>
+					<h3>Bench <span id="bench-count">0/${benchSize}</span></h3>
+					<p class="players-help" id="bench-help-copy">Pick ${benchSize} bench players. Swap to/from active team for free.</p>
 					<div class="bench-players" id="bench-players"></div>
 				</div>
 			</div>
@@ -695,6 +720,7 @@ const myTeamMarkup = `
 				</div>
 
 				<p class="players-help" id="draft-status">Draft Mode: Off</p>
+				<button id="auto-draft-pick-btn" type="button" class="lock-team-btn" hidden>Auto Pick Best Player</button>
 				<p class="players-help" id="search-count"></p>
 				<ul class="search-results" id="search-results"></ul>
 			</div>
@@ -710,7 +736,7 @@ const selectedTeamList = document.querySelector<HTMLDivElement>('#selected-team'
 const teamCount = document.querySelector<HTMLSpanElement>('#team-count')
 const searchCount = document.querySelector<HTMLParagraphElement>('#search-count')
 const budgetCount = document.querySelector<HTMLParagraphElement>('#budget-count')
-const matchdayPointsDisplay = document.querySelector<HTMLSpanElement>('#matchday-points')
+const GameweekPointsDisplay = document.querySelector<HTMLSpanElement>('#Gameweek-points')
 const totalPointsDisplay = document.querySelector<HTMLSpanElement>('#total-points')
 const selectCaptainBtn = document.querySelector<HTMLButtonElement>('#select-captain-btn')
 const transferStatus = document.querySelector<HTMLParagraphElement>('#transfer-status')
@@ -722,6 +748,7 @@ const filterMinPrice = document.querySelector<HTMLInputElement>('#filter-min-pri
 const filterMaxPrice = document.querySelector<HTMLInputElement>('#filter-max-price')
 const filterCountry = document.querySelector<HTMLSelectElement>('#filter-country')
 const filterSort = document.querySelector<HTMLSelectElement>('#filter-sort')
+const autoDraftPickBtn = document.querySelector<HTMLButtonElement>('#auto-draft-pick-btn')
 const togglePlayerListBtn = document.querySelector<HTMLButtonElement>('#toggle-player-list-btn')
 const searchPanelSection = document.querySelector<HTMLDivElement>('#search-panel-section')
 const togglePitchViewBtn = document.querySelector<HTMLButtonElement>('#toggle-pitch-view-btn')
@@ -754,34 +781,34 @@ type SavedTeamState = {
 	selectedPlayerKeys: string[]
 	benchPlayerKeys?: string[]
 	isTeamLocked?: boolean
-	transfersUsedThisMatchday: number
-	transferUsageByMatchday?: Record<string, number>
-	currentMatchday: number
+	transfersUsedThisGameweek: number
+	transferUsageByGameweek?: Record<string, number>
+	currentGameweek: number
 	remainingBudget?: number
 	captainPlayerKey?: string | null
-	captainChangesThisMatchday?: number
+	captainChangesThisGameweek?: number
 	captainBonusTotal?: number
 	manualPointsAdjustment?: number
 	ownedPointsTotal?: number
 	transferPointEvents?: TransferPointEvent[]
 }
 
-function parseTransferUsageByMatchday(value: unknown): Record<number, number> {
+function parseTransferUsageByGameweek(value: unknown): Record<number, number> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		return {}
 	}
 
 	const next: Record<number, number> = {}
-	for (const [rawMatchday, rawUsed] of Object.entries(value as Record<string, unknown>)) {
-		const matchday = Number.parseInt(rawMatchday, 10)
-		if (!Number.isFinite(matchday) || matchday < 0) {
+	for (const [rawGameweek, rawUsed] of Object.entries(value as Record<string, unknown>)) {
+		const Gameweek = Number.parseInt(rawGameweek, 10)
+		if (!Number.isFinite(Gameweek) || Gameweek < 0) {
 			continue
 		}
 
 		const used = typeof rawUsed === 'number' && Number.isFinite(rawUsed)
 			? Math.max(0, Math.floor(rawUsed))
 			: 0
-		next[matchday] = used
+		next[Gameweek] = used
 	}
 
 	return next
@@ -802,18 +829,18 @@ function syncMaxBudget(): void {
 }
 
 function saveTeamState(): void {
-	transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentMatchday)
-	transferUsageByMatchday[currentMatchday] = Math.max(0, Math.floor(transfersUsedThisMatchday))
+	transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentGameweek)
+	transferUsageByGameweek[currentGameweek] = Math.max(0, Math.floor(transfersUsedThisGameweek))
 
 	const state: SavedTeamState = {
 		selectedPlayerKeys: selectedPlayers.map(playerKey),
 		benchPlayerKeys: benchPlayers.map(playerKey),
-		transfersUsedThisMatchday,
-		transferUsageByMatchday,
-		currentMatchday,
+		transfersUsedThisGameweek,
+		transferUsageByGameweek,
+		currentGameweek,
 		remainingBudget: Number(remainingBudget.toFixed(1)),
 		captainPlayerKey,
-		captainChangesThisMatchday,
+		captainChangesThisGameweek,
 		captainBonusTotal,
 		manualPointsAdjustment,
 		ownedPointsTotal,
@@ -824,8 +851,8 @@ function saveTeamState(): void {
 	void refreshClaimedPlayers().then(() => { renderSearchResults() })
 }
 
-function getGlobalMatchday(): number {
-	const raw = getSharedItem(globalMatchdayStorageKey)
+function getGlobalGameweek(): number {
+	const raw = getSharedItem(globalGameweekStorageKey)
 	const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
 	if (Number.isFinite(parsed) && parsed >= 0) {
 		return parsed
@@ -834,21 +861,21 @@ function getGlobalMatchday(): number {
 	return 1
 }
 
-function syncWithGlobalMatchday(): void {
-	const globalMatchday = getGlobalMatchday()
-	if (currentMatchday !== globalMatchday) {
-		transferUsageByMatchday[currentMatchday] = Math.max(0, Math.floor(transfersUsedThisMatchday))
-		currentMatchday = globalMatchday
-		transfersUsedThisMatchday = Math.max(0, Math.floor(transferUsageByMatchday[currentMatchday] ?? 0))
-		captainChangesThisMatchday = 0
-		transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentMatchday)
+function syncWithGlobalGameweek(): void {
+	const globalGameweek = getGlobalGameweek()
+	if (currentGameweek !== globalGameweek) {
+		transferUsageByGameweek[currentGameweek] = Math.max(0, Math.floor(transfersUsedThisGameweek))
+		currentGameweek = globalGameweek
+		transfersUsedThisGameweek = Math.max(0, Math.floor(transferUsageByGameweek[currentGameweek] ?? 0))
+		captainChangesThisGameweek = 0
+		transferPointEvents = pruneTransferPointEvents(transferPointEvents, currentGameweek)
 		saveTeamState()
 	}
 }
 
 function loadTeamState(): void {
 	const previousSelectedKeys = new Set(selectedPlayers.map(playerKey))
-	const previousMatchday = currentMatchday
+	const previousGameweek = currentGameweek
 	let didNormalizeLegacyTotals = false
 
 	syncMaxBudget()
@@ -856,16 +883,16 @@ function loadTeamState(): void {
 	if (!raw) {
 		selectedPlayers = []
 		benchPlayers = []
-		transfersUsedThisMatchday = 0
-		currentMatchday = 1
+		transfersUsedThisGameweek = 0
+		currentGameweek = 1
 		remainingBudget = maxBudget
 		captainPlayerKey = null
-		captainChangesThisMatchday = 0
+		captainChangesThisGameweek = 0
 		captainBonusTotal = 0
 		manualPointsAdjustment = 0
 		ownedPointsTotal = 0
 		transferPointEvents = []
-		transferUsageByMatchday = {}
+		transferUsageByGameweek = {}
 		hasLoadedTeamState = true
 		return
 	}
@@ -882,15 +909,15 @@ function loadTeamState(): void {
 			.map((key) => findPlayerByKey(key))
 			.filter((player): player is SelectablePlayer => Boolean(player))
 
-		const savedTransfersUsedThisMatchday = Number.isFinite(state.transfersUsedThisMatchday)
-			? Math.max(0, Math.floor(state.transfersUsedThisMatchday))
+		const savedTransfersUsedThisGameweek = Number.isFinite(state.transfersUsedThisGameweek)
+			? Math.max(0, Math.floor(state.transfersUsedThisGameweek))
 			: 0
-		currentMatchday = Number.isFinite(state.currentMatchday) ? Math.max(0, Math.floor(state.currentMatchday)) : 1
-		transferUsageByMatchday = parseTransferUsageByMatchday(state.transferUsageByMatchday)
-		transfersUsedThisMatchday = Object.prototype.hasOwnProperty.call(transferUsageByMatchday, currentMatchday)
-			? Math.max(0, Math.floor(transferUsageByMatchday[currentMatchday] ?? 0))
-			: savedTransfersUsedThisMatchday
-		transferUsageByMatchday[currentMatchday] = transfersUsedThisMatchday
+		currentGameweek = Number.isFinite(state.currentGameweek) ? Math.max(0, Math.floor(state.currentGameweek)) : 1
+		transferUsageByGameweek = parseTransferUsageByGameweek(state.transferUsageByGameweek)
+		transfersUsedThisGameweek = Object.prototype.hasOwnProperty.call(transferUsageByGameweek, currentGameweek)
+			? Math.max(0, Math.floor(transferUsageByGameweek[currentGameweek] ?? 0))
+			: savedTransfersUsedThisGameweek
+		transferUsageByGameweek[currentGameweek] = transfersUsedThisGameweek
 		
 		const allTeamPlayers = benchModeEnabled ? [...selectedPlayers, ...benchPlayers] : [...selectedPlayers]
 		const playersAreEmpty = allTeamPlayers.length === 0
@@ -903,15 +930,15 @@ function loadTeamState(): void {
 		normalizeBenchStateForMode()
 		
 		captainPlayerKey = typeof state.captainPlayerKey === 'string' ? state.captainPlayerKey : null
-		captainChangesThisMatchday = Number.isFinite(state.captainChangesThisMatchday)
-			? Math.max(0, Math.min(1, state.captainChangesThisMatchday ?? 0))
+		captainChangesThisGameweek = Number.isFinite(state.captainChangesThisGameweek)
+			? Math.max(0, Math.min(1, state.captainChangesThisGameweek ?? 0))
 			: 0
 		captainBonusTotal = Number.isFinite(state.captainBonusTotal) ? Math.max(0, state.captainBonusTotal ?? 0) : 0
 		manualPointsAdjustment = Number.isFinite(state.manualPointsAdjustment) ? state.manualPointsAdjustment ?? 0 : 0
 		ownedPointsTotal = Number.isFinite(state.ownedPointsTotal) ? Math.max(0, state.ownedPointsTotal ?? 0) : 0
-		transferPointEvents = pruneTransferPointEvents(parseTransferPointEvents(state.transferPointEvents), currentMatchday)
+		transferPointEvents = pruneTransferPointEvents(parseTransferPointEvents(state.transferPointEvents), currentGameweek)
 
-		if (currentMatchday <= 1 && (captainBonusTotal > 0 || ownedPointsTotal > 0)) {
+		if (currentGameweek <= 1 && (captainBonusTotal > 0 || ownedPointsTotal > 0)) {
 			captainBonusTotal = 0
 			ownedPointsTotal = 0
 			didNormalizeLegacyTotals = true
@@ -923,18 +950,18 @@ function loadTeamState(): void {
 	} catch {
 		selectedPlayers = []
 		benchPlayers = []
-		transfersUsedThisMatchday = 0
-		currentMatchday = 1
+		transfersUsedThisGameweek = 0
+		currentGameweek = 1
 		remainingBudget = maxBudget
 		captainPlayerKey = null
-		captainChangesThisMatchday = 0
+		captainChangesThisGameweek = 0
 		captainBonusTotal = 0
 		ownedPointsTotal = 0
 		transferPointEvents = []
-		transferUsageByMatchday = {}
+		transferUsageByGameweek = {}
 	}
 
-	reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys, previousMatchday)
+	reconcileTransferPointEventsFromRosterDiff(previousSelectedKeys, previousGameweek)
 	hasLoadedTeamState = true
 
 	if (didNormalizeLegacyTotals) {
@@ -976,22 +1003,22 @@ function getTotalPrice(players: SelectablePlayer[]): number {
 	return Number(total.toFixed(1))
 }
 
-function getMatchdayPoints(players: SelectablePlayer[]): number {
+function getGameweekPoints(players: SelectablePlayer[]): number {
 	const selectedKeys = players.map(playerKey)
-	const basePoints = getTransferAwareMatchdayPoints(
+	const basePoints = getTransferAwareGameweekPoints(
 		selectedKeys,
-		currentMatchday,
+		currentGameweek,
 		transferPointEvents,
 		getCurrentPointsByPlayerKey,
 	)
-	if (!captainPlayerKey || !players.some((player) => playerKey(player) === captainPlayerKey)) {
+	if (!captainPlayerKey) {
 		return basePoints
 	}
 
 	const captainCurrentPoints = getTransferAwarePlayerCurrentPoints(
 		captainPlayerKey,
 		selectedKeys,
-		currentMatchday,
+		currentGameweek,
 		transferPointEvents,
 		getCurrentPointsByPlayerKey,
 	)
@@ -1000,31 +1027,8 @@ function getMatchdayPoints(players: SelectablePlayer[]): number {
 }
 
 function getTotalPoints(players: SelectablePlayer[]): number {
-	const currentMatchday = getMatchdayPoints(players)
-	return ownedPointsTotal + currentMatchday + captainBonusTotal + manualPointsAdjustment
-}
-
-function settleOutgoingCaptainBonus(playerToRemoveKey: string): void {
-	if (!isTeamLockedForMatchday() || captainPlayerKey !== playerToRemoveKey) {
-		return
-	}
-
-	const selectedKeys = selectedPlayers.map(playerKey)
-	if (!selectedKeys.includes(playerToRemoveKey)) {
-		return
-	}
-
-	captainBonusTotal += Math.max(
-		0,
-		getTransferAwarePlayerCurrentPoints(
-			playerToRemoveKey,
-			selectedKeys,
-			currentMatchday,
-			transferPointEvents,
-			getCurrentPointsByPlayerKey,
-		),
-	)
-	captainPlayerKey = null
+	const currentGameweek = getGameweekPoints(players)
+	return ownedPointsTotal + currentGameweek + captainBonusTotal + manualPointsAdjustment
 }
 
 function canAddPlayer(player: SelectablePlayer): boolean {
@@ -1068,15 +1072,15 @@ function canRemovePlayer(player?: SelectablePlayer): boolean {
 		return false
 	}
 
-	if (!isTeamLockedForMatchday()) {
+	if (!isTeamLockedForGameweek()) {
 		return true
 	}
 
-	if (isUnlimitedTransferMatchday()) {
+	if (isUnlimitedTransferGameweek()) {
 		return true
 	}
 
-	return transfersUsedThisMatchday < maxTransfersPerMatchday
+	return transfersUsedThisGameweek < maxTransfersPerGameweek
 }
 
 function canAddPlayerToBench(player: SelectablePlayer): boolean {
@@ -1088,7 +1092,7 @@ function canAddPlayerToBench(player: SelectablePlayer): boolean {
 		return false
 	}
 
-	if (benchPlayers.length >= maxBenchSize) {
+	if (benchPlayers.length >= benchSize) {
 		return false
 	}
 
@@ -1150,18 +1154,41 @@ function swapPlayerWithBench(activePlayerKey: string, benchPlayerKey: string): v
 }
 
 function getTransfersRemaining(): number {
-	if (isUnlimitedTransferMatchday()) {
+	if (isUnlimitedTransferGameweek()) {
 		return Number.POSITIVE_INFINITY
 	}
 
-	if (!isTeamLockedForMatchday()) {
-		return maxTransfersPerMatchday
+	if (!isTeamLockedForGameweek()) {
+		return maxTransfersPerGameweek
 	}
 
-	return Math.max(0, maxTransfersPerMatchday - transfersUsedThisMatchday)
+	return Math.max(0, maxTransfersPerGameweek - transfersUsedThisGameweek)
 }
 
-function hasCurrentCaptainPlayedThisMatchday(): boolean {
+function getTransfersRemainingAfterTransferOut(): number {
+	if (isUnlimitedTransferGameweek()) {
+		return Number.POSITIVE_INFINITY
+	}
+
+	if (!isTeamLockedForGameweek()) {
+		return maxTransfersPerGameweek
+	}
+
+	return Math.max(0, maxTransfersPerGameweek - (transfersUsedThisGameweek + 1))
+}
+
+function confirmTransferOut(playerName: string): boolean {
+	const transfersRemainingAfter = getTransfersRemainingAfterTransferOut()
+	const transfersRemainingLabel = Number.isFinite(transfersRemainingAfter)
+		? String(transfersRemainingAfter)
+		: 'Unlimited'
+
+	return confirm(
+		`transfering out ${playerName}\ntransfers remaining after transfer ${transfersRemainingLabel}\n\ncontinue yes no`,
+	)
+}
+
+function hasCurrentCaptainPlayedThisGameweek(): boolean {
 	if (!captainPlayerKey) {
 		return false
 	}
@@ -1171,11 +1198,37 @@ function hasCurrentCaptainPlayedThisMatchday(): boolean {
 		return false
 	}
 
-	return hasTeamPlayedThisMatchday(captain.team)
+	return hasTeamPlayedThisGameweek(captain.team)
+}
+
+function isCurrentCaptainTransferLocked(): boolean {
+	if (!captainPlayerKey) {
+		return false
+	}
+
+	const captain = selectedPlayers.find((player) => playerKey(player) === captainPlayerKey)
+	if (!captain) {
+		return false
+	}
+
+	return isPlayerTransferLockedNow(captain)
 }
 
 function canSetCaptain(targetKey: string): boolean {
-	if (isTeamLockedForMatchday() && hasCurrentCaptainPlayedThisMatchday()) {
+	const targetPlayer = selectedPlayers.find((player) => playerKey(player) === targetKey)
+	if (!targetPlayer) {
+		return false
+	}
+
+	if (isTeamLockedForGameweek() && hasCurrentCaptainPlayedThisGameweek()) {
+		return false
+	}
+
+	if (isTeamLockedForGameweek() && captainPlayerKey && isCurrentCaptainTransferLocked()) {
+		return false
+	}
+
+	if (isTeamLockedForGameweek() && isPlayerTransferLockedNow(targetPlayer)) {
 		return false
 	}
 
@@ -1183,7 +1236,7 @@ function canSetCaptain(targetKey: string): boolean {
 		return false
 	}
 
-	return selectedPlayers.some((player) => playerKey(player) === targetKey)
+	return true
 }
 
 function canAcceptTransfer(request: TransferRequest): boolean {
@@ -1207,7 +1260,7 @@ function setCaptain(targetKey: string): void {
 	}
 
 	captainPlayerKey = targetKey
-	captainChangesThisMatchday += 1
+	captainChangesThisGameweek += 1
 	isCaptainSelectMode = false
 	saveTeamState()
 	renderSelectedTeam()
@@ -1224,22 +1277,34 @@ function renderSelectedTeam(): void {
 		const spent = Number((maxBudget - remainingBudget).toFixed(1))
 		budgetCount.textContent = `Budget: £${spent.toFixed(1)} / £${maxBudget.toFixed(1)} (Remaining: £${remainingBudget.toFixed(1)})`
 	}
-	const teamLocked = isTeamLockedForMatchday()
-	if (matchdayPointsDisplay) {
-		matchdayPointsDisplay.textContent = `${teamLocked ? getMatchdayPoints(selectedPlayers) : 0}`
+	const teamLocked = isTeamLockedForGameweek()
+	if (GameweekPointsDisplay) {
+		GameweekPointsDisplay.textContent = `${teamLocked ? getGameweekPoints(selectedPlayers) : 0}`
 	}
 	if (totalPointsDisplay) {
 		totalPointsDisplay.textContent = `${teamLocked ? getTotalPoints(selectedPlayers) : 0}`
 	}
+	
+	// Clear captain if they've been transferred out
+	if (captainPlayerKey && !selectedPlayers.some((player) => playerKey(player) === captainPlayerKey)) {
+		captainPlayerKey = null
+		saveTeamState()
+	}
+	
 	if (transferStatus) {
-		transferStatus.textContent = isUnlimitedTransferMatchday()
-			? `Matchday ${currentMatchday} Transfers: Unlimited`
-			: `Matchday ${currentMatchday} Transfers: ${transfersUsedThisMatchday}/${maxTransfersPerMatchday} used`
+		transferStatus.textContent = isUnlimitedTransferGameweek()
+			? `Gameweek ${currentGameweek} Transfers: Unlimited`
+			: `Gameweek ${currentGameweek} Transfers: ${transfersUsedThisGameweek}/${maxTransfersPerGameweek} used`
 	}
 	if (captainStatus) {
 		const captain = captainPlayerKey ? selectedPlayers.find((player) => playerKey(player) === captainPlayerKey) : null
-		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisMatchday()
-		const selectionLimitInfo = captainLockedBecausePlayed ? ' | Captain locked (already played this matchday)' : ''
+		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisGameweek()
+		const captainLockedBecauseTransferWindow = teamLocked && isCurrentCaptainTransferLocked()
+		const selectionLimitInfo = captainLockedBecausePlayed
+			? ' | Captain locked (already played this Gameweek)'
+			: captainLockedBecauseTransferWindow
+				? ' | Captain locked (kickoff lock window active)'
+				: ''
 		if (!captain) {
 			const modeHint = isCaptainSelectMode ? ' | Click a player card to assign captain' : ''
 			captainStatus.textContent = `Captain: None${selectionLimitInfo}${modeHint}`
@@ -1249,13 +1314,14 @@ function renderSelectedTeam(): void {
 		}
 	}
 	if (selectCaptainBtn) {
-		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisMatchday()
-		const canSelectCaptainThisMatchday =
-			selectedPlayers.length > 0 && !captainLockedBecausePlayed
-		if (!canSelectCaptainThisMatchday) {
+		const captainLockedBecausePlayed = teamLocked && hasCurrentCaptainPlayedThisGameweek()
+		const captainLockedBecauseTransferWindow = teamLocked && isCurrentCaptainTransferLocked()
+		const canSelectCaptainThisGameweek =
+			selectedPlayers.length > 0 && !captainLockedBecausePlayed && !captainLockedBecauseTransferWindow
+		if (!canSelectCaptainThisGameweek) {
 			isCaptainSelectMode = false
 		}
-		selectCaptainBtn.disabled = !canSelectCaptainThisMatchday
+		selectCaptainBtn.disabled = !canSelectCaptainThisGameweek
 		selectCaptainBtn.textContent = isCaptainSelectMode ? 'Cancel Captain Select' : 'Select Captain'
 	}
 	if (transferRemainingBadge) {
@@ -1294,10 +1360,10 @@ function renderSelectedTeam(): void {
 					const btnClass = canSwap ? 'swap-here-btn swap-here-btn--ok' : 'swap-here-btn swap-here-btn--bad'
 						swapBtnMarkup = `<button class="${btnClass}" type="button" data-pitch-key="${escapeHtml(key)}"${canSwap ? '' : ' disabled'}>${canSwap ? 'Swap Here' : "Can't Swap"}</button>`
 				}
-				const played = hasTeamPlayedThisMatchday(player.team)
+				const played = hasTeamPlayedThisGameweek(player.team)
 			return `
 					<div class="pitch-player">
-						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}${played ? ' team-has-played' : ''}" data-player-key="${escapeHtml(key)}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
+						<div class="player-card ${isCaptainSelectMode && canSetCaptain(key) ? 'captain-selectable' : ''}${played ? ' team-has-played' : ''}" data-player-key="${escapeHtml(key)}" style="--kit-bg: ${kitColors.backgroundColor}; --kit-pattern: ${kitColors.backgroundPattern}; --kit-text: ${kitColors.textColor}; --kit-border: ${kitColors.borderColor};">
 							${captainPlayerKey === key ? '<div class="captain-badge">C</div>' : ''}
 							${played ? '<div class="team-played-badge">✓</div>' : ''}
 							${transferLocked ? '<div class="player-lock-badge">Locked</div>' : ''}
@@ -1344,13 +1410,17 @@ function renderBench(): void {
 	if (!benchModeEnabled) {
 		benchSection.hidden = true
 		benchList.innerHTML = ''
-		benchCountEl.textContent = `0/${maxBenchSize}`
+		benchCountEl.textContent = `0/${benchSize}`
 		return
 	}
 
 	benchSection.hidden = false
+	const benchHelpCopy = document.querySelector<HTMLParagraphElement>('#bench-help-copy')
+	if (benchHelpCopy) {
+		benchHelpCopy.textContent = `Pick ${benchSize} bench players. Swap to/from active team for free.`
+	}
 
-	benchCountEl.textContent = `${benchPlayers.length}/${maxBenchSize}`
+	benchCountEl.textContent = `${benchPlayers.length}/${benchSize}`
 
 	if (benchPlayers.length === 0) {
 		benchList.innerHTML = '<p class="players-help">No bench players selected yet.</p>'
@@ -1367,7 +1437,7 @@ function renderBench(): void {
 							<div class="player-price">£${player.price.toFixed(1)}</div>
 							${renderTeamIdentity(player)}
 							<div class="player-position">${player.position}</div>
-							<div class="player-points">${isTeamLockedForMatchday() ? getDisplayedPlayerTotalPoints(player.name, player.team) : 0}pts</div>
+							<div class="player-points">${isTeamLockedForGameweek() ? getDisplayedPlayerTotalPoints(player.name, player.team) : 0}pts</div>
 						</div>
 					</div>
 					<button class="swap-player-btn" type="button" data-bench-key="${escapeHtml(playerKey(player))}" title="Swap with active player" ${swapBenchKey ? 'disabled' : ''}>⇄</button>
@@ -1377,6 +1447,109 @@ function renderBench(): void {
 		.join('')
 
 	benchList.innerHTML = benchMarkup
+}
+
+function getBestAutoDraftCandidate(): SelectablePlayer | null {
+	if (!isDraftPhaseActive()) {
+		return null
+	}
+
+	const selectedKeys = new Set(selectedPlayers.map(playerKey))
+	const benchKeys = new Set(benchPlayers.map(playerKey))
+	const candidates = allPlayers.filter((player) => {
+		const key = playerKey(player)
+		if (selectedKeys.has(key) || benchKeys.has(key)) {
+			return false
+		}
+		if (claimedByOthers.has(key)) {
+			return false
+		}
+		if (isPlayerTransferLockedNow(player)) {
+			return false
+		}
+
+		if (selectedPlayers.length < maxTeamSize) {
+			return canAddPlayer(player)
+		}
+
+		return canAddPlayerToBench(player)
+	})
+
+	if (candidates.length === 0) {
+		return null
+	}
+
+	candidates.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name))
+	return candidates[0]
+}
+
+function renderAutoDraftPickButton(): void {
+	if (!autoDraftPickBtn) {
+		return
+	}
+
+	autoDraftPickBtn.hidden = !draftModeEnabled
+	autoDraftPickBtn.textContent = 'Auto Pick Best Player'
+
+	if (!draftModeEnabled) {
+		autoDraftPickBtn.disabled = true
+		autoDraftPickBtn.title = ''
+		return
+	}
+
+	if (!isDraftPhaseActive()) {
+		autoDraftPickBtn.disabled = true
+		autoDraftPickBtn.title = 'Auto pick is only available during the active draft phase.'
+		return
+	}
+
+	if (!draftCurrentTurn || draftCurrentTurn.toLowerCase() !== currentUsername.toLowerCase()) {
+		autoDraftPickBtn.disabled = true
+		autoDraftPickBtn.title = 'You can only auto pick on your draft turn.'
+		return
+	}
+
+	const candidate = getBestAutoDraftCandidate()
+	autoDraftPickBtn.disabled = !candidate
+	autoDraftPickBtn.title = candidate ? `Pick ${candidate.name} (£${candidate.price.toFixed(1)})` : 'No valid player can be auto-picked right now.'
+}
+
+async function submitDraftPick(player: SelectablePlayer): Promise<void> {
+	const key = playerKey(player)
+
+	try {
+		const res = await fetch('/api/draft-pick', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ user: currentUsername, playerKey: key }),
+		})
+		const payload = (await res.json()) as { error?: string; currentTurn?: string | null; complete?: boolean; slot?: 'selected' | 'bench' }
+		if (!res.ok) {
+			alert(payload.error ?? 'Unable to save draft pick.')
+			await refreshDraftMode()
+			await refreshClaimedPlayers()
+			renderSearchResults()
+			return
+		}
+
+		if (payload.slot === 'bench') {
+			benchPlayers = [...benchPlayers, player]
+		} else {
+			selectedPlayers = [...selectedPlayers, player]
+		}
+		addTransferPointEvent('in', key)
+		remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
+		saveTeamState()
+		draftCurrentTurn = typeof payload.currentTurn === 'string' ? payload.currentTurn : null
+		draftComplete = payload.complete === true
+		renderDraftStatus()
+		await refreshClaimedPlayers()
+		renderSelectedTeam()
+		renderBench()
+		renderSearchResults()
+	} catch {
+		alert('Unable to save draft pick.')
+	}
 }
 
 function renderSearchResults(): void {
@@ -1445,12 +1618,13 @@ function renderSearchResults(): void {
 	})
 
 	searchCount.textContent = `${filtered.length} players found`
+	renderAutoDraftPickButton()
 
 	searchResults.innerHTML = filtered
 		.slice(0, 150)
 		.map((player) => {
 			const key = playerKey(player)
-			const countryFlag = getCountryFlag(player.team)
+			const teamIdentity = getTeamBadgeOrFlagHtml(player.team, 'search-team-icon')
 			const kitColors = getTeamKitColors(player.team)
 			const alreadySelected = selectedKeys.has(key)
 			const benchKeys = new Set(benchPlayers.map(playerKey))
@@ -1464,14 +1638,14 @@ function renderSearchResults(): void {
 			// Check if we can add to bench
 			const canAddToBench = !alreadyOnBench && !alreadySelected && !takenByOther && !transferLocked && canAddPlayerToBench(player)
 			const teamIsFull = selectedPlayers.length >= maxTeamSize
-			const benchIsFull = benchPlayers.length >= maxBenchSize
+			const benchIsFull = benchPlayers.length >= benchSize
 			
 			const lockedAndNoTransfersLeft =
-				isTeamLockedForMatchday() &&
-				!isUnlimitedTransferMatchday() &&
+				isTeamLockedForGameweek() &&
+				!isUnlimitedTransferGameweek() &&
 				!alreadySelected &&
 				selectedPlayers.length >= maxTeamSize &&
-				transfersUsedThisMatchday >= maxTransfersPerMatchday
+				transfersUsedThisGameweek >= maxTransfersPerGameweek
 			const isRequestMode = takenByOther && !isDraftPhaseActive() && owner !== null
 			const canAddToActive = !alreadySelected && canAddPlayer(player)
 			const disabled = alreadySelected || (!isRequestMode && (takenByOther || !canAddToActive))
@@ -1511,9 +1685,9 @@ function renderSearchResults(): void {
 
 			const totalPts = getSearchPlayerTotalPoints(player.name, player.team)
 			return `
-				<li class="search-item${takenByOther ? ' player-taken' : ''}" style="background: ${kitColors.backgroundColor}; border-color: ${kitColors.borderColor}; color: ${kitColors.textColor};">
+				<li class="search-item${takenByOther ? ' player-taken' : ''}" style="background-color: ${kitColors.backgroundColor}; background-image: ${kitColors.backgroundPattern}; border-color: ${kitColors.borderColor}; color: ${kitColors.textColor};">
 					<div>
-						<strong style="color: ${kitColors.textColor};">${countryFlag} ${escapeHtml(player.name)} <span class="player-price" style="color: ${kitColors.textColor};">(£${player.price.toFixed(1)})</span> <span class="player-total-pts" style="color: ${kitColors.textColor};">${totalPts} pts</span></strong>
+						<strong style="color: ${kitColors.textColor};">${teamIdentity} ${escapeHtml(player.name)} <span class="player-price" style="color: ${kitColors.textColor};">(£${player.price.toFixed(1)})</span> <span class="player-total-pts" style="color: ${kitColors.textColor};">${totalPts} pts</span></strong>
 						<div class="selected-meta" style="color: ${kitColors.textColor};">${escapeHtml(player.team)} (${escapeHtml(player.position)})</div>
 					</div>
 					<button class="${buttonClass}" type="button" ${buttonDataAttrs} ${finalDisabled ? 'disabled' : ''}>${buttonLabel}</button>
@@ -1566,6 +1740,26 @@ if (searchInput && searchResults && selectedTeamList) {
 	}
 	if (filterSort) {
 		filterSort.addEventListener('change', renderSearchResults)
+	}
+
+	if (autoDraftPickBtn) {
+		autoDraftPickBtn.addEventListener('click', async () => {
+			if (!isDraftPhaseActive()) {
+				return
+			}
+
+			if (!draftCurrentTurn || draftCurrentTurn.toLowerCase() !== currentUsername.toLowerCase()) {
+				return
+			}
+
+			const candidate = getBestAutoDraftCandidate()
+			if (!candidate) {
+				alert('No valid player available for auto pick.')
+				return
+			}
+
+			await submitDraftPick(candidate)
+		})
 	}
 
 	searchResults.addEventListener('click', async (event) => {
@@ -1658,6 +1852,11 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 
+			if (isDraftPhaseActive()) {
+				await submitDraftPick(player)
+				return
+			}
+
 			benchPlayers = [...benchPlayers, player]
 			remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
 			saveTeamState()
@@ -1710,43 +1909,16 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 		if (
-			isTeamLockedForMatchday() &&
-			!isUnlimitedTransferMatchday() &&
+			isTeamLockedForGameweek() &&
+			!isUnlimitedTransferGameweek() &&
 			selectedPlayers.length >= maxTeamSize &&
-			transfersUsedThisMatchday >= maxTransfersPerMatchday
+			transfersUsedThisGameweek >= maxTransfersPerGameweek
 		) {
 			return
 		}
 
 		if (isDraftPhaseActive()) {
-			try {
-				const res = await fetch('/api/draft-pick', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ user: currentUsername, playerKey: key }),
-				})
-				const payload = (await res.json()) as { error?: string; currentTurn?: string | null; complete?: boolean }
-				if (!res.ok) {
-					alert(payload.error ?? 'Unable to save draft pick.')
-					await refreshDraftMode()
-					await refreshClaimedPlayers()
-					renderSearchResults()
-					return
-				}
-
-				selectedPlayers = [...selectedPlayers, player]
-				addTransferPointEvent('in', key)
-				remainingBudget = Math.max(0, Number((remainingBudget - player.price).toFixed(1)))
-				saveTeamState()
-				draftCurrentTurn = typeof payload.currentTurn === 'string' ? payload.currentTurn : null
-				draftComplete = payload.complete === true
-				renderDraftStatus()
-				await refreshClaimedPlayers()
-				renderSelectedTeam()
-				renderSearchResults()
-			} catch {
-				alert('Unable to save draft pick.')
-			}
+			await submitDraftPick(player)
 			return
 		}
 
@@ -1772,6 +1944,15 @@ if (searchInput && searchResults && selectedTeamList) {
 			const card = target.closest<HTMLDivElement>('.player-card')
 			const cardKey = card?.dataset.playerKey
 			if (cardKey) {
+				const targetPlayer = findPlayerByKey(cardKey)
+				if (isTeamLockedForGameweek() && captainPlayerKey && isCurrentCaptainTransferLocked()) {
+					alert('Captain cannot be changed while the current captain is in a kickoff lock window.')
+					return
+				}
+				if (isTeamLockedForGameweek() && targetPlayer && isPlayerTransferLockedNow(targetPlayer)) {
+					alert('Captain cannot be changed to a player in a kickoff lock window.')
+					return
+				}
 				setCaptain(cardKey)
 				return
 			}
@@ -1799,7 +1980,10 @@ if (searchInput && searchResults && selectedTeamList) {
 			return
 		}
 
-		settleOutgoingCaptainBonus(key)
+		if (!confirmTransferOut(removedPlayer.name)) {
+			return
+		}
+
 		addTransferPointEvent('out', key)
 		selectedPlayers = selectedPlayers.filter((player) => playerKey(player) !== key)
 		if (removedPlayer) {
@@ -1812,8 +1996,8 @@ if (searchInput && searchResults && selectedTeamList) {
 				salePrice: removedPlayer.price,
 			})
 		}
-		if (isTeamLockedForMatchday()) {
-			transfersUsedThisMatchday += 1
+		if (isTeamLockedForGameweek()) {
+			transfersUsedThisGameweek += 1
 		}
 		saveTeamState()
 		renderSelectedTeam()
@@ -1869,7 +2053,7 @@ if (searchInput && searchResults && selectedTeamList) {
 				return
 			}
 
-			if (isTeamLockedForMatchday() && hasCurrentCaptainPlayedThisMatchday()) {
+			if (isTeamLockedForGameweek() && hasCurrentCaptainPlayedThisGameweek()) {
 				return
 			}
 
@@ -1883,21 +2067,21 @@ if (searchInput && searchResults && selectedTeamList) {
 		if (
 			event.key === 'fantasy-football-player-points' ||
 			event.key === 'fantasy-football-total-points' ||
-			event.key === globalMatchdayStorageKey ||
+			event.key === globalGameweekStorageKey ||
 			event.key === globalBudgetStorageKey
 		) {
 			if (event.key === globalBudgetStorageKey) {
 				syncMaxBudget()
 			}
-			syncWithGlobalMatchday()
+			syncWithGlobalGameweek()
 			refreshLivePointsView()
 		}
 	})
 	window.addEventListener(sharedLeagueUpdatedEvent, () => {
 		loadTeamState()
-		syncWithGlobalMatchday()
+		syncWithGlobalGameweek()
 		void refreshClaimedPlayers().then(async () => {
-			await refreshTeamsPlayedThisMatchday()
+			await refreshTeamsPlayedThisGameweek()
 			refreshLivePointsView()
 		})
 		void refreshDraftMode()
@@ -1964,8 +2148,8 @@ if (searchInput && searchResults && selectedTeamList) {
 	document.addEventListener('visibilitychange', () => {
 		if (document.visibilityState === 'visible') {
 			loadTeamState()
-			syncWithGlobalMatchday()
-			void refreshTeamsPlayedThisMatchday().then(() => {
+			syncWithGlobalGameweek()
+			void refreshTeamsPlayedThisGameweek().then(() => {
 				refreshLivePointsView()
 			})
 			void refreshTransferRequests()
@@ -1973,13 +2157,13 @@ if (searchInput && searchResults && selectedTeamList) {
 	})
 
 	loadTeamState()
-	syncWithGlobalMatchday()
-	void refreshFixtureMatchdays().then(() => {
+	syncWithGlobalGameweek()
+	void refreshFixtureGameweeks().then(() => {
 		renderSelectedTeam()
 		renderBench()
 		renderSearchResults()
 	})
-	void refreshTeamsPlayedThisMatchday().then(() => {
+	void refreshTeamsPlayedThisGameweek().then(() => {
 		renderSelectedTeam()
 		renderBench()
 	})

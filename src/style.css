@@ -712,7 +712,7 @@ body.dark-mode .fixtures-view-switch {
   font-size: 1.25rem;
 }
 
-.fixture-matchday {
+.fixture-Gameweek {
   margin-top: 1.5rem;
   border: 1px solid #dce3ef;
   border-radius: 0.75rem;
@@ -720,7 +720,7 @@ body.dark-mode .fixtures-view-switch {
   overflow: hidden;
 }
 
-.fixture-matchday h2 {
+.fixture-Gameweek h2 {
   margin: 0;
   padding: 0.85rem 1rem;
   font-size: 1.1rem;
@@ -1173,7 +1173,7 @@ body.dark-mode .fixtures-view-switch {
   cursor: not-allowed;
 }
 
-.end-matchday-btn {
+.end-Gameweek-btn {
   padding: 0.6rem 1rem;
   background: #059669;
   color: white;
@@ -1186,15 +1186,15 @@ body.dark-mode .fixtures-view-switch {
   white-space: nowrap;
 }
 
-.end-matchday-btn:hover {
+.end-Gameweek-btn:hover {
   background: #047857;
 }
 
-.end-matchday-btn:active {
+.end-Gameweek-btn:active {
   background: #065f46;
 }
 
-.end-matchday-btn:disabled {
+.end-Gameweek-btn:disabled {
   background: #cbd5e1;
   color: #475569;
   cursor: not-allowed;
@@ -1539,7 +1539,8 @@ body.dark-mode .fixtures-view-switch {
 }
 
 .player-card {
-  background: var(--kit-bg, #ffffff);
+  background-color: var(--kit-bg, #ffffff);
+  background-image: var(--kit-pattern, none);
   border: 2px solid var(--kit-border, #1d4ed8);
   border-radius: 0.5rem;
   padding: 0.6rem 0.5rem;
@@ -1612,6 +1613,30 @@ body.dark-mode .fixtures-view-switch {
 .player-flag {
   font-size: 1.2rem;
   line-height: 1;
+}
+
+.team-icon,
+.search-team-icon,
+.fixture-team-icon {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.team-badge-icon,
+.search-team-icon.team-badge-icon,
+.fixture-team-icon.team-badge-icon {
+  width: 1.15em;
+  height: 1.15em;
+  object-fit: contain;
+}
+
+.search-team-icon.team-badge-icon {
+  margin-right: 0.2rem;
+}
+
+.fixture-team-icon.team-badge-icon {
+  margin-right: 0.25rem;
 }
 
 .player-points {
@@ -2777,7 +2802,7 @@ body.dark-mode .fixtures-view-switch {
     align-items: stretch;
   }
 
-  .end-matchday-btn {
+  .end-Gameweek-btn {
     width: 100%;
     padding: 0.8rem;
   }
@@ -2999,7 +3024,7 @@ body.dark-mode .team-card,
 body.dark-mode .my-team-panel,
 body.dark-mode .bench-section,
 body.dark-mode .bench-player-item,
-body.dark-mode .fixture-matchday,
+body.dark-mode .fixture-Gameweek,
 body.dark-mode .leaderboard-panel,
 body.dark-mode .league-table-section,
 body.dark-mode .league-table-content,
@@ -3017,7 +3042,7 @@ body.dark-mode .pitch-info-row,
 body.dark-mode .transfer-request-item,
 body.dark-mode .danger-zone,
 body.dark-mode .bench-player-card,
-body.dark-mode .fixture-matchday h2,
+body.dark-mode .fixture-Gameweek h2,
 body.dark-mode .admin-collapsible-card > summary,
 body.dark-mode .league-table-summary,
 body.dark-mode .history-table th {

@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename)
 const dataDirectory = path.join(__dirname, 'data')
 const leagueStatePath = path.join(dataDirectory, 'league-state.json')
 const leagueBackupDirectory = path.join(__dirname, 'league_backup')
-const fixturesPath = path.join(dataDirectory, 'fixtures.json')
-const wcFixturesPath = path.join(dataDirectory, 'WCfixtures.json')
+const fixturesPath = path.join(dataDirectory, 'fixtures_new.json')
+const wcFixturesPath = path.join(dataDirectory, 'fixtures_new.json')
 const wcScorerBackfillCachePath = path.join(dataDirectory, 'wc-scorer-backfill-cache.json')
 const distDirectory = path.join(__dirname, 'dist')
 const envFilePath = path.join(__dirname, '.env')
@@ -18,8 +18,10 @@ const teamStatePrefix = 'fantasy-football-my-team-state::'
 const usersStorageKey = 'fantasy-football-users'
 const draftModeStorageKey = 'fantasy-football-draft-mode'
 const benchModeStorageKey = 'fantasy-football-bench-mode'
+const benchSizeStorageKey = 'fantasy-football-bench-size'
 const draftOrderStorageKey = 'fantasy-football-draft-order'
 const draftNextIndexStorageKey = 'fantasy-football-draft-next-index'
+const draftTypeStorageKey = 'fantasy-football-draft-type'
 const globalMatchdayStorageKey = 'fantasy-football-global-matchday'
 const playerPointsStorageKey = 'fantasy-football-player-points'
 const totalPointsStorageKey = 'fantasy-football-total-points'
@@ -28,6 +30,8 @@ const transferHistoryStorageKey = 'fantasy-football-transfer-history'
 const fixtureResultsStorageKey = 'fantasy-football-fixture-results'
 const fixtureSignatureStorageKey = 'fantasy-football-fixtures-signature'
 const maxLeagueBackupFiles = 72
+const maxTeamSize = 11
+const defaultBenchSize = 4
 
 function stripWrappingQuotes(value) {
   if (
@@ -189,7 +193,7 @@ function sanitizeFixtureMatchdays(value) {
       continue
     }
 
-    const matchdayRaw = item.matchday
+    const matchdayRaw = item.matchday ?? item.Gameweek
     const gamesRaw = item.games
     if (!Number.isFinite(matchdayRaw) || !Array.isArray(gamesRaw)) {
       continue
@@ -230,12 +234,21 @@ async function readFixtureMatchdays() {
   return sanitizeFixtureMatchdays(parsed)
 }
 
+function toFixtureGameweeks(matchdays) {
+  return matchdays.map((matchdayEntry) => ({
+    Gameweek: matchdayEntry.matchday,
+    ...(typeof matchdayEntry.round === 'string' ? { round: matchdayEntry.round } : {}),
+    games: Array.isArray(matchdayEntry.games) ? matchdayEntry.games : [],
+  }))
+}
+
 function sanitizeWCFixtureMatchdays(value) {
   if (!Array.isArray(value)) return []
   const sanitized = []
   for (const [index, item] of value.entries()) {
     if (!item || typeof item !== 'object') continue
-    const { matchday: matchdayRaw, games: gamesRaw, round } = item
+    const { matchday: matchdayValue, Gameweek, games: gamesRaw, round } = item
+    const matchdayRaw = matchdayValue ?? Gameweek
     if (!Array.isArray(gamesRaw)) continue
     const parsedMatchday = Number.parseInt(String(matchdayRaw ?? ''), 10)
     const matchday = Number.isFinite(parsedMatchday) ? parsedMatchday : index + 1
@@ -629,6 +642,28 @@ function parseBenchPlayerKeys(rawValue) {
   }
 }
 
+function normalizeBenchSize(value) {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed)) {
+    return defaultBenchSize
+  }
+
+  return Math.max(0, Math.min(maxTeamSize, parsed))
+}
+
+function getBenchModeStatus(storage) {
+  return {
+    enabled: storage[benchModeStorageKey] !== 'false',
+    benchSize: normalizeBenchSize(storage[benchSizeStorageKey]),
+    canToggle: areAllTeamsEmpty(storage),
+  }
+}
+
+function getDraftTargetPlayerCount(storage) {
+  const benchMode = getBenchModeStatus(storage)
+  return maxTeamSize + (benchMode.enabled ? benchMode.benchSize : 0)
+}
+
 function getTeamPlayerCounts(storage) {
   const counts = new Map()
 
@@ -638,7 +673,9 @@ function getTeamPlayerCounts(storage) {
     }
 
     const username = storageKey.slice(teamStatePrefix.length)
-    counts.set(username, parseSelectedPlayerKeys(rawValue).length)
+    const selectedCount = parseSelectedPlayerKeys(rawValue).length
+    const benchCount = parseBenchPlayerKeys(rawValue).length
+    counts.set(username, selectedCount + benchCount)
   }
 
   return counts
@@ -662,11 +699,18 @@ function areAllTeamsEmpty(storage) {
   return true
 }
 
-function getBenchModeStatus(storage) {
-  return {
-    enabled: storage[benchModeStorageKey] !== 'false',
-    canToggle: areAllTeamsEmpty(storage),
+function areAllBenchesEmpty(storage) {
+  for (const [storageKey, rawValue] of Object.entries(storage)) {
+    if (!storageKey.startsWith(teamStatePrefix) || typeof rawValue !== 'string') {
+      continue
+    }
+
+    if (parseBenchPlayerKeys(rawValue).length > 0) {
+      return false
+    }
   }
+
+  return true
 }
 
 function normalizeDraftOrder(rawOrder, validUsernames) {
@@ -698,6 +742,7 @@ function getDraftOrder(storage, validUsernames) {
   }
 
   try {
+      canChangeBenchSize: areAllBenchesEmpty(storage),
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) {
       return []
@@ -709,42 +754,88 @@ function getDraftOrder(storage, validUsernames) {
   }
 }
 
-function getNextEligibleDraftIndex(order, counts, startIndex) {
-  if (order.length === 0) {
+function normalizeDraftType(rawType) {
+  return rawType === 'snake' ? 'snake' : 'round-robin'
+}
+
+function getDraftType(storage) {
+  if (typeof storage[draftTypeStorageKey] !== 'string') {
+    return 'round-robin'
+  }
+
+  return normalizeDraftType(storage[draftTypeStorageKey])
+}
+
+function getDraftOrderIndexForPick(orderLength, pickNumber, draftType) {
+  if (orderLength <= 0) {
     return -1
   }
 
-  for (let offset = 0; offset < order.length; offset += 1) {
-    const index = (startIndex + offset) % order.length
+  if (draftType !== 'snake') {
+    return pickNumber % orderLength
+  }
+
+  if (orderLength === 1) {
+    return 0
+  }
+
+  const cycleLength = orderLength * 2
+  const cyclePosition = pickNumber % cycleLength
+  if (cyclePosition < orderLength) {
+    return cyclePosition
+  }
+
+  return cycleLength - cyclePosition - 1
+}
+
+function getNextEligibleDraftPick(order, counts, startPickNumber, draftType, targetPlayerCount) {
+  if (order.length === 0) {
+    return { currentIndex: -1, currentPickNumber: -1 }
+  }
+
+  const searchSteps = draftType === 'snake' ? order.length * 2 : order.length
+  for (let offset = 0; offset < searchSteps; offset += 1) {
+    const pickNumber = startPickNumber + offset
+    const index = getDraftOrderIndexForPick(order.length, pickNumber, draftType)
+    if (index < 0) {
+      continue
+    }
+
     const username = order[index]
     const playerCount = counts.get(username) ?? 0
-    if (playerCount < 11) {
-      return index
+    if (playerCount < targetPlayerCount) {
+      return { currentIndex: index, currentPickNumber: pickNumber }
     }
   }
 
-  return -1
+  return { currentIndex: -1, currentPickNumber: -1 }
 }
 
 function getDraftStatus(storage) {
   const enabled = storage[draftModeStorageKey] === 'true'
   const usernames = getRegisteredUsernames(storage)
   const order = getDraftOrder(storage, usernames)
+  const type = getDraftType(storage)
   const playerCounts = getTeamPlayerCounts(storage)
+  const targetPlayerCount = getDraftTargetPlayerCount(storage)
   const matchday = getGlobalMatchday(storage)
   const canEnable = matchday === 1 && areAllTeamsEmpty(storage)
 
   const rawNextIndex = Number.parseInt(storage[draftNextIndexStorageKey] ?? '0', 10)
   const startIndex = Number.isFinite(rawNextIndex) && rawNextIndex >= 0 ? rawNextIndex : 0
-  const currentIndex = getNextEligibleDraftIndex(order, playerCounts, startIndex)
+  const nextDraftTurn = getNextEligibleDraftPick(order, playerCounts, startIndex, type, targetPlayerCount)
+  const currentIndex = nextDraftTurn.currentIndex
 
   return {
     enabled,
     canEnable,
+    type,
     order,
     complete: order.length > 0 && currentIndex === -1,
     currentTurn: currentIndex === -1 ? null : order[currentIndex],
     currentIndex,
+    currentPickNumber: nextDraftTurn.currentPickNumber,
+    targetPlayerCount,
     matchday,
     playerCounts,
   }
@@ -754,7 +845,7 @@ function getUserTeamState(rawValue) {
   try {
     const parsed = JSON.parse(rawValue)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+      return { base: {}, selectedPlayerKeys: [], benchPlayerKeys: [], remainingBudget: 100 }
     }
 
     const remainingBudgetRaw = parsed.remainingBudget
@@ -765,10 +856,13 @@ function getUserTeamState(rawValue) {
       selectedPlayerKeys: Array.isArray(parsed.selectedPlayerKeys)
         ? parsed.selectedPlayerKeys.filter((value) => typeof value === 'string')
         : [],
+      benchPlayerKeys: Array.isArray(parsed.benchPlayerKeys)
+        ? parsed.benchPlayerKeys.filter((value) => typeof value === 'string')
+        : [],
       remainingBudget: Math.max(0, Number(remainingBudget.toFixed(1))),
     }
   } catch {
-    return { base: {}, selectedPlayerKeys: [], remainingBudget: 100 }
+    return { base: {}, selectedPlayerKeys: [], benchPlayerKeys: [], remainingBudget: 100 }
   }
 }
 
@@ -2074,6 +2168,8 @@ async function handleApiRequest(request, response) {
       sendJson(response, 200, {
         enabled: draft.enabled,
         canEnable: draft.canEnable,
+        type: draft.type,
+        targetPlayerCount: draft.targetPlayerCount,
         order: draft.order,
         currentTurn: draft.currentTurn,
         complete: draft.complete,
@@ -2105,17 +2201,32 @@ async function handleApiRequest(request, response) {
         return true
       }
 
-      const enabled = body.enabled === true
+      const hasEnabledUpdate = typeof body.enabled === 'boolean'
+      const hasBenchSizeUpdate = body.benchSize !== undefined
       const state = await readLeagueState()
       const benchMode = getBenchModeStatus(state.storage)
-      if (!benchMode.canToggle) {
+      if (hasEnabledUpdate && !benchMode.canToggle) {
         sendJson(response, 409, { error: 'Cannot change bench mode while users have players selected.' })
         return true
       }
 
-      const nextStorage = { ...state.storage, [benchModeStorageKey]: enabled ? 'true' : 'false' }
+      if (hasBenchSizeUpdate && !benchMode.canChangeBenchSize) {
+        sendJson(response, 409, { error: 'Cannot change bench size while any bench has players.' })
+        return true
+      }
+
+      const benchSize = hasBenchSizeUpdate
+        ? normalizeBenchSize(body.benchSize)
+        : benchMode.benchSize
+      const enabled = hasEnabledUpdate ? body.enabled === true : benchMode.enabled
+
+      const nextStorage = {
+        ...state.storage,
+        [benchModeStorageKey]: enabled ? 'true' : 'false',
+        [benchSizeStorageKey]: String(benchSize),
+      }
       await writeLeagueState(nextStorage)
-      sendJson(response, 200, { enabled })
+      sendJson(response, 200, { enabled, benchSize, canToggle: benchMode.canToggle, canChangeBenchSize: benchMode.canChangeBenchSize })
     } catch {
       sendJson(response, 500, { error: 'Unable to update bench mode.' })
     }
@@ -2150,6 +2261,7 @@ async function handleApiRequest(request, response) {
       if (!enabling) {
         delete nextStorage[draftOrderStorageKey]
         delete nextStorage[draftNextIndexStorageKey]
+        delete nextStorage[draftTypeStorageKey]
       }
       await writeLeagueState(nextStorage)
       sendJson(response, 200, { enabled: enabling })
@@ -2201,13 +2313,16 @@ async function handleApiRequest(request, response) {
         return true
       }
 
+      const draftType = normalizeDraftType(body.type)
+
       const nextStorage = {
         ...state.storage,
         [draftOrderStorageKey]: JSON.stringify(order),
         [draftNextIndexStorageKey]: '0',
+        [draftTypeStorageKey]: draftType,
       }
       await writeLeagueState(nextStorage)
-      sendJson(response, 200, { order, currentTurn: order[0] })
+      sendJson(response, 200, { order, type: draftType, currentTurn: order[0] })
     } catch {
       sendJson(response, 500, { error: 'Unable to save draft order.' })
     }
@@ -2248,7 +2363,8 @@ async function handleApiRequest(request, response) {
           continue
         }
         const pickedKeys = parseSelectedPlayerKeys(rawValue)
-        if (pickedKeys.includes(playerKey)) {
+        const pickedBenchKeys = parseBenchPlayerKeys(rawValue)
+        if (pickedKeys.includes(playerKey) || pickedBenchKeys.includes(playerKey)) {
           sendJson(response, 409, { error: 'That player has already been drafted.' })
           return true
         }
@@ -2256,28 +2372,44 @@ async function handleApiRequest(request, response) {
 
       const userStorageKey = `${teamStatePrefix}${draft.currentTurn}`
       const currentUserState = getUserTeamState(state.storage[userStorageKey] ?? '{}')
-      if (currentUserState.selectedPlayerKeys.length >= 11) {
-        sendJson(response, 409, { error: 'Current turn user already has 11 players.' })
+      const selectedCount = currentUserState.selectedPlayerKeys.length
+      const benchCount = currentUserState.benchPlayerKeys.length
+      const totalCount = selectedCount + benchCount
+      const benchMode = getBenchModeStatus(state.storage)
+      const maxDraftPlayers = maxTeamSize + (benchMode.enabled ? benchMode.benchSize : 0)
+
+      if (totalCount >= maxDraftPlayers) {
+        sendJson(response, 409, { error: `Current turn user already has ${maxDraftPlayers} players.` })
         return true
       }
 
-      const nextUserKeys = [...currentUserState.selectedPlayerKeys, playerKey]
+      const pickGoesToBench = benchMode.enabled && selectedCount >= maxTeamSize && benchCount < benchMode.benchSize
+      const nextSelectedKeys = pickGoesToBench
+        ? currentUserState.selectedPlayerKeys
+        : [...currentUserState.selectedPlayerKeys, playerKey]
+      const nextBenchKeys = pickGoesToBench
+        ? [...currentUserState.benchPlayerKeys, playerKey]
+        : currentUserState.benchPlayerKeys
+
       const nextStorage = {
         ...state.storage,
         [userStorageKey]: JSON.stringify({
           ...currentUserState.base,
-          selectedPlayerKeys: nextUserKeys,
+          selectedPlayerKeys: nextSelectedKeys,
+          benchPlayerKeys: nextBenchKeys,
         }),
       }
 
       const nextCounts = getTeamPlayerCounts(nextStorage)
-      const nextIndex = getNextEligibleDraftIndex(draft.order, nextCounts, draft.currentIndex + 1)
-      nextStorage[draftNextIndexStorageKey] = String(nextIndex < 0 ? 0 : nextIndex)
+      const nextStartPickNumber = draft.currentPickNumber >= 0 ? draft.currentPickNumber + 1 : 0
+      const nextTurn = getNextEligibleDraftPick(draft.order, nextCounts, nextStartPickNumber, draft.type, draft.targetPlayerCount)
+      nextStorage[draftNextIndexStorageKey] = String(nextTurn.currentPickNumber < 0 ? 0 : nextTurn.currentPickNumber)
 
       await writeLeagueState(nextStorage)
       sendJson(response, 200, {
-        complete: nextIndex < 0,
-        currentTurn: nextIndex < 0 ? null : draft.order[nextIndex],
+        complete: nextTurn.currentIndex < 0,
+        currentTurn: nextTurn.currentIndex < 0 ? null : draft.order[nextTurn.currentIndex],
+        slot: pickGoesToBench ? 'bench' : 'selected',
       })
     } catch {
       sendJson(response, 500, { error: 'Unable to save draft pick.' })
@@ -2572,8 +2704,9 @@ async function handleApiRequest(request, response) {
         if (owner === requestingUser) continue
         try {
           const teamState = JSON.parse(rawValue)
-          if (!Array.isArray(teamState.selectedPlayerKeys)) continue
-          for (const playerKey of teamState.selectedPlayerKeys) {
+          const selectedPlayerKeys = Array.isArray(teamState.selectedPlayerKeys) ? teamState.selectedPlayerKeys : []
+          const benchPlayerKeys = Array.isArray(teamState.benchPlayerKeys) ? teamState.benchPlayerKeys : []
+          for (const playerKey of [...selectedPlayerKeys, ...benchPlayerKeys]) {
             if (typeof playerKey === 'string') {
               claimed[playerKey] = owner
             }
@@ -2592,7 +2725,7 @@ async function handleApiRequest(request, response) {
       const matchdays = await readFixtureMatchdays()
       const state = await readLeagueState()
       await syncStoredFixtureResultsWithFixtureFile(state, matchdays)
-      sendJson(response, 200, { matchdays })
+      sendJson(response, 200, { matchdays, Gameweeks: toFixtureGameweeks(matchdays) })
     } catch {
       sendJson(response, 500, { error: 'Unable to read fixtures file.' })
     }
@@ -2609,7 +2742,7 @@ async function handleApiRequest(request, response) {
       if (updatedFromStoredResults || updatedFromEspnScorers) {
         await writeFile(wcFixturesPath, `${JSON.stringify(matchdays, null, 2)}\n`, 'utf8')
       }
-      sendJson(response, 200, { matchdays })
+      sendJson(response, 200, { matchdays, Gameweeks: toFixtureGameweeks(matchdays) })
     } catch {
       sendJson(response, 500, { error: 'Unable to read WC fixtures file.' })
     }
@@ -3141,7 +3274,7 @@ const serverMatchingVersionKey = 'fantasy-football-matching-version'
 // Bump this string whenever the player/team matching logic changes so the server
 // automatically clears the import cache and re-processes all fixtures on next start.
 const serverMatchingVersion = '5'
-const serverAutoScanDelayMs = 3 * 60 * 60 * 1000 // 3 hours
+const serverAutoScanDelayMs = (2 * 60 + 15) * 60 * 1000 // 2h 15m
 const serverAutoScanRetryDelayMs = 30 * 60 * 1000 // 30 minutes
 const serverAutoScanRetryWindowMs = 3 * 60 * 60 * 1000 // stop retrying 3h after first unresolved request
 const serverSchedulerMaxDelayMs = 2_147_000_000
@@ -3643,10 +3776,15 @@ function serverParseFixtureKickoff(game, now) {
   let hour24 = hour12 % 12
   if (timeMatch[3] === 'pm') hour24 += 12
   const currentYear = now.getFullYear()
-  const kickoff = new Date(currentYear, monthIndex, day, hour24, minute, 0, 0)
-  const halfYearMs = 180 * 24 * 60 * 60 * 1000
-  if (kickoff.getTime() - now.getTime() > halfYearMs) kickoff.setFullYear(currentYear - 1)
-  else if (now.getTime() - kickoff.getTime() > halfYearMs) kickoff.setFullYear(currentYear + 1)
+  const currentMonthIndex = now.getMonth()
+
+  // Infer season year for dates without a year using an Aug-May season model.
+  // Jul-Dec belong to season start year, Jan-Jun to season end year.
+  const isSecondHalfOfSeasonMonth = monthIndex <= 5
+  const isNowSecondHalfOfSeason = currentMonthIndex <= 5
+  const seasonStartYear = isNowSecondHalfOfSeason ? currentYear - 1 : currentYear
+  const inferredYear = isSecondHalfOfSeasonMonth ? seasonStartYear + 1 : seasonStartYear
+  const kickoff = new Date(inferredYear, monthIndex, day, hour24, minute, 0, 0)
   return kickoff
 }
 

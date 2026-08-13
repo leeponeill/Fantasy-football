@@ -1,121 +1,121 @@
-Premier League 2025/26 – Squad Data
+Premier League 2026/27 - Squad Data with FPL Prices
 
-Arsenal (final)
-Goalkeepers: David Raya Martín [6.2], Kepa Arrizabalaga Revuelta [4.0], Karl Hein [4.0], Tommy Setford [3.9]
-Defenders: Gabriel dos Santos Magalhães [7.3], William Saliba [6.3], Riccardo Calafiori [5.6], Jurriën Timber [6.0], Jakub Kiwior [5.4], Myles Lewis-Skelly [5.0], Benjamin White [5.1], Brayden Clarke [3.7], Maldini Kacurri [3.9], Josh Nichols [3.7], Cristhian Mosquera [5.3], Piero Hincapié [5.1], Marli Salmon [4.0]
-Midfielders: Bukayo Saka [10.0], Martin Ødegaard [7.8], Noni Madueke [6.8], Gabriel Martinelli Silva [6.8], Leandro Trossard [6.6], Declan Rice [7.2], Mikel Merino Zazón [5.3], Fábio Ferreira Vieira [5.4], Christian Nørgaard [5.1], Ethan Nwaneri [5.0], Martín Zubimendi Ibáñez [4.9], Ismeal Kabia [4.5], Albert Sambi Lokonga [4.5], Eberechi Eze [7.3], Max Dowman [4.2], Andre Harriman-Annous [4.4]
-Forwards: Kai Havertz [7.3], Gabriel Fernando de Jesus [6.4], Viktor Gyökeres [9.1]
+Arsenal (fpl)
+Goalkeepers: David Raya Martín [6.0], Illan Meslier [5.0], Kepa Arrizabalaga Revuelta [5.0]
+Defenders: Benjamin White [5.5], Cristhian Mosquera [5.5], Gabriel dos Santos Magalhães [8.0], Jurriën Timber [6.5], Piero Hincapié [5.5], Riccardo Calafiori [5.5], William Saliba [6.0]
+Midfielders: Bruno Guimarães Rodriguez Moura [7.0], Bukayo Saka [9.5], Christos Tzolis [6.5], Declan Rice [7.5], Eberechi Eze [6.5], Ethan Nwaneri [5.5], Fábio Ferreira Vieira [5.5], Gabriel Martinelli Silva [6.5], Martin Ødegaard [6.5], Martín Zubimendi Ibáñez [5.5], Max Dowman [5.5], Mikel Merino Zazón [6.0], Myles Lewis-Skelly [5.5], Noni Madueke [6.5], Reiss Nelson [5.5]
+Forwards: Gabriel Fernando de Jesus [6.0], Kai Havertz [7.5], Viktor Gyökeres [7.5]
 
-Aston Villa (final)
-Goalkeepers: Emiliano Martínez Romero [5.1], Marco Bizot [4.2], Joe Gauci [4.0], Filip Marschall [4.0], James Wright [3.9], Sam Proctor [3.9], Ronnie Hollingshead [4.0]
-Defenders: Matty Cash [4.7], Lucas Digne [4.5], Ezri Konsa Ngoyo [4.4], Ian Maatsen [4.2], Tyrone Mings [4.3], Pau Torres [4.3], Andrés García [3.9], Álex Moreno Lopera [4.0], Lamare Bogarde [4.0], Lino da Cruz Sousa [3.8], Yasin Özcan [4.0], Triston Rowe [4.0], Travis Patterson [3.9], Victor Lindelöf [4.5], Leon Routh [4.0], TJ Carroll [4.0]
-Midfielders: Morgan Rogers [7.4], Youri Tielemans [5.9], Leon Bailey [5.5], Emiliano Buendía Stati [5.3], Samuel Iling-Junior [5.5], Donyell Malen [5.1], John McGinn [5.3], Ross Barkley [4.8], Enzo Barrenechea [5.0], Lewis Dobbin [5.0], Boubacar Kamara [4.9], Amadou Onana [4.8], Ben Broggio [4.4], Leander Dendoncker [4.5], Jamaldeen Jimoh-Aloba [4.5], Kadan Young [4.3], Harvey Elliott [5.1], Jadon Sancho [5.8], Douglas Luiz Soares de Paulo [4.9], Bradley Burrowes [4.3], George Hemmings [4.5], Alysson Edward Franco da Rocha dos Santos [5.0]
-Forwards: Ollie Watkins [8.7], Zépiqueno Redmond [4.5], Tammy Abraham [5.7]
+Aston Villa (fpl)
+Goalkeepers: Emiliano Martínez Romero [5.0], Marco Bizot [4.5]
+Defenders: Andrés García [4.0], Ezri Konsa Ngoyo [4.5], Ian Maatsen [4.5], Kosta Nedeljkovic [4.0], Lucas Digne [4.5], Matty Cash [4.5], Pau Torres [4.5], Tyrone Mings [4.5], Victor Lindelöf [4.5]
+Midfielders: Alejandro Garnacho Ferreyra [6.0], Alysson Edward Franco da Rocha dos Santos [5.0], Amadou Onana [5.0], Boubacar Kamara [5.0], Bradley Burrowes [4.5], Emiliano Buendía Stati [6.0], Evann Guessand [5.5], George Hemmings [4.5], Joao Gomes [5.5], Johan Manzambi [6.0], John McGinn [5.5], Lamare Bogarde [5.0], Leon Bailey [5.5], Ross Barkley [5.0], Samuel Iling-Junior [5.0]
+Forwards: Ollie Watkins [8.0], Tammy Abraham [5.5]
 
-Bournemouth (final)
-Goalkeepers: Norberto Murara Neto [4.5], Đorđe Petrović [4.6], Will Dennis [4.0], Callan McKenna [3.9], Alex Paulsen [4.0], Fraser Forster [4.0], Christos Mandas [4.0]
-Defenders: Illia Zabarnyi [5.0], Marcos Senesi Barón [5.2], Adam Smith [4.4], Adrien Truffert [4.7], Matai Akinmboni [3.8], Owen Bevan [3.8], James Hill [4.2], Julián Araujo Zúñiga [3.8], Chris Mepham [4.0], Julio Soler Barreto [3.9], Bafodé Diakité [4.1], Álex Jiménez Sánchez [4.5], Veljko Milosavljevic [4.4]
-Midfielders: Justin Kluivert [6.9], Marcus Tavernier [5.3], Tyler Adams [4.9], David Brooks [5.0], Ryan Christie [4.9], Lewis Cook [4.9], Philip Billing [4.9], Alex Scott [4.9], Luis Sinisterra Lucumí [5.0], Romain Faivre [4.5], Hamed Traorè [4.5], Dominic Sadi [4.5], Zain Silcott-Duberry [4.4], Ben Winterburn [4.5], Ben Gannon-Doak [4.8], Remy Rees-Dottin [4.3], Amine Adli [5.4], Malcom DaCosta [4.5], Charlie Stevens [4.5], Alex Tóth [4.9], Rayan Vitor Simplício Rocha [5.4]
-Forwards: Francisco Evanilson de Lima Barbosa [6.6], Enes Ünal [5.4], Daniel Adu-Adjei [4.4], Junior Kroupi [4.6]
+Bournemouth (fpl)
+Goalkeepers: Đorđe Petrović [4.5], Fraser Forster [4.0], Will Dennis [4.0]
+Defenders: Adam Smith [4.5], Adrien Truffert [5.5], António João Pereira de Albuquerque Tavares da Silva [5.0], Bafodé Diakité [5.0], James Hill [5.5], Juanlu Sánchez [4.5], Julián Araujo Zúñiga [4.5], Julio Soler Barreto [4.0], Veljko Milosavljevic [5.0]
+Midfielders: Alex Scott [6.0], Alex Tóth [5.0], Amine Adli [5.0], Ben Gannon-Doak [5.0], David Brooks [5.0], Junior Kroupi [7.5], Justin Kluivert [6.0], Lewis Cook [5.0], Marcus Tavernier [6.0], Rayan Vitor Simplício Rocha [6.5], Ryan Christie [5.0], Tyler Adams [5.0]
+Forwards: Álvaro Rodríguez [6.0], Enes Ünal [5.5], Francisco Evanilson de Lima Barbosa [6.0]
 
-Brentford (final)
-Goalkeepers: Caoimhín Kelleher [4.8], Ellery Balcombe [3.9], Matthew Cox [3.9], Julian Eyestone [3.9], Hákon Rafn Valdimarsson [3.8]
-Defenders: Nathan Collins [4.9], Keane Lewis-Potter [4.8], Kristoffer Ajer [4.4], Rico Henry [4.3], Michael Kayode [4.6], Ethan Pinnock [4.2], Mads Roerslev Rasmussen [4.5], Sepp van den Berg [4.4], Benjamin Arthur [3.8], Benjamin Fredrick [4.0], Aaron Hickey [4.0], Kim Ji-soo [3.9], Jayden Meghoma [4.0], Ollie Shield [4.0], Joshua Stephenson [4.0], Conor McManus [4.0]
-Midfielders: Reiss Nelson [4.8], Dango Ouattara [5.6], Kevin Schade [6.8], Mikkel Damsgaard [5.6], Antoni Milambo [5.2], Fábio Freitas Gouveia Carvalho [4.6], Jordan Henderson [5.0], Vitaly Janelt [4.9], Mathias Jensen [4.9], Gustavo Nunes Fernandes Gomes [4.9], Frank Onyeka [4.8], Yehor Yarmoliuk [5.0], Romelle Donovan [4.4], Yunus Emre Konak [4.3], Paris Maghoma [4.5], Myles Peart-Harris [4.4], Ryan Trevitt [4.5], Josh Dasilva [4.9], Luka Bentt [4.5], Riley Owen [4.5]
-Forwards: Igor Thiago Nascimento Rodrigues [7.3], Iwan Morgan [4.4], Kaye Furo [4.5]
+Brentford (fpl)
+Goalkeepers: Caoimhín Kelleher [5.0], Hákon Rafn Valdimarsson [4.5]
+Defenders: Aaron Hickey [4.5], Ethan Pinnock [4.5], Jannik Schuster [4.5], Kim Ji-soo [4.5], Kristoffer Ajer [4.5], Michael Kayode [4.5], Nathan Collins [5.5], Rico Henry [4.5], Sepp van den Berg [5.0]
+Midfielders: Antoni Milambo [5.0], Dango Ouattara [6.5], Fábio Freitas Gouveia Carvalho [5.0], Jaidon Anthony [6.0], Josh Dasilva [5.0], Keane Lewis-Potter [5.5], Kevin Schade [6.0], Mamadou Sangaré [5.5], Mathias Jensen [5.5], Mikkel Damsgaard [5.5], Vitaly Janelt [5.0], Yehor Yarmoliuk [5.0]
+Forwards: Callum Wilson [5.5], Igor Thiago Nascimento Rodrigues [8.0], Kaye Furo [4.5]
 
-Brighton (final)
-Goalkeepers: Jason Steele [4.2], Bart Verbruggen [4.6], Tom McGill [3.9], Carl Rushworth [4.0], Kjell Scherpen [4.0]
-Defenders: Olivier Boscagli [4.2], Diego Coppola [4.2], Maxim De Cuyper [4.3], Lewis Dunk [4.5], Pervis Estupiñán Tenorio [4.5], Ferdi Kadıoğlu [4.5], Igor Julio dos Santos de Paulo [4.5], Tariq Lamptey [4.4], Jan Paul van Hecke [4.7], Joël Veltman [4.3], Adam Webster [4.4], Eiran Cashin [4.0], Jacob Slater [4.0], Charlie Tasker [3.8], Freddie Simmonds [4.0]
-Midfielders: Mitoma Kaoru [6.1], Georginio Rutter [5.6], Solly March [5.8], Yankuba Minteh [5.5], Julio Enciso Espínola [5.4], Brajan Gruda [5.4], Jack Hinshelwood [5.2], Matt O'Riley [5.5], Abdallah Sima [5.4], Yasin Ayari [4.8], Carlos Baleba [4.5], Diego Gómez Amarilla [4.9], James Milner [4.9], Jeremy Sarmiento Morante [4.9], Tom Watson [4.8], Mats Wieffer [4.9], Malick Yalcouyé [5.0], Joe Knight [4.4], Adrian Mazilu [4.5], Andrew Moran [4.5], Nehemiah Oriola [4.5], Pascal Groß [5.6], Harry Howell [4.5]
-Forwards: Danny Welbeck [6.4], Evan Ferguson [5.5], Stefanos Tzimas [5.2], Charalampos Kostoulas [4.8]
+Brighton (fpl)
+Goalkeepers: Bart Verbruggen [4.5], Jason Steele [4.0]
+Defenders: Diego Coppola [4.5], Ferdi Kadıoğlu [4.5], Igor Julio dos Santos de Paulo [4.5], João Pedro Loureiro da Costa [4.5], Lewis Dunk [4.5], Luka Vušković [5.0], Mats Wieffer [5.0], Maxim De Cuyper [4.5], Michael Svoboda [5.0], Olivier Boscagli [4.5], Pascal Struijk [5.0]
+Midfielders: Carlos Baleba [5.0], Diego Gómez Amarilla [5.0], Facundo Buonanotte [5.0], Harry Howell [4.5], Jack Hinshelwood [6.0], Matt O'Riley [5.5], Mitoma Kaoru [6.0], Nehemiah Oriola [4.5], Pascal Groß [5.5], Tom Watson [5.0], Yankuba Minteh [6.0], Yasin Ayari [5.5], Zadok Yohanna [5.0]
+Forwards: Charalampos Kostoulas [5.5], Evan Ferguson [5.0], Georginio Rutter [5.5], Stefanos Tzimas [5.5]
 
-Burnley (final)
-Goalkeepers: Max Weiß [4.2], Etienne Green [4.0], Václav Hladký [3.9], Martin Dúbravka [4.0]
-Defenders: Connor Roberts [4.3], Kyle Walker [4.4], Hannes Delcroix [3.8], Owen Dodgson [4.0], Hjalmar Ekdal [3.8], Maxime Estève [3.8], Quilindschy Hartman [4.0], Bashir Humphreys [3.9], Jordan Beyer [3.9], Lucas Pires Silva [3.8], Shurandy Sambo [4.0], Oliver Sonne [3.8], Axel Tuanzebe [3.9], Joe Worrall [3.8]
-Midfielders: Jaidon Anthony [5.0], Manuel Benson Hedilazio [5.4], Jacob Bruun Larsen [5.2], Enock Agyei [4.7], Darko Churlinov [4.9], Josh Cullen [4.9], Marcus Edwards [4.7], Hannibal Mejbri [4.7], Luca Koleosho [5.0], Josh Laurent [4.8], Loum Tchaouna [4.8], Aaron Ramsey [4.4], Oluwaseun Adewumi [4.5], Jaydon Banel [4.5], Mike Trésor Ndayishimiye [4.3], James Ward-Prowse [5.6], Lesley Ugochukwu [5.0], Florentino Ibrain Morris Luís [5.0], Oliver Pimlott [4.5], George Brierley [4.5], Kian McMahon-Brown [4.5]
-Forwards: Zian Flemming [5.3], Zeki Amdouni [4.8], Lyle Foster [4.9], Ashley Barnes [4.2], Michael Obafemi [4.4], Armando Broja [5.2]
+Chelsea (fpl)
+Goalkeepers: Filip Jörgensen [5.0], Mike Penders [4.5], Robert Lynch Sánchez [5.0]
+Defenders: Aaron Anselmino [4.5], Axel Disasi [4.5], Benoît Badiashile Mukinayi [4.5], Jorrel Hato [4.5], Josh Acheampong [4.5], Levi Samuels Colwill [5.0], Malo Gusto [5.0], Mamadou Sarr [4.5], Marco Palestra [5.5], Maxence Lacroix [6.0], Reece James [5.5], Tosin Adarabioyo [4.5], Trevoh Chalobah [5.5], Wesley Fofana [5.0]
+Midfielders: Cole Palmer [9.5], Dário Luís Essugo [4.5], Enzo Fernández [7.0], Estêvão Almeida de Oliveira Gonçalves [6.5], Geovany Quenda [5.5], Jamie Bynoe-Gittens [6.0], Jordan Henderson [5.0], Moisés Caicedo Corozo [5.5], Morgan Rogers [7.5], Mykhailo Mudryk [5.5], Pedro Lomba Neto [6.5], Roméo Lavia [5.0], Valentín Barco [5.5]
+Forwards: Danny Welbeck [6.0], Emmanuel Emegha [5.0], João Pedro Junqueira de Jesus [7.5], Liam Delap [5.5], Marc Guiu Paz [5.0], Nicolas Jackson [6.5], Shumaira Mheuka [4.5]
 
-Chelsea (final)
-Goalkeepers: Robert Lynch Sánchez [4.8], Filip Jörgensen [4.3], Mike Penders [4.0], Gabriel Słonina [3.9], Max Merrick [4.0], Teddy Sharman-Lowe [4.0]
-Defenders: Marc Cucurella Saseta [6.1], Reece James [5.6], Trevoh Chalobah [5.4], Levi Samuels Colwill [4.7], Malo Gusto [4.8], Benoît Badiashile Mukinayi [4.4], Wesley Fofana [4.4], Mamadou Sarr [4.5], Tosin Adarabioyo [4.0], Josh Acheampong [3.7], Aarón Anselmino [4.0], Jorrel Hato [4.6]
-Midfielders: Cole Palmer [10.3], Pedro Lomba Neto [7.0], Enzo Fernández [6.4], Estêvão Almeida de Oliveira Gonçalves [6.4], Jamie Bynoe-Gittens [6.0], Christopher Nkunku [5.9], Moisés Caicedo Corozo [5.7], Roméo Lavia [4.9], Mykhailo Mudryk [4.9], Andrey Nascimento dos Santos [4.4], Dário Luís Essugo [4.3], Kendry Páez Andrade [4.5], Alejandro Garnacho Ferreyra [6.4], Landon Emenalo [4.5], Jesse Derry [4.5], Mathis Eboué [4.5], Ryan Kavuma-McQueen [4.5]
-Forwards: João Pedro Junqueira de Jesus [7.4], Liam Delap [6.2], Nicolas Jackson [6.5], Marc Guiu Paz [4.0]
+Coventry City (fpl)
+Goalkeepers: Ben Wilson [4.5], Carl Rushworth [4.5], Oliver Dovin [4.0]
+Defenders: Aurèle Amenda [4.0], Bobby Thomas [4.0], Jake Bidwell [4.0], Jay Dasilva [4.0], Joel Latibeaudiere [4.0], Kaine Kesler-Hayden [4.0], Liam Kitching [4.0], Luke Woolfenden [4.0], Miguel Brau [4.0], Milan van Ewijk [4.0]
+Midfielders: Caleb Yirenkyi [5.0], Ephron Mason-Clark [5.5], Frank Onyeka [5.0], George Shepherd [4.5], Jack Rudoni [5.0], Josh Eccles [5.0], Kaine Andrews [4.5], Loum Tchaouna [5.5], Matt Grimes [5.0], Raphael Borges Rodrigues [4.5], Tatsuhiro Sakamoto [5.0], Victor Torp [5.5]
+Forwards: Brandon Thomas-Asante [5.0], Ellis Simms [5.0], Haji Wright [5.5], Jahnoah Markelo [5.0], Norman Bassette [4.5]
 
-Crystal Palace (final)
-Goalkeepers: Dean Henderson [5.1], Walter Benítez [3.9], Remi Matthews [3.9]
-Defenders: Daniel Muñoz Mejía [5.9], Maxence Lacroix [5.2], Tyrick Mitchell [5.0], Borna Sosa [4.8], Chris Richards [4.4], Chadi Riad Dnanou [4.0], Nathaniel Clyne [3.8], Rob Holding [4.0], Caleb Kporha [4.0], Jaydee Canvot [4.5], Dean Benamar [4.0], George King [4.0], Danny Imray [4.0]
-Midfielders: Ismaïla Sarr [6.4], Cheick Doucouré [4.9], Romain Esse [4.7], Will Hughes [4.7], Daichi Kamada [5.0], Jefferson Lerma Solís [4.9], Adam Wharton [5.0], Asher Agbinone [4.3], Naouirou Ahamada [4.3], Justin Devenny [4.3], Malcolm Ebiowei [4.5], Jesurun Rak-Sakyi [4.4], Matheus França de Oliveira [4.5], David Ozoh [4.5], Kaden Rodney [4.4], Franco Umeh-Chibueze [4.5], Brennan Johnson [6.5], Evann Guessand [6.2], Rio Cardines [4.4], Yéremy Pino Santos [5.8], Joél Drakes-Thomas [4.5]
-Forwards: Jean-Philippe Mateta [7.6], Eddie Nketiah [5.4], Odsonne Édouard [5.0], Zach Marsh [4.4], Jørgen Strand Larsen [5.9], Christantus Uche [5.5], Ben Casey [4.5]
+Crystal Palace (fpl)
+Goalkeepers: Dean Henderson [5.0], Remi Matthews [4.0], Walter Benítez [4.5]
+Defenders: Borna Sosa [4.5], Chadi Riad Dnanou [4.5], Chris Richards [5.0], Daniel Muñoz Mejía [5.5], Jaydee Canvot [5.0], Oscar Mingueza [4.5], Rio Cardines [4.5], Takehiro Tomiyasu [4.5], Tyrick Mitchell [4.5]
+Midfielders: Adam Wharton [5.5], Cheick Doucouré [5.0], Daichi Kamada [5.0], Dwight McNeil [5.5], Ismaïla Sarr [6.5], Jefferson Lerma Solís [5.0], Jesurun Rak-Sakyi [5.0], Joél Drakes-Thomas [4.5], Justin Devenny [5.0], Matheus França de Oliveira [5.0], Romain Esse [5.0], Will Hughes [4.5], Yéremy Pino Santos [5.5]
+Forwards: Christantus Uche [5.0], Eddie Nketiah [5.5], Jean-Philippe Mateta [6.5], Jørgen Strand Larsen [6.0]
 
-Everton (final)
-Goalkeepers: Jordan Pickford [5.6], Mark Travers [4.2], Harry Tyrer [3.9], Tom King [3.9]
-Defenders: Jarrad Branthwaite [5.3], James Tarkowski [5.8], Vitalii Mykolenko [4.9], Jake O'Brien [4.9], Séamus Coleman [4.2], Michael Keane [4.5], Nathan Patterson [4.4], Roman Dixon [3.8], Reece Welch [3.8], Adam Aznou [4.2], Elijah Campbell [3.9]
-Midfielders: Kiernan Dewsbury-Hall [5.3], Tyrique George [4.8], Iliman Ndiaye [6.3], Dwight McNeil [5.5], Carlos Alcaraz Durán [5.2], Idrissa Gana Gueye [5.4], James Garner [5.2], Tim Iroegbunam [4.8], Harrison Armstrong [4.5], Callum Bates [4.3], Coby Ebere [4.4], Isaac Heath [4.5], Jenson Metcalfe [4.5], Jack Grealish [6.3], Tyler Onyango [4.5], Tyler Dibling [5.3], Merlin Röhl [5.0]
-Forwards: Thierno Barry [5.7], Norberto Bercique Gomes Betuncal [5.1], Youssef Ramalho Chermiti [4.9], Martin Sherif [4.4], Braiden Graham [4.5]
+Everton (fpl)
+Goalkeepers: Jordan Pickford [5.5], Mark Travers [5.0], Tom King [4.5]
+Defenders: Adam Aznou [4.0], Jake O'Brien [5.0], James Tarkowski [6.0], Jarrad Branthwaite [5.5], Michael Keane [5.0], Nathan Patterson [4.5], Vitalii Mykolenko [4.5]
+Midfielders: Brennan Johnson [6.0], Carlos Alcaraz Durán [5.0], Christian Nørgaard [5.0], Harrison Armstrong [5.0], Hayden Hackney [5.5], Iliman Ndiaye [6.0], James Garner [6.0], Kiernan Dewsbury-Hall [6.5], Merlin Röhl [5.0], Tim Iroegbunam [5.0], Tyler Dibling [5.5], Tyrique George [5.5]
+Forwards: Norberto Bercique Gomes Betuncal [5.5], Thierno Barry [5.5]
 
-Fulham (final)
-Goalkeepers: Bernd Leno [5.0], Steven Benda [4.0], Benjamin Lecomte [3.9], Alfie McNally [4.0]
-Defenders: Antonee Robinson [4.9], Joachim Andersen [4.4], Calvin Bassey [4.4], Timothy Castagne [4.3], Issa Diop [4.3], Jorge Cuenca Barreno [4.3], Kenny Tete [4.5], Samuel Amissah [3.8]
-Midfielders: Alex Iwobi [6.1], Emile Smith Rowe [5.6], Andreas Hoelgebaum Pereira [5.3], Ryan Sessegnon [5.4], Harry Wilson [5.9], Sander Berge [4.9], Tom Cairney [4.8], Saša Lukić [4.9], Martial Godo [4.5], Luke Harris [4.5], Josh King [4.4], Harrison Reed [4.3], Oscar Bobb [5.1], Samuel Chukwueze [5.3], Kevin Santos Lopes de Macedo [5.7], Seth Ridgeon [4.5]
-Forwards: Raúl Jiménez Rodríguez [6.0], Rodrigo Muniz Carvalho [5.3], Jonah Kusi-Asare [4.5]
+Fulham (fpl)
+Goalkeepers: Alfie McNally [4.0], Benjamin Lecomte [4.0], Bernd Leno [4.5]
+Defenders: Antonee Robinson [4.5], Calvin Bassey [4.5], Joachim Andersen [5.0], Jorge Cuenca Barreno [4.5], Kenny Tete [4.5], Ryan Sessegnon [4.5], Timothy Castagne [4.5]
+Midfielders: Alex Iwobi [5.5], César Palacios [5.5], Emile Smith Rowe [5.5], Harrison Reed [4.5], Josh King [5.5], Kevin Santos Lopes de Macedo [5.5], Oscar Bobb [5.5], Sander Berge [5.0], Shea Charles [5.0], Tom Cairney [5.0]
+Forwards: Gonzalo García [6.0], Jonah Kusi-Asare [4.5], Rodrigo Muniz Carvalho [5.5]
 
-Leeds (final)
-Goalkeepers: Illan Meslier [4.1], Alex Cairns [3.9], Karl Darlow [4.0], Lucas Estella Perri [4.4]
-Defenders: Jayden Bogle [4.4], Pascal Struijk [4.2], Jaka Bijol [3.9], Sebastiaan Bornauw [3.8], Sam Byram [3.7], Gabriel Gudmundsson [3.8], Joe Rodon [3.9], Isaac Schmidt [4.0], James Justin [4.0], Jayden Lienou [4.0]
-Midfielders: Facundo Buonanotte [4.6], Brenden Aaronson [5.4], Wilfried Gnonto [5.1], Jack Harrison [5.1], Daniel James [5.2], Ethan Ampadu [4.9], Sam Greenwood [4.9], Ilia Gruev [4.7], Largie Ramazani [4.9], Tanaka Ao [4.8], Charlie Crew [4.5], Joe Gelhardt [4.5], Darko Gyabi [4.5], Sean Longstaff [4.8], Anton Stach [4.8], Noah Okafor [5.5], Sam Chambers [4.4], Rhys Chadwick [4.5], Alfie Cresswell [4.5]
-Forwards: Joël Piroe [4.9], Patrick Bamford [4.9], Mateo Joseph Fernández-Regatillo [5.0], Lukas Nmecha [5.0], Dominic Calvert-Lewin [5.8], Harry Gray [4.5]
+Hull City (fpl)
+Goalkeepers: Dillon Phillips [4.0], Harvey Cartwright [4.0], Jack Butland [4.5], Konstantinos Tzolakis [4.5], Thimothée Lo-Tutala [4.0]
+Defenders: Cathal McCarthy [4.0], Charlie Hughes [4.0], Cody Drameh [4.0], John Egan [4.0], Lewie Coyle [4.0], Matt Targett [4.0], Matty Jacob [4.0], Paddy McNair [4.0], Ryan Giles [4.0], Semi Ajayi [4.0]
+Midfielders: Abdülkadir Ömür [5.0], Abu Kamara [5.0], Darko Gyabi [4.5], David Akintola [5.0], Eliot Matazo [4.5], Elliot Stroud [5.0], Hidemasa Morita [5.0], Jens Hjertø-Dahl [5.0], Kieran Dowell [4.5], Liam Millar [5.0], Matt Crooks [4.5], Mohamed Belloumi [5.0], Óscar Zambrano [4.5], Regan Slater [4.5]
+Forwards: Enis Destan [4.5], Mason Burstow [4.5], Oli McBurnie [5.5]
 
-Liverpool (final)
-Goalkeepers: Alisson Becker [5.4], Giorgi Mamardashvili [4.1], Ármin Pécsi [3.8], Freddie Woodman [3.9]
-Defenders: Jeremie Frimpong [5.7], Milos Kerkez [5.6], Andrew Robertson [5.7], Virgil van Dijk [6.0], Ibrahima Konaté [5.4], Conor Bradley [4.9], Joe Gomez [4.9], Konstantinos Tsimikas [4.8], Amara Nallo [3.7], Rhys Williams [3.7], Calvin Ramsay [3.7], Giovanni Leoni [4.9], Wellity Lucky [4.0], Talla Ndiaye [4.0]
-Midfielders: Mohamed Salah [14.0], Florian Wirtz [8.3], Luis Díaz Marulanda [8.0], Cody Gakpo [7.3], Federico Chiesa [6.3], Alexis Mac Allister [6.1], Dominik Szoboszlai [7.0], Curtis Jones [5.4], Ryan Gravenberch [5.4], Endo Wataru [4.9], Stefan Bajčetić Maquieira [4.2], James McConnell [4.4], Tyler Morton [4.5], Trey Nyoni [4.3], Rio Ngumoha [4.3], Kieran Morrison [4.5]
-Forwards: Darwin Núñez Ribeiro [6.5], Jayden Danns [4.3], Alexander Isak [10.3], Hugo Ekitiké [9.0], Will Wright [4.5]
+Ipswich Town (fpl)
+Goalkeepers: Alex Palmer [4.0], Christian Walton [4.5], David Button [4.0], Kayne van Oevelen [4.5], Kjell Scherpen [4.5]
+Defenders: Ben Johnson [4.0], Cédric Kipré [4.0], Dara O'Shea [4.0], Darnell Furlong [4.0], Issa Diop [4.0], Jacob Greaves [4.0], Leif Davis [4.0]
+Midfielders: Abdul Fatawu [5.5], Anis Mehmeti [5.0], Azor Matusiwa [5.0], Chiedozie Ogbene [5.0], Daizen Maeda [5.5], Florentino Ibrain Morris Luís [5.0], Jack Clarke [5.5], Jack Taylor [4.5], Jaden Philogene [5.5], Kasey McAteer [4.5], Marcelino Núñez [5.0], Sam Szmodics [5.0], Saša Lukić [5.0], Wes Burns [5.0]
+Forwards: Ali Al-Hamadi [5.0], Chuba Akpom [5.0], Emersonn Correia da Silva [5.5], George Hirst [5.0], Sindre Walle Egeli [4.5]
 
-Man City (final)
-Goalkeepers: James Trafford [4.5], Ederson Santana de Moraes [5.3], Marcus Bettinelli [3.8], Gianluigi Donnarumma [5.6]
-Defenders: Marc Guéhi [5.1], Rayan Aït-Nouri [5.7], Joško Gvardiol [5.8], Manuel Akanji [5.4], Nathan Aké [5.2], Abdukodir Khusanov [5.4], Matheus Nunes [5.3], Rúben dos Santos Gato Alves Dias [5.5], John Stones [5.4], Rico Lewis [4.6], Nico O'Reilly [5.3], Vitor de Oliveira Nunes dos Reis [5.0], Stephen Mfuni [3.9], Max Alleyne [3.9]
-Midfielders: Antoine Semenyo [8.1], Omar Marmoush [8.3], Phil Foden [8.0], Sávio Moreira de Oliveira [6.9], Bernardo Mota Veiga de Carvalho e Silva [6.2], Rayan Cherki [6.6], Jérémy Doku [6.5], İlkay Gündoğan [6.3], Rodrigo 'Rodri' Hernandez Cascante [6.3], Mateo Kovačić [5.8], Nico González Iglesias [5.9], Claudio Echeverri [5.4], Tijjani Reijnders [5.0], Sverre Nypan [5.0], Kalvin Phillips [4.7], Divine Mukasa [4.4], Ryan McAidoo [4.5], Charlie Gray [4.5], Reigan Heskey [4.5]
-Forwards: Erling Haaland [14.7]
+Leeds (fpl)
+Goalkeepers: James Trafford [5.0], Lucas Estella Perri [4.5]
+Defenders: Gabriel Gudmundsson [4.5], Jaka Bijol [5.0], James Justin [4.5], Jayden Bogle [4.5], Joe Rodon [4.5], Sebastiaan Bornauw [4.5], Tarik Muharemović [5.0]
+Midfielders: Anton Stach [6.0], Brenden Aaronson [5.5], Daniel James [5.0], Ethan Ampadu [5.5], Harry Wilson [6.5], Ilia Gruev [5.0], Jack Harrison [5.0], Joe Gelhardt [5.0], Noah Okafor [6.0], Sean Longstaff [5.0], Tanaka Ao [5.0], Wilfried Gnonto [5.0]
+Forwards: Dominic Calvert-Lewin [6.0], Joël Piroe [5.0], Lukas Nmecha [5.5], Mateo Joseph Fernández-Regatillo [4.5]
 
-Man Utd (final)
-Goalkeepers: Altay Bayındır [4.7], André Onana [4.9], Elyh Harrison [4.0], Tom Heaton [3.8], Dermot Mee [3.9], Senne Lammens [5.1]
-Defenders: Matthijs de Ligt [4.9], Lisandro Martínez [4.8], Noussair Mazraoui [4.9], Diego León Blanco [4.1], Diogo Dalot Teixeira [4.5], Patrick Dorgu [4.1], Harry Maguire [4.4], Luke Shaw [4.5], Leny Yoro [4.1], Harry Amass [4.0], Tyler Fredricson [3.7], Ayden Heaven [3.7], Tyrell Malacia [3.7], Godwill Kukonki [4.0]
-Midfielders: Bryan Mbeumo [8.3], Bruno Borges Fernandes [10.4], Matheus Santos Carneiro da Cunha [8.1], Marcus Rashford [7.0], Amad Diallo [6.2], Antony dos Santos [5.9], Mason Mount [5.9], Carlos Henrique Casimiro [5.9], Kobbie Mainoo [4.7], Manuel Ugarte Ribeiro [4.7], Toby Collyer [4.5], Jayce Fitzgerald [4.3], Jack Fletcher [4.3], Sékou Koné [4.3], Jack Moorhouse [4.5], Shea Lacey [4.5], Bendito Mantato [4.5], Tyler Fletcher [4.4], Jim Thwaites [4.5]
-Forwards: Rasmus Højlund [6.3], Joshua Zirkzee [5.8], Chido Obi [4.2], Ethan Wheatley [4.5], Benjamin Sesko [7.2]
+Liverpool (fpl)
+Goalkeepers: Alisson Becker [5.5], Armin Pecsi [4.0], Freddie Woodman [4.0], Giorgi Mamardashvili [5.0], Harvey Davies [4.0], Vitezslav Jaros [4.0]
+Defenders: Calvin Ramsay [4.0], Conor Bradley [5.0], Giovanni Leoni [4.0], Jeremie Frimpong [5.5], Jeremy Jacquet [5.0], Joe Gomez [5.0], Kostas Tsimikas [5.0], Milos Kerkez [5.5], Ronald Araujo [5.5], Virgil van Dijk [6.5], Wellity Lucky [4.0]
+Midfielders: Alexis Mac Allister [5.5], Cody Gakpo [7.0], Curtis Jones [5.5], Dominik Szoboszlai [7.0], Endo Wataru [5.0], Federico Chiesa [5.5], Florian Wirtz [7.5], Harvey Elliott [5.5], James McConnell [4.5], Lewis Koumas [5.0], Rio Ngumoha [6.0], Ryan Gravenberch [6.0], Stefan Bajčetić Maquieira [5.0], Trey Nyoni [5.0], Victor Munoz [6.5]
+Forwards: Alexander Isak [9.0], Hugo Ekitiké [7.5], Jayden Danns [4.5]
 
-Newcastle (final)
-Goalkeepers: Nick Pope [5.0], Mark Gillespie [3.9], Odysseas Vlachodimos [4.0], Aaron Ramsdale [4.8], John Ruddy [4.0]
-Defenders: Lewis Hall [5.3], Fabian Schär [5.2], Sven Botman [4.9], Dan Burn [5.0], Tino Livramento [4.9], Kieran Trippier [4.9], Emil Krafth [4.3], Jamaal Lascelles [4.3], Alex Murphy [3.8], Harrison Ashby [3.9], Miodrag Pivaš [3.8], Matt Targett [4.0], Malick Thiaw [4.9], Leo Shahar [4.0]
-Midfielders: Jacob Ramsey [5.3], Anthony Gordon [7.3], Anthony Elanga [6.5], Harvey Barnes [6.1], Bruno Guimarães Rodriguez Moura [6.9], Jacob Murphy [5.9], Joelinton Cássio Apolinário de Lira [5.9], Sandro Tonali [5.3], Antoñito Cordero Campillo [4.9], Joe Willock [5.0], Isaac Hayden [4.5], Garang Kuol [4.4], Lewis Miley [4.4], Joe White [4.5], Seung-Soo Park [4.3], Sam Alabi [4.5]
-Forwards: Yoane Wissa [7.3], William Osula [5.5], Sean Neave [4.3], Nick Woltemade [6.7]
+Man City (fpl)
+Goalkeepers: Gianluigi Donnarumma [5.5], Marcus Bettinelli [4.5]
+Defenders: Abdukodir Khusanov [5.5], Joško Gvardiol [5.5], Marc Guéhi [6.0], Matheus Nunes [6.0], Max Alleyne [5.0], Nico O'Reilly [6.5], Rayan Aït-Nouri [5.5], Rico Lewis [4.5], Rúben dos Santos Gato Alves Dias [5.5], Vitor de Oliveira Nunes dos Reis [4.5]
+Midfielders: Antoine Semenyo [8.5], Claudio Echeverri [5.0], Divine Mukasa [4.5], Elliot Anderson [6.5], Jack Grealish [6.5], Jérémy Doku [7.5], Jeremy Monga [5.0], Kalvin Phillips [5.0], Mateo Kovačić [5.5], Nico González Iglesias [5.5], Phil Foden [7.0], Rayan Cherki [7.5], Rodrigo 'Rodri' Hernandez Cascante [6.5], Sávio Moreira de Oliveira [6.5], Tijjani Reijnders [6.0]
+Forwards: Erling Haaland [15.5], Omar Marmoush [7.0]
 
-Nott'm Forest (final)
-Goalkeepers: Stefan Ortega Moreno [4.7], Matz Sels [4.6], Carlos Miguel dos Santos Pereira [4.0], Matt Turner [4.0], Angus Gunn [4.0], John Victor Maciel Furtado [4.0]
-Defenders: Oleksandr Zinchenko [4.9], Nikola Milenković [5.1], Murillo Costa dos Santos [5.2], Ola Aina [4.7], Neco Williams [4.8], David Mota Veiga Teixeira do Carmo [4.5], Jair Paula da Cunha Filho [4.2], Felipe Rodrigues da Silva [4.3], Omar Richards [4.5], Zach Abbott [3.8], Willy Boly [3.8], Nicolò Savona [4.5], Luis Eduardo Soares da Silva [4.5], Luca Netz [4.5]
-Midfielders: James McAtee [5.0], Morgan Gibbs-White [7.5], Callum Hudson-Odoi [5.7], Elliot Anderson [5.6], João Pedro Ferreira da Silva [5.4], Nicolás Domínguez [5.0], Lewis O'Brien [5.0], Ibrahim Sangaré [4.9], Ryan Yates [4.7], Eric da Silva Moreira [4.5], Marko Stamenić [4.5], Dan Ndoye [5.5], Omari Hutchinson [5.4], Dilane Bakwa [5.9], Archie Whitehall [4.5], Jimmy Sinclair [4.5]
-Forwards: Chris Wood [7.1], Igor Jesus Maciel da Cruz [5.9], Taiwo Awoniyi [5.2], Arnaud Kalimuendo [6.0], Lorenzo Lucca [5.3]
+Man Utd (fpl)
+Goalkeepers: Altay Bayındır [4.5], Karl Darlow [4.5], Senne Lammens [5.0], Tom Heaton [4.0]
+Defenders: Ayden Heaven [4.5], Diogo Dalot Teixeira [5.0], Harry Amass [4.0], Harry Maguire [5.0], Leny Yoro [5.0], Lisandro Martínez [5.0], Luke Shaw [4.5], Matthijs de Ligt [5.0], Noussair Mazraoui [4.5], Tyler Fredricson [4.0]
+Midfielders: Amad Diallo [6.0], Andrey Nascimento dos Santos [5.0], Bendito Mantato [4.5], Bruno Borges Fernandes [12.0], Bryan Mbeumo [8.0], Jack Fletcher [5.0], Kobbie Mainoo [5.5], Manuel Ugarte Ribeiro [5.0], Marcus Rashford [7.0], Mason Mount [5.5], Matheus Santos Carneiro da Cunha [8.0], Patrick Dorgu [6.0], Shea Lacey [5.0], Toby Collyer [5.0], Tyler Fletcher [4.5], Youri Tielemans [6.0]
+Forwards: Benjamin Sesko [7.0], Chido Obi [4.5], Joshua Zirkzee [5.5]
 
-Spurs (final)
-Goalkeepers: Guglielmo Vicario [4.7], Brandon Austin [3.9], Antonín Kinský [3.9]
-Defenders: Pedro Porro Sauceda [5.2], Cristian Romero [5.0], Kevin Danso [4.2], Ben Davies [4.3], Radu Drăgușin [4.5], Djed Spence [4.1], Destiny Udogie [4.3], Micky van de Ven [4.4], Ashley Phillips [4.0], Takai Kōta [4.0], Luka Vušković [3.9], Jun'ai Byfield [4.0], James Rowswell [4.0], João Victor de Souza Menezes [4.0]
-Midfielders: Son Heung-min [8.5], James Maddison [6.8], Mohammed Kudus [6.4], Dejan Kulusevski [6.4], Mathys Tel [6.2], Rodrigo Bentancur [5.2], Lucas Bergvall [5.2], Yves Bissouma [5.2], Wilson Odobert [5.3], Manor Solomon [5.4], Bryan Gil Salvatierra [4.9], Archie Gray [4.8], Mikey Moore [5.0], Pape Matar Sarr [4.5], Yang Min-hyeok [4.5], Callum Olusesi [4.3], João Maria Lobo Alves Palhares Costa Palhinha Gonçalves [5.5], Xavi Simons [6.4], Yusuf Akhamrich [4.5], Lucá Williams-Barnett [4.5], Conor Gallagher [5.0], Rio Kyerematen [4.5]
-Forwards: Dominic Solanke-Mitchell [7.1], Richarlison de Andrade [6.4], Will Lankshear [4.5], Dane Scarlett [4.3], Randal Kolo Muani [6.9], James Wilson [4.5]
+Newcastle (fpl)
+Goalkeepers: Ewen Jaouen [4.5], Lukás Hornícek [5.0], Mark Gillespie [4.5], Nick Pope [5.0]
+Defenders: Alex Murphy [4.0], Dan Burn [5.0], Fabian Schär [5.0], Lewis Hall [5.0], Malick Thiaw [5.0], Sven Botman [5.0], Tino Livramento [5.0]
+Midfielders: Aladji Bamba [5.0], Anthony Elanga [6.0], Bazoumana Touré [6.0], Harvey Barnes [6.0], Jacob Murphy [6.0], Jacob Ramsey [5.0], Joe Willock [5.0], Joelinton Cássio Apolinário de Lira [5.5], Lewis Miley [5.5], Sean Steur [5.0]
+Forwards: Nick Woltemade [6.0], Sean Neave [4.5], William Osula [6.0], Yoane Wissa [6.0]
 
-Sunderland (final)
-Goalkeepers: Anthony Patterson [4.2], Simon Moore [3.9], Blondy Nna Noukeu [3.9], Robin Roefs [4.8], Melker Ellborg [4.0]
-Defenders: Daniel Ballard [4.6], Trai Hume [4.5], Aji Alese [4.0], Joe Anderson [3.8], Dennis Cirkin [4.0], Leo Fuhr Hjelde [4.0], Niall Huggins [4.0], Zak Johnson [3.8], Luke O'Nien [4.0], Timothée Pembélé [3.9], Reinildo Mandava [3.8], Jenson Seelt [4.0], Arthur Masuaku [3.9], Omar Alderete [4.1], Nordi Mukiele [4.6], Lutsharel Geertruida [4.5], Jenson Jones [4.0]
-Midfielders: Simon Adingra [4.9], Habib Diarra [5.3], Patrick Roberts [5.4], Milan Aleksić [4.9], Enzo Le Fée [4.8], Romaine Mundle [4.9], Dan Neil [4.8], Ian Poveda-Ocampo [4.7], Chris Rigg [4.7], Noah Sadiki [4.9], Chemsdine Talbi [4.9], Abdoullah Ba [4.3], Alan Browne [4.5], Pierre Ekwah Elimby [4.5], Harrison Jones [4.3], Jay Matete [4.3], Nectarios Triantis [4.4], Granit Xhaka [5.1], Bertrand Traoré [5.5], Tymur Tutierov [4.5], Djiamgone Jocelin Ta Bi [4.9], Nilson Angulo [5.0], Jack Whittaker [4.5], Jaydon Jones [4.5]
-Forwards: Wilson Isidor [5.0], Eliezer Mayenda Dossou [5.1], Ahmed Abdullahi [4.2], Luís Hemir Silva Semedo [4.4], Nazarii Rusyn [4.4], Brian Brobbey [5.3]
+Nott'm Forest (fpl)
+Goalkeepers: John Victor Maciel Furtado [4.5], Matz Sels [5.0]
+Defenders: Felipe Rodrigues da Silva [5.0], Jair Paula da Cunha Filho [4.5], Luca Netz [4.5], Murillo Costa dos Santos [5.5], Neco Williams [5.0], Nicolò Savona [4.5], Nikola Milenković [5.5], Ola Aina [4.5], Omar Richards [4.0], Ousmane Diomande [5.5], Tyler Bindon [4.0], Zach Abbott [4.0]
+Midfielders: Callum Hudson-Odoi [6.0], Dan Ndoye [5.5], Dilane Bakwa [5.5], Ibrahim Sangaré [5.0], James McAtee [5.5], Morgan Gibbs-White [8.0], Nicolás Domínguez [5.0], Omari Hutchinson [5.5], Ryan Yates [4.5], Xaver Schlager [5.0]
+Forwards: Arnaud Kalimuendo [5.5], Chris Wood [6.0], Igor Jesus Maciel da Cruz [6.0], Taiwo Awoniyi [5.5]
 
-West Ham (final)
-Goalkeepers: Alphonse Areola [4.2], Wes Foderingham [4.0], Krisztián Hegyi [3.9], Mads Hermansen [4.2], Lukasz Fabianski [4.5], Finlay Herrick [4.0]
-Defenders: El Hadji Malick Diouf [4.1], Emerson Palmieri dos Santos [4.4], Maximilian Kilman [4.1], Konstantinos Mavropanos [4.5], Nayef Aguerd [4.4], Ollie Scarles [4.3], Jean-Clair Todibo [4.3], Aaron Wan-Bissaka [4.1], Kaelan Casey [4.0], Kyle Walker-Peters [4.2], Ezra Mayers [4.0], Airidas Golambeckis [4.0], Axel Disasi [4.5]
-Midfielders: Adama Traoré Diarra [5.1], Lucas Tolentino Coelho de Lima [5.9], Tomáš Souček [5.7], Crysencio Summerville [5.4], Edson Álvarez Velázquez [4.9], Maxwel Cornet [4.9], Guido Rodríguez [4.8], Luis Guilherme Lira dos Santos [4.9], George Earthy [4.5], Andy Irving [4.3], Lewis Orford [4.4], Freddie Potts [4.3], Mateus Gonçalo Espanha Fernandes [5.5], Soungoutou Magassa [5.0], Mohamadou Kanté [4.5], Keiber Lamadrid [5.0]
-Forwards: Jarrod Bowen [7.7], Niclas Füllkrug [5.6], Callum Marshall [4.3], Callum Wilson [5.8], Pablo Felipe Pereira de Jesus [5.4], Valentín Castellanos [5.5]
+Spurs (fpl)
+Goalkeepers: Antonín Kinský [4.5], Brandon Austin [4.0], Guglielmo Vicario [4.5], Martin Dubravka [4.0]
+Defenders: Andrew Robertson [4.5], Ashley Phillips [4.5], Ben Davies [4.0], Cristian Romero [5.0], Destiny Udogie [4.5], Djed Spence [4.5], James Rowswell [4.0], Jan Paul van Hecke [5.0], João Victor de Souza Menezes [4.0], Jun'ai Byfield [4.0], Kevin Danso [5.0], Marcos Senesi Barón [6.0], Micky van de Ven [5.0], Pedro Porro Sauceda [5.5]
+Midfielders: Archie Gray [5.0], Callum Olusesi [4.5], Conor Gallagher [5.5], Dejan Kulusevski [6.5], James Maddison [6.5], Lucas Bergvall [5.5], Mateus Fernandes [6.0], Mathys Tel [6.0], Mikey Moore [5.0], Mohammed Kudus [6.5], Pape Matar Sarr [5.0], Rodrigo Bentancur [5.5], Sandro Tonali [5.5], Wilson Odobert [5.5], Xavi Simons [6.0]
+Forwards: Dane Scarlett [4.5], Dominic Solanke-Mitchell [6.0], Richarlison de Andrade [6.0]
 
-Wolves (final)
-Goalkeepers: Sam Johnstone [4.4], José Malheiro de Sá [4.2], Daniel Bentley [3.9], Alfie Brooks [4.0], Josh Gracey [4.0]
-Defenders: Emmanuel Agbadou [4.2], Matt Doherty [4.4], Hugo Bueno López [4.3], Yerson Mosquera Valdelamar [4.3], Rodrigo Martins Gomes [4.4], Santiago Ignacio Bueno [4.4], Toti Gomes [4.2], Ki-Jana Hoever [3.8], Bastien Meupiyou Menadjou [4.0], Pedro Cardoso de Lima [4.0], Alfie Pond [3.9], David Møller Wolfe [4.2], Jackson Tchatchoua [4.4], Ladislav Krejcí [4.5], Saheed Olagunju [4.0]
-Midfielders: Hwang Hee-chan [5.6], André Trindade da Costa Neto [5.2], Jean-Ricner Bellegarde [5.1], Fer López González [5.1], João Victor Gomes da Silva [5.3], Gonçalo Manuel Ganchinho Guedes [5.5], Marshall Munetsi [5.3], Boubacar Traoré [5.0], Tawanda Chirewa [4.3], Tom Edozie [4.3], Enso González Medina [4.3], Joe Hodge [4.5], Jhon Arias [4.9], Luke Rawlings [4.5], Temple Ojinnaka [4.5], Ethan Sutherland [4.5], Jerome Abbey [4.5], Angel Gomes [4.6]
-Forwards: Fábio Soares Silva [4.9], Saša Kalajdžić [4.9], Leon Chiwome [4.4], Nathan Fraser [4.2], Tolu Arokodare [5.1], Mateus Mané [4.2], Adam Armstrong [5.1]
+Sunderland (fpl)
+Goalkeepers: Anthony Patterson [4.0], Melker Ellborg [4.5], Robin Roefs [5.0]
+Defenders: Arthur Masuaku [4.0], Daniel Ballard [5.0], Jenson Seelt [4.5], Leo Fuhr Hjelde [4.0], Luke O'Nien [4.0], Nordi Mukiele [5.5], Omar Alderete [5.0], Reinildo Mandava [4.5], Thomas Meunier [4.5], Trai Hume [4.5]
+Midfielders: Chemsdine Talbi [5.5], Chris Rigg [5.0], Djiamgone Jocelin Ta Bi [5.0], Enzo Le Fée [6.0], Granit Xhaka [5.5], Habib Diarra [5.5], Nilson Angulo [5.0], Noah Sadiki [5.0], Romaine Mundle [5.0], Simon Adingra [5.0]
+Forwards: Brian Brobbey [6.0], Wilson Isidor [5.5]

@@ -5,8 +5,8 @@ export type FixtureGame = {
   date: string
 }
 
-export type FixtureMatchday = {
-  matchday: number
+export type FixtureGameweek = {
+  Gameweek: number
   games: FixtureGame[]
 }
 
@@ -30,14 +30,14 @@ export type WCFixtureGame = {
   }>
 }
 
-export type WCFixtureMatchday = {
-  matchday: number
+export type WCFixtureGameweek = {
+  Gameweek: number
   round: string
   games: WCFixtureGame[]
 }
 
 export type FixtureResult = {
-  matchday: number
+  Gameweek: number
   match: string
   time: string
   country?: FixtureGame['country']
@@ -47,17 +47,17 @@ export type FixtureResult = {
 }
 
 type FixturesApiResponse = {
-  matchdays: FixtureMatchday[]
+  Gameweeks: FixtureGameweek[]
 }
 
 type FixtureResultsApiResponse = {
   results: FixtureResult[]
 }
 
-let fixtureMatchdaysPromise: Promise<FixtureMatchday[]> | null = null
+let fixtureGameweeksPromise: Promise<FixtureGameweek[]> | null = null
 let fixtureResultsPromise: Promise<FixtureResult[]> | null = null
 
-let wcFixtureMatchdaysPromise: Promise<WCFixtureMatchday[]> | null = null
+let wcFixtureGameweeksPromise: Promise<WCFixtureGameweek[]> | null = null
 
 function isFixtureCountry(value: unknown): value is FixtureGame['country'] {
   return value === 'Mexico' || value === 'USA' || value === 'Canada'
@@ -111,27 +111,27 @@ function isWCFixtureGame(value: unknown): value is WCFixtureGame {
   )
 }
 
-function isWCFixtureMatchday(value: unknown): value is WCFixtureMatchday {
+function isWCFixtureGameweek(value: unknown): value is WCFixtureGameweek {
   if (!value || typeof value !== 'object') return false
   const m = value as Record<string, unknown>
   return (
-    (typeof m.matchday === 'undefined' || typeof m.matchday === 'number') &&
+    (typeof m.Gameweek === 'undefined' || typeof m.Gameweek === 'number') &&
     typeof m.round === 'string' &&
     Array.isArray(m.games) &&
     m.games.every(isWCFixtureGame)
   )
 }
 
-function isFixtureMatchday(value: unknown): value is FixtureMatchday {
+function isFixtureGameweek(value: unknown): value is FixtureGameweek {
   if (!value || typeof value !== 'object') {
     return false
   }
 
-  const matchday = value as Record<string, unknown>
+  const Gameweek = value as Record<string, unknown>
   return (
-    typeof matchday.matchday === 'number' &&
-    Array.isArray(matchday.games) &&
-    matchday.games.every(isFixtureGame)
+    typeof Gameweek.Gameweek === 'number' &&
+    Array.isArray(Gameweek.games) &&
+    Gameweek.games.every(isFixtureGame)
   )
 }
 
@@ -142,7 +142,7 @@ function isFixtureResult(value: unknown): value is FixtureResult {
 
   const result = value as Record<string, unknown>
   return (
-    typeof result.matchday === 'number' &&
+    typeof result.Gameweek === 'number' &&
     typeof result.match === 'string' &&
     typeof result.time === 'string' &&
     typeof result.date === 'string' &&
@@ -152,28 +152,28 @@ function isFixtureResult(value: unknown): value is FixtureResult {
   )
 }
 
-export async function getFixtureMatchdays(): Promise<FixtureMatchday[]> {
-  if (!fixtureMatchdaysPromise) {
-    fixtureMatchdaysPromise = fetch('/api/fixtures')
+export async function getFixtureGameweeks(): Promise<FixtureGameweek[]> {
+  if (!fixtureGameweeksPromise) {
+    fixtureGameweeksPromise = fetch('/api/fixtures')
       .then(async (response) => {
         if (!response.ok) {
           throw new Error('Failed to load fixtures.')
         }
 
         const payload = (await response.json()) as FixturesApiResponse
-        if (!Array.isArray(payload.matchdays) || !payload.matchdays.every(isFixtureMatchday)) {
+        if (!Array.isArray(payload.Gameweeks) || !payload.Gameweeks.every(isFixtureGameweek)) {
           throw new Error('Fixture payload is invalid.')
         }
 
-        return payload.matchdays
+        return payload.Gameweeks
       })
       .catch((error: unknown) => {
-        fixtureMatchdaysPromise = null
+        fixtureGameweeksPromise = null
         throw error
       })
   }
 
-  return fixtureMatchdaysPromise
+  return fixtureGameweeksPromise
 }
 
 export async function getFixtureResults(): Promise<FixtureResult[]> {
@@ -200,33 +200,33 @@ export async function getFixtureResults(): Promise<FixtureResult[]> {
   return fixtureResultsPromise
 }
 
-export async function getWCFixtureMatchdays(): Promise<WCFixtureMatchday[]> {
-  if (!wcFixtureMatchdaysPromise) {
-    wcFixtureMatchdaysPromise = fetch('/api/wc-fixtures')
+export async function getWCFixtureGameweeks(): Promise<WCFixtureGameweek[]> {
+  if (!wcFixtureGameweeksPromise) {
+    wcFixtureGameweeksPromise = fetch('/api/wc-fixtures')
       .then(async (response) => {
         if (!response.ok) {
           throw new Error('Failed to load WC fixtures.')
         }
 
-        const payload = (await response.json()) as { matchdays: unknown[] }
-        if (!Array.isArray(payload.matchdays) || !payload.matchdays.every(isWCFixtureMatchday)) {
+        const payload = (await response.json()) as { Gameweeks: unknown[] }
+        if (!Array.isArray(payload.Gameweeks) || !payload.Gameweeks.every(isWCFixtureGameweek)) {
           throw new Error('WC fixture payload is invalid.')
         }
 
-        return payload.matchdays.map((entry, index) => {
+        return payload.Gameweeks.map((entry, index) => {
           const candidate = entry as Record<string, unknown>
-          const parsedMatchday = Number.parseInt(String(candidate.matchday ?? ''), 10)
+          const parsedGameweek = Number.parseInt(String(candidate.Gameweek ?? ''), 10)
           return {
-            ...(entry as WCFixtureMatchday),
-            matchday: Number.isFinite(parsedMatchday) ? parsedMatchday : index + 1,
+            ...(entry as WCFixtureGameweek),
+            Gameweek: Number.isFinite(parsedGameweek) ? parsedGameweek : index + 1,
           }
         })
       })
       .catch((error: unknown) => {
-        wcFixtureMatchdaysPromise = null
+        wcFixtureGameweeksPromise = null
         throw error
       })
   }
 
-  return wcFixtureMatchdaysPromise
+  return wcFixtureGameweeksPromise
 }

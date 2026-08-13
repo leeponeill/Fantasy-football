@@ -3,7 +3,7 @@ export type TransferPointEventDirection = 'in' | 'out'
 export type TransferPointEvent = {
   playerKey: string
   direction: TransferPointEventDirection
-  matchday: number
+  Gameweek: number
   at: string
   points: number
 }
@@ -17,24 +17,24 @@ export function recordTransferPointEvent(
   events: TransferPointEvent[],
   playerKey: string,
   direction: TransferPointEventDirection,
-  matchday: number,
+  Gameweek: number,
   getCurrentPointsByKey: (playerKey: string) => number,
 ): TransferPointEvent[] {
   const nextEvent: TransferPointEvent = {
     playerKey,
     direction,
-    matchday,
+    Gameweek,
     at: new Date().toISOString(),
     points: getCurrentPointsByKey(playerKey),
   }
 
   const nextEvents = [...events, nextEvent]
-  return pruneTransferPointEvents(nextEvents, matchday)
+  return pruneTransferPointEvents(nextEvents, Gameweek)
 }
 
-export function pruneTransferPointEvents(events: TransferPointEvent[], currentMatchday: number): TransferPointEvent[] {
-  const minMatchdayToKeep = Math.max(0, currentMatchday - 1)
-  return events.filter((event) => Number.isFinite(event.matchday) && event.matchday >= minMatchdayToKeep)
+export function pruneTransferPointEvents(events: TransferPointEvent[], currentGameweek: number): TransferPointEvent[] {
+  const minGameweekToKeep = Math.max(0, currentGameweek - 1)
+  return events.filter((event) => Number.isFinite(event.Gameweek) && event.Gameweek >= minGameweekToKeep)
 }
 
 export function parseTransferPointEvents(value: unknown): TransferPointEvent[] {
@@ -52,7 +52,7 @@ export function parseTransferPointEvents(value: unknown): TransferPointEvent[] {
       return (
         typeof candidate.playerKey === 'string' &&
         (candidate.direction === 'in' || candidate.direction === 'out') &&
-        typeof candidate.matchday === 'number' &&
+        typeof candidate.Gameweek === 'number' &&
         typeof candidate.at === 'string' &&
         typeof candidate.points === 'number'
       )
@@ -60,7 +60,7 @@ export function parseTransferPointEvents(value: unknown): TransferPointEvent[] {
     .map((event) => ({
       playerKey: event.playerKey,
       direction: event.direction,
-      matchday: event.matchday,
+      Gameweek: event.Gameweek,
       at: event.at,
       points: event.points,
     }))
@@ -68,16 +68,16 @@ export function parseTransferPointEvents(value: unknown): TransferPointEvent[] {
   return parsed
 }
 
-function getPlayerCurrentMatchdayPoints(
+function getPlayerCurrentGameweekPoints(
   playerKey: string,
   currentlyOwnedKeys: Set<string>,
-  currentMatchday: number,
+  currentGameweek: number,
   events: TransferPointEvent[],
   getCurrentPointsByKey: (playerKey: string) => number,
 ): number {
   const currentPoints = getCurrentPointsByKey(playerKey)
   const playerEvents = events
-    .filter((event) => event.matchday === currentMatchday && event.playerKey === playerKey)
+    .filter((event) => event.Gameweek === currentGameweek && event.playerKey === playerKey)
     .sort((a, b) => {
       const timestampDelta = toTimestamp(a.at) - toTimestamp(b.at)
       if (timestampDelta !== 0) {
@@ -118,9 +118,9 @@ function getPlayerCurrentMatchdayPoints(
   return earned
 }
 
-export function getTransferAwareMatchdayPoints(
+export function getTransferAwareGameweekPoints(
   selectedPlayerKeys: string[],
-  currentMatchday: number,
+  currentGameweek: number,
   events: TransferPointEvent[],
   getCurrentPointsByKey: (playerKey: string) => number,
 ): number {
@@ -128,14 +128,14 @@ export function getTransferAwareMatchdayPoints(
   const relevantPlayerKeys = new Set<string>(selectedPlayerKeys)
 
   for (const event of events) {
-    if (event.matchday === currentMatchday) {
+    if (event.Gameweek === currentGameweek) {
       relevantPlayerKeys.add(event.playerKey)
     }
   }
 
   let points = 0
   for (const playerKey of relevantPlayerKeys) {
-    points += getPlayerCurrentMatchdayPoints(playerKey, currentlyOwnedKeys, currentMatchday, events, getCurrentPointsByKey)
+    points += getPlayerCurrentGameweekPoints(playerKey, currentlyOwnedKeys, currentGameweek, events, getCurrentPointsByKey)
   }
 
   return points
@@ -144,9 +144,9 @@ export function getTransferAwareMatchdayPoints(
 export function getTransferAwarePlayerCurrentPoints(
   playerKey: string,
   selectedPlayerKeys: string[],
-  currentMatchday: number,
+  currentGameweek: number,
   events: TransferPointEvent[],
   getCurrentPointsByKey: (playerKey: string) => number,
 ): number {
-  return getPlayerCurrentMatchdayPoints(playerKey, new Set(selectedPlayerKeys), currentMatchday, events, getCurrentPointsByKey)
+  return getPlayerCurrentGameweekPoints(playerKey, new Set(selectedPlayerKeys), currentGameweek, events, getCurrentPointsByKey)
 }
